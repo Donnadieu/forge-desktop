@@ -1,0 +1,4 @@
+#!/bin/bash
+# Every commit pushed is authored, committed and signed by the identity in .env.
+cd "$(git rev-parse --show-toplevel)"
+exec tools/check-identity.sh --push

@@ -1,0 +1,80 @@
+name: ci
+# Goal: every check on a pull request is green (or red) within 3 minutes of the push.
+# Three jobs run side by side. Their names are the required checks on main: app, engine, identity.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  app:
+    runs-on: macos-26
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Use the newest Xcode on the runner
+        id: xcode
+        run: |
+          X=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X"
+          swiftc --version
+          echo "key=$ImageOS-$(basename "$X" .app)-$(swiftc --version 2>&1 | head -1 | md5 | cut -c1-8)" >> "$GITHUB_OUTPUT"
+      - name: Apple's framework modules from the last run
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/swift-module-cache
+          key: swift-modules-${{ steps.xcode.outputs.key }}
+      - name: Formatting
+        run: xcrun swift-format lint -r -s -p Sources
+      - name: Forge Desktop's own rules
+        run: python3 tools/lint/forge-lint.py
+      - name: The debt list only shrinks
+        run: tools/lint/check-baseline.sh ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+      - name: Build, selftest, window, guards proven
+        env:
+          FORGE_FAST_BUILD: '1'
+          FORGE_MODULE_CACHE: ${{ runner.temp }}/swift-module-cache
+        run: tools/preflight.sh --ci
+
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: engine/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: engine/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Biome
+        run: pnpm exec biome ci .
+      - name: Layer-boundary tests
+        run: pnpm exec vitest run
+
+  identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Every commit is signed and verified on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
+        run: |
+          case "$RANGE" in 0000000000000000000000000000000000000000..*) RANGE="${RANGE#*..}" ;; esac
+          git cat-file -e "${RANGE%%..*}^{commit}" 2>/dev/null || RANGE="${RANGE#*..}~1..${RANGE#*..}"
+          tools/ci-verified.sh "$RANGE"

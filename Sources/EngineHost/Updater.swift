@@ -85,7 +85,8 @@ final class Updater: ObservableObject {
         Tools.launchDetached("/bin/bash", [script.path])
         staged = rel.version
         // From the command line (`--update-now`) there is no running app: the swap waits for this process to exit.
-        if let app = NSApp, app.isRunning { app.terminate(nil) }
+        // From the run loop, not this @MainActor task: terminate waits for a main-queue reply (see AppDelegate.quitSoon).
+        if let app = NSApp, app.isRunning { RunLoop.main.perform(inModes: [.default, .modalPanel]) { app.terminate(nil) } }
     }
 
     /// The version staged by the last `install()`; the swap happens once this process exits.

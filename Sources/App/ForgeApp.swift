@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // SIGTERM (the installer, the updater, logout) quits the normal way, so agents drain first.
         signal(SIGTERM, SIG_IGN)
         let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-        src.setEventHandler { NSApp.terminate(nil) }
+        src.setEventHandler { AppDelegate.quitSoon() }
         src.resume()
         termSource = src
         Updater.shared.startChecking()
@@ -40,6 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Quits from the run loop, never from inside a main-queue block: `terminate` waits for
+    /// `reply(toApplicationShouldTerminate:)`, which arrives on the main queue, so calling it from a
+    /// main-queue block (a dispatch source, a @MainActor Task) deadlocks and Forge never quits.
+    static func quitSoon() {
+        RunLoop.main.perform(inModes: [.default, .modalPanel]) { NSApp.terminate(nil) }
     }
 
     /// Quitting drains the engine first: running agents get the engine's drain window, then it stops.

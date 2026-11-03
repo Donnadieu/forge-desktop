@@ -119,7 +119,7 @@ enum WindowCheck {
             let line = titles.contains(AppInfo.name) ? "ok \(titles)" : "fail \(titles)"
             try? line.write(toFile: out, atomically: true, encoding: .utf8)
             ProcessInfo.processInfo.endActivity(activity)
-            NSApp.terminate(nil)
+            AppDelegate.quitSoon()
         }
     }
 }

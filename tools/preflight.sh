@@ -38,8 +38,20 @@ rm -f "$OUT"
 "$BIN" --window-check "$OUT" >/dev/null 2>&1 &
 PID=$!
 for _ in $(seq 1 40); do [ -s "$OUT" ] && break; sleep 0.25; done
-kill "$PID" 2>/dev/null
 if grep -q '^ok' "$OUT" 2>/dev/null; then ok "the app opens a window titled Forge"; else bad "no window titled Forge ($(cat "$OUT" 2>/dev/null))" "the main scene is Window(AppInfo.name, ...) in Sources/App/ForgeApp.swift"; fi
+# It must then quit by itself (the check calls the same quit path SIGTERM and the updater use).
+for _ in $(seq 1 40); do kill -0 "$PID" 2>/dev/null || break; sleep 0.25; done
+if kill -0 "$PID" 2>/dev/null; then
+  kill -9 "$PID" 2>/dev/null
+  bad "the app didn't quit by itself" "never call NSApp.terminate from a main-queue block; use AppDelegate.quitSoon()"
+else ok "the app quits by itself"; fi
+# And a running copy quits on SIGTERM (what the installer and logout send).
+"$BIN" --window-check /dev/null >/dev/null 2>&1 &
+PID=$!
+sleep 1
+kill -TERM "$PID" 2>/dev/null
+for _ in $(seq 1 40); do kill -0 "$PID" 2>/dev/null || break; sleep 0.25; done
+if kill -0 "$PID" 2>/dev/null; then kill -9 "$PID" 2>/dev/null; bad "the app ignored SIGTERM" "the SIGTERM handler must quit through AppDelegate.quitSoon()"; else ok "the app quits on SIGTERM"; fi
 rm -f "$OUT"
 if "$BIN" --engine-check; then ok "the engine starts, answers only with its token, is watched and stops"; else bad "engine check failed" "see the ✗ lines above; the engine log is in the scratch folder it names"; fi
 

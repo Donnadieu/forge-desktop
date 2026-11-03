@@ -19,6 +19,9 @@ enum Checks {
         if args.contains("--engine-check") {
             return EngineCheck.run()
         }
+        if let i = args.firstIndex(of: "--apply-setup"), i + 1 < args.count {
+            return SetupApply.run(args[i + 1])
+        }
         if args.contains("--update-now") {
             return SetupProbe.updateNow()
         }

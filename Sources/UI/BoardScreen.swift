@@ -35,6 +35,8 @@ struct BoardScreen: View {
             let restart = model.settingsChanged
             model.settingsChanged = false
             await model.link.connect(restart: restart)
+            // `open -a Forge --args --start`: press Start once the board is up (the same call the button makes).
+            if CommandLine.arguments.contains("--start"), state?.isRunning == false { await model.link.start() }
         }
         .sheet(item: $open) { card in
             CardDetail(model: model, card: state?.cards.first { $0.id == card.id } ?? card) { open = nil }

@@ -84,7 +84,8 @@ final class Updater: ObservableObject {
         guard (try? text.write(to: script, atomically: true, encoding: .utf8)) != nil else { return fail("Forge couldn't stage the update.") }
         Tools.launchDetached("/bin/bash", [script.path])
         staged = rel.version
-        if NSApp.isRunning { NSApp.terminate(nil) }
+        // From the command line (`--update-now`) there is no running app: the swap waits for this process to exit.
+        if let app = NSApp, app.isRunning { app.terminate(nil) }
     }
 
     /// The version staged by the last `install()`; the swap happens once this process exits.

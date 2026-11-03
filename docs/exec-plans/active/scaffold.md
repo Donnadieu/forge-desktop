@@ -38,7 +38,7 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 - [x] 3. Engine host (bundled Node 22.23.4, `EngineHost`, local API + live WebSocket, `--engine-check` in preflight)
 - [x] 4. Lead waits for helpers (`worker/helper-wait.ts`; `test/unit/worker/lead-waits-for-helpers.test.ts` fails on the old runner)
 - [x] 5. Setup 1 and 2 (Linear key into the Keychain, team and project pickers, missing columns created after a yes)
-- [ ] 6. Setup 3 and 4
+- [x] 6. Setup 3 and 4 (gh account, device sign-in, the three signing choices with a test signature, repo picker with the push check; the engine checks signing before every card)
 - [ ] 7. Setup 5
 - [ ] 8. The board
 - [ ] 9. Agent skills

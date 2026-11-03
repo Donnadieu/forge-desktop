@@ -98,8 +98,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
-| src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | unchanged |
-| src/workspace/git-identity.ts | 05deefb0a43a | src/workspace/git-identity.ts | unchanged |
+| src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity |
+| src/workspace/git-identity.ts | 05deefb0a43a | src/workspace/git-identity.ts | SSH signing (`FORGE_GIT_SIGNING_FORMAT=ssh`); `verifyWorkspaceSigning` (a test signature before a card starts; unsigned only when chosen) |
 | src/workspace/inode-pressure.ts | 05deefb0a43a | src/workspace/inode-pressure.ts | unchanged |
 | src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | unchanged |
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |

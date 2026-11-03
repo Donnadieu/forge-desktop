@@ -109,7 +109,8 @@ describe("configureWorkspaceGitIdentity", () => {
 
   it("is applied on every workspace preparation from process.env", async () => {
     for (const [k, v] of Object.entries(IDENTITY_ENV)) vi.stubEnv(k, v);
-    await copyWorkspaceAssets(ws, {});
+    // A made-up key can't sign, so the card must not start: the identity is still written first.
+    await expect(copyWorkspaceAssets(ws, {})).rejects.toThrow(/didn't start this card/);
     expect(localConfig("user.name")).toBe("Test Agent");
     expect(localConfig("user.signingkey")).toBe("TEST-SIGNING-KEY");
   });

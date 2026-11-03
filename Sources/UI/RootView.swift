@@ -9,6 +9,8 @@ struct RootView: View {
             switch model.screen {
             case 0: LinearKeyScreen(model: model)
             case 1: ProjectScreen(model: model)
+            case 2: GitHubScreen(model: model)
+            case 3: RepoScreen(model: model)
             default: NotYetScreen(model: model)
             }
         }

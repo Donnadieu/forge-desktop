@@ -80,8 +80,8 @@ describe("the lead waits for its helpers", () => {
         maxTurns: 1,
         // Both far shorter than the helper's work: the old runner would have
         // stopped the lead (and its helper) long before the helper finished.
-        readTimeoutMs: 300,
-        turnTimeoutMs: 400,
+        readTimeoutMs: 1500,
+        turnTimeoutMs: 2000,
         helperWaitMs: opts.helperWaitMs,
         promptTemplate: "Work on {{ issue.identifier }}",
         trackerConfig: {
@@ -100,8 +100,10 @@ describe("the lead waits for its helpers", () => {
     return { result, events, tracker, helperFinished: existsSync(join(card, "helper-finished")) };
   }
 
-  it("keeps the session alive until the helper reports back, so nothing is killed mid-work", async () => {
-    const { result, events, helperFinished } = await run({ helperMs: 1200, helperWaitMs: 10_000 });
+  it("keeps the session alive until the helper reports back, so nothing is killed mid-work", {
+    timeout: 20_000,
+  }, async () => {
+    const { result, events, helperFinished } = await run({ helperMs: 4000, helperWaitMs: 20_000 });
     expect(helperFinished).toBe(true);
     expect(result.success).toBe(true);
     const kinds = events.map((e) => (e.type === "helper" ? `helper:${e.status}` : e.type));
@@ -112,8 +114,10 @@ describe("the lead waits for its helpers", () => {
     expect(kinds.at(-1)).toBe("done");
   });
 
-  it("stops at the wait limit and leaves a plain note on the card", async () => {
-    const { result, tracker, helperFinished } = await run({ helperMs: 5000, helperWaitMs: 500 });
+  it("stops at the wait limit and leaves a plain note on the card", {
+    timeout: 20_000,
+  }, async () => {
+    const { result, tracker, helperFinished } = await run({ helperMs: 8000, helperWaitMs: 500 });
     expect(result.success).toBe(false);
     expect(helperFinished).toBe(false);
     const notes = await tracker.fetchIssueComments(issue.id);

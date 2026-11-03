@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { configureWorkspaceGitIdentity } from "./git-identity.js";
+import { configureWorkspaceGitIdentity, verifyWorkspaceSigning } from "./git-identity.js";
 
 /**
  * One org-owned skill, reduced to what the workspace layer needs to write it to
@@ -65,6 +65,7 @@ export async function copyWorkspaceAssets(
   if (sources.templatesDir) copyTemplates(workspacePath, sources.templatesDir);
 
   configureWorkspaceGitIdentity(workspacePath);
+  verifyWorkspaceSigning();
 }
 
 /**

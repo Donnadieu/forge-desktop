@@ -20,7 +20,7 @@ Dependencies point one way: **App -> UI -> EngineHost -> Core**. Each area is a 
 | `Sources/App/` | the entry point, the scene, check modes (`--selftest`, `--window-check`) | UI, Core |
 | `Sources/UI/` | SwiftUI views and the app's one model (`AppModel`): setup screens, the board | EngineHost, Core |
 | `Sources/Core/` | plain logic and facts every layer reads; Foundation only | nothing above it |
-| `Sources/EngineHost/` | the only code that starts programs: the engine (`EngineHost`, single-flight start, watch, drain), the person's PATH (`ToolPath`), `--engine-check` | Core |
+| `Sources/EngineHost/` | the only code that starts programs: the engine (`EngineHost`, single-flight start, watch, drain), the person's PATH (`ToolPath`), their tools for setup (`Tools`, `GitHub`, `GitHubSignIn`, `ForgeSigningKey`), `--engine-check`, `--github-check` | Core |
 
 Enforced by `tools/lint/forge-lint.py`: `core-imports` (no SwiftUI/AppKit in Core), `process-area`
 (programs start only from `Sources/EngineHost/`), `no-browser-view`, `file-length` (400).
@@ -76,6 +76,19 @@ they work. Claude Code keeps the session alive, reports each helper's end (`task
 when no helper runs. While the lead waits, the read and turn timeouts pause; one limit applies
 (`agent.helper_wait_ms`, 60 minutes). If it is hit, the run stops and the card gets a plain note.
 Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails on Forge's old runner.
+
+## GitHub and signing
+
+- GitHub: the `gh` sign-in already on the Mac. If `gh` holds several accounts, setup picks one and Forge
+  passes that account's sign-in to `gh`, git and the agents as `GH_TOKEN` in their environment, without
+  switching `gh`'s active account. If `gh` isn't signed in, setup runs GitHub's device sign-in and shows
+  the code in the window.
+- Who signs (setup 3): a key Forge makes (SSH ed25519; private half only in the Keychain, handed to the
+  Mac's ssh-agent before the engine starts; public half in `signing/`; registered on GitHub after a yes),
+  the person's own GPG key, or unsigned after they tick "I understand".
+- The identity reaches each card folder's local git config through `FORGE_GIT_*` (engine
+  `workspace/git-identity.ts`). Before a card starts the engine makes a signed test commit in a scratch
+  repo; if it doesn't come out signed (or unsigned wasn't chosen), the card doesn't start.
 
 ## Local state
 

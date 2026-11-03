@@ -19,6 +19,9 @@ enum Checks {
         if args.contains("--engine-check") {
             return EngineCheck.run()
         }
+        if let i = args.firstIndex(of: "--github-check") {
+            return SetupProbe.github(repo: i + 1 < args.count ? args[i + 1] : nil)
+        }
         if let i = args.firstIndex(of: "--render-screens"), i + 1 < args.count {
             return ScreenRender.run(into: args[i + 1])
         }

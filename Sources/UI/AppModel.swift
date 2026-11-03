@@ -19,6 +19,13 @@ final class AppModel: ObservableObject {
         var teams = [LinearAPI.Team(id: "t1", name: "Engineering", key: "ENG", triageEnabled: false)]
         var projects = [LinearAPI.Project(id: "p1", name: "Forge Desktop test", slugId: "forge-desktop-test")]
         var states = ["Backlog", "Todo", "In Progress", "Done", "Canceled"]
+        var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
+        var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
+        var repos = [
+            GitHub.Repo(fullName: "acme/forge-desktop-e2e", defaultBranch: "main", canPush: true),
+            GitHub.Repo(fullName: "acme/website", defaultBranch: "main", canPush: true),
+            GitHub.Repo(fullName: "someone/library", defaultBranch: "main", canPush: false),
+        ]
     }
 
     init(preview: Bool = false, choices: SetupChoices? = nil, screen: Int? = nil) {
@@ -26,6 +33,7 @@ final class AppModel: ObservableObject {
         let c = choices ?? (preview ? SetupChoices() : SetupChoices.load())
         self.choices = c
         self.screen = screen ?? c.nextScreen
+        if !preview { GitHub.account = c.githubLogin }
     }
 
     static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Board"]

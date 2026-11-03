@@ -117,6 +117,13 @@ def r_keychain_only(path, lines, ctx):
         if re.search(r'UserDefaults', c) and re.search(r'(?i)(key|token|secret|password)"', c):
             yield i, "keeps something secret-looking in UserDefaults"
 
+def r_no_git_config_null(path, lines, ctx):
+    """Never point git's global or system config at /dev/null: it drops the gh credential helper."""
+    if path == "tools/lint/forge-lint.py": return
+    for i, l in enumerate(lines, 1):
+        if re.search(r'GIT_CONFIG_(GLOBAL|SYSTEM)', l) and "/dev/null" in l:
+            yield i, "sets GIT_CONFIG_GLOBAL/SYSTEM to /dev/null"
+
 def r_engine_provenance(path, lines, ctx):
     if not path.startswith("engine/src/"): return
     if path[len("engine/"):] not in ctx["provenance"]:
@@ -156,6 +163,8 @@ RULES = {
                       "Move the call into Sources/EngineHost/ (the code that starts and stops the engine)."),
     "keychain-only": (r_keychain_only, "Secrets live in the Keychain and nowhere else (plan section 2).",
                       "Use Keychain.get/set (Sources/Core/Keychain.swift). Settings that aren't secret go in setup.json."),
+    "no-git-config-null": (r_no_git_config_null, "It drops the gh credential helper, so git asks the macOS keychain and pops a password prompt.",
+                      "Leave git's global config alone; set what you need with `git config --local` in the scratch repo."),
     "banned-name":   (r_banned_name, "This is Forge. The project it was based on is never named, except in NOTICE.",
                       "Remove the name. Credit lives only in NOTICE, which travels with copied code."),
     "hardcoded-identity": (r_hardcoded_identity, "Twelve-factor: names, emails and key IDs come from env or the Keychain.",
@@ -176,6 +185,7 @@ CANARIES = {
     "ui-jargon": ("Sources/UI/Canary.swift", 'let t = Text("Restart the orchestrator")\n'),
     "process-area": ("Sources/UI/Canary.swift", "let p = Process()\n"),
     "keychain-only": ("Sources/UI/Canary.swift", 'func f() { UserDefaults.standard.set("x", forKey: "linearKey") }\n'),
+    "no-git-config-null": ("tools/canary.sh", 'GIT_CONFIG_GLOBAL=/dev/null git status\n'),
     "banned-name": ("docs/canary.md", "Based on " + BANNED_WORD.title() + ".\n"),
     "hardcoded-identity": ("Sources/Core/Canary.swift", '// signed by ' + "0123456789ABCDEF" + '\nlet e = "' + "someone" + "@" + "forjado.ai" + '"\n'),
     "no-secrets": ("Sources/Core/Canary.swift", 'let k = "' + "lin_api_" + "a1B2c3D4" * 5 + '"\n'),

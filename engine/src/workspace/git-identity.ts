@@ -99,7 +99,7 @@ export function verifyWorkspaceSigning(env: NodeJS.ProcessEnv = process.env): vo
       execFileSync("git", args, {
         cwd: dir,
         stdio: "pipe",
-        env: { ...env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0" },
+        env: { ...env, GIT_TERMINAL_PROMPT: "0" },
       }).toString();
     git(["init", "-q"]);
     git(["config", "--local", "user.name", identity.name]);

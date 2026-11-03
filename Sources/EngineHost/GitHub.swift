@@ -121,7 +121,7 @@ enum GitHub {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let format = signing == .forgeKey ? "ssh" : "openpgp"
-        let git = { (a: [String]) in await Tools.run("git", a, cwd: dir, env: ["GIT_CONFIG_GLOBAL": "/dev/null"], timeout: 30) }
+        let git = { (a: [String]) in await Tools.run("git", a, cwd: dir, timeout: 30) }
         _ = await git(["init", "-q"])
         for (k, v) in [
             ("user.name", name), ("user.email", email), ("user.signingkey", key), ("gpg.format", format), ("commit.gpgsign", "true"),

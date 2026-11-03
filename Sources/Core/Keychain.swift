@@ -10,7 +10,7 @@ enum Keychain {
     enum Item: String, CaseIterable {
         case linearKey = "linear-key"
         case anthropicKey = "anthropic-key"
-        case openAIKey = "openai-key"
+        case kimiKey = "kimi-key"
         case claudeToken = "claude-code-token"
         case signingKey = "signing-key"
     }

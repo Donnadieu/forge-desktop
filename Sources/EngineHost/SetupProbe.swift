@@ -16,6 +16,34 @@ enum SetupProbe {
 
     private final class Box: @unchecked Sendable { var code: Int32 = 1 }
 
+    /// `Forge --worker-check <claude|codex|kimi|apiKey> [model]`: setup 5's real call, from the command line.
+    static func worker(_ name: String, model: String?) -> Int32 {
+        guard let w = SetupChoices.Worker(rawValue: name) else {
+            print("✗ unknown worker \(name); use claude, codex, kimi or apiKey")
+            return 2
+        }
+        let done = DispatchSemaphore(value: 0)
+        let box = Box()
+        Task.detached {
+            let key: String? =
+                switch w {
+                case .apiKey: Keychain.get(.anthropicKey)
+                case .kimi: Keychain.get(.kimiKey)
+                case .claude, .codex: nil
+                }
+            switch await WorkerCheck.run(w, model: model, key: key) {
+            case .works:
+                print("✓ \(name) answered a real call")
+                box.code = 0
+            case .fails(let why):
+                print("✗ \(why)")
+            }
+            done.signal()
+        }
+        done.wait()
+        return box.code
+    }
+
     private static func run(repo: String?) async -> Int32 {
         let accounts = await GitHub.accounts()
         print("· gh accounts on this Mac: \(accounts.joined(separator: ", "))")

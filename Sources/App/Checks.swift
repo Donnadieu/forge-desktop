@@ -19,6 +19,9 @@ enum Checks {
         if args.contains("--engine-check") {
             return EngineCheck.run()
         }
+        if let i = args.firstIndex(of: "--worker-check"), i + 1 < args.count {
+            return SetupProbe.worker(args[i + 1], model: i + 2 < args.count ? args[i + 2] : nil)
+        }
         if let i = args.firstIndex(of: "--github-check") {
             return SetupProbe.github(repo: i + 1 < args.count ? args[i + 1] : nil)
         }
@@ -47,6 +50,19 @@ enum Checks {
                 == ["Triage", "AI Review", "QA", "Human Review", "Rework", "Merging"])
         check("column names match whatever their case and spacing", Pipeline.missing(existing: Pipeline.names.map { $0.uppercased() }).isEmpty)
         check("setup starts at the Linear screen", SetupChoices().nextScreen == 0)
+        let expired = #"{"type":"result","is_error":true,"result":"Failed to authenticate: OAuth session expired"}"#
+        check(
+            "a Claude login that exits 0 but can't answer fails the check",
+            WorkerCheck.claudeOutcome(.init(status: 0, out: expired, err: ""))
+                == .fails("Claude Code said: Failed to authenticate: OAuth session expired"))
+        let answered = #"{"type":"result","is_error":false,"result":"ready"}"#
+        check("a Claude answer passes the check", WorkerCheck.claudeOutcome(.init(status: 0, out: answered, err: "")) == .works)
+        let codexOK = #"{"type":"item.completed","item":{"type":"agent_message","text":"ready"}}"#
+        check("a Codex answer passes the check", WorkerCheck.codexOutcome(.init(status: 0, out: codexOK, err: "")) == .works)
+        let codexBad = #"{"type":"turn.failed","error":{"message":"unauthorized"}}"#
+        check(
+            "a failed Codex turn fails the check",
+            WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

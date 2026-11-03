@@ -39,7 +39,7 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 - [x] 4. Lead waits for helpers (`worker/helper-wait.ts`; `test/unit/worker/lead-waits-for-helpers.test.ts` fails on the old runner)
 - [x] 5. Setup 1 and 2 (Linear key into the Keychain, team and project pickers, missing columns created after a yes)
 - [x] 6. Setup 3 and 4 (gh account, device sign-in, the three signing choices with a test signature, repo picker with the push check; the engine checks signing before every card)
-- [ ] 7. Setup 5
+- [x] 7. Setup 5 (Claude Code, Codex, Kimi or an Anthropic API key; one real call whose answer is read, not the exit code; keys into the Keychain)
 - [ ] 8. The board
 - [ ] 9. Agent skills
 - [ ] 10. End to end

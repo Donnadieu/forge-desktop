@@ -11,6 +11,7 @@ struct RootView: View {
             case 1: ProjectScreen(model: model)
             case 2: GitHubScreen(model: model)
             case 3: RepoScreen(model: model)
+            case 4: WorkerScreen(model: model)
             default: NotYetScreen(model: model)
             }
         }

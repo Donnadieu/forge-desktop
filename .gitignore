@@ -1,0 +1,13 @@
+# Secrets and local identity: never committed
+.env
+.env.*
+!.env.example
+
+# Build output
+build/
+engine/node_modules/
+engine/dist/
+*.dSYM/
+
+# Mac clutter
+.DS_Store

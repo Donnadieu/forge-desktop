@@ -16,6 +16,8 @@ enum SetupApply {
         var repo: String
         var worker: SetupChoices.Worker
         var model: String?
+        /// Mark the Ready screen done (true = skip it; it can be run later from Workflow).
+        var skipRepoReady: Bool?
     }
 
     static func run(_ path: String) -> Int32 {
@@ -136,7 +138,8 @@ enum SetupApply {
         c.workerChecked = true
         print("✓ \(a.worker.rawValue) answered a real call")
 
+        if a.skipRepoReady == true { c.repoReady = true }
         c.save()
-        print("✓ setup saved; Forge opens on the board")
+        print(c.repoReady == true ? "✓ setup saved; Forge opens on the board" : "✓ setup saved; Forge opens on the Ready screen")
     }
 }

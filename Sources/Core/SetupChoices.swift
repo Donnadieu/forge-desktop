@@ -27,6 +27,11 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var worker: Worker?
     var model: String?
     var workerChecked = false
+    // 6. Ready for agents (optional so settings saved before this screen existed still load)
+    /// The repo was read and its card made, or the person chose "Skip for now".
+    var repoReady: Bool?
+    /// The Linear card that gets the repo ready, when one was made.
+    var repoReadyCard: String?
 
     enum Signing: String, Codable, CaseIterable, Sendable {
         /// A key Forge makes, kept in the Keychain and registered on the person's GitHub.
@@ -41,14 +46,15 @@ struct SetupChoices: Codable, Equatable, Sendable {
         case claude, codex, kimi, apiKey
     }
 
-    /// The first screen that still needs an answer (5 = the board).
+    /// The first screen that still needs an answer (6 = the board).
     var nextScreen: Int {
         if linearUser == nil { return 0 }
         if projectSlug == nil || !columnsReady { return 1 }
         if githubLogin == nil || signing == nil { return 2 }
         if repo == nil || !repoChecked { return 3 }
         if worker == nil || !workerChecked { return 4 }
-        return 5
+        if repoReady != true { return 5 }
+        return 6
     }
 
     static var file: URL { Paths.home.appendingPathComponent("setup.json") }

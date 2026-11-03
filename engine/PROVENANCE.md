@@ -18,6 +18,10 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   the workflow (one `## Forge Workpad` comment, no summary comments); "GPG-signed" became "signed";
   three dead pointers to an `EDGE_CASE_TEMPLATE.md` Forge never had were removed.
   Forge's worker variant of linear (merge without Human Review) is not shipped.
+- **Repo readiness:** `skills/harness-engineering` is Forge's `.agents/skills/harness-engineering` at the
+  same commit; its "Running it" section (Forge's internal `pnpm harden` tool) became the steps a card
+  follows (formatter, custom rules with WHY and FIX, ratchet, three enforcement points, canary proof).
+  `skills/repo-assessment` is new: a read-only assessment that proposes guardrails.
 
 | Our path | Forge commit | Forge path | What changed |
 |---|---|---|---|
@@ -111,7 +115,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity |
 | src/workspace/git-identity.ts | 05deefb0a43a | src/workspace/git-identity.ts | SSH signing (`FORGE_GIT_SIGNING_FORMAT=ssh`); `verifyWorkspaceSigning` (a test signature before a card starts; unsigned only when chosen) |
 | src/workspace/inode-pressure.ts | 05deefb0a43a | src/workspace/inode-pressure.ts | unchanged |
-| src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | unchanged |
+| src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | stale-lock reclaim takes turns through a `.reclaiming` gate (fixes a race where two acquirers both held the lock) |
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |

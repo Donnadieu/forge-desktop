@@ -59,6 +59,19 @@ enum Checks {
                 == ["Triage", "AI Review", "QA", "Human Review", "Rework", "Merging"])
         check("column names match whatever their case and spacing", Pipeline.missing(existing: Pipeline.names.map { $0.uppercased() }).isEmpty)
         check("setup starts at the Linear screen", SetupChoices().nextScreen == 0)
+        var almost = SetupChoices()
+        (almost.linearUser, almost.projectSlug, almost.columnsReady) = ("a", "p", true)
+        (almost.githubLogin, almost.signing, almost.repo, almost.repoChecked) = ("g", .unsigned, "o/r", true)
+        (almost.worker, almost.workerChecked) = (.claude, true)
+        check("a setup saved before the Ready screen existed opens on it", almost.nextScreen == 5)
+        almost.repoReady = true
+        check("after Ready (or Skip) Forge opens on the board", almost.nextScreen == AppModel.boardScreen)
+        let oldFile = #"{"linearUser":"a","columnsReady":true,"repoChecked":true,"workerChecked":true}"#
+        check("settings saved by 0.1.x still load", (try? JSONDecoder().decode(SetupChoices.self, from: Data(oldFile.utf8)))?.linearUser == "a")
+        let answer =
+            "Here's what I found.\n```json\n{\"summary\":[\"Small app.\"],\"guardrails\":[{\"id\":\"lint\",\"title\":\"Linter\",\"why\":\"Catches mistakes.\"}]}\n```"
+        check("the agent's guardrail list is read from its answer", RepoReader.parse(answer)?.guardrails.first?.id == "lint")
+        check("an answer without the list is refused", RepoReader.parse("All good!") == nil)
         check("1.2.10 is newer than 1.2.9", Updater.newer("1.2.10", than: "1.2.9"))
         check("1.0 is not newer than 1.0.0", !Updater.newer("1.0", than: "1.0.0"))
         check("0.9.9 is not newer than 1.0.0", !Updater.newer("0.9.9", than: "1.0.0"))

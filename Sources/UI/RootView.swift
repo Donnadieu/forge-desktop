@@ -12,6 +12,7 @@ struct RootView: View {
             case 2: GitHubScreen(model: model)
             case 3: RepoScreen(model: model)
             case 4: WorkerScreen(model: model)
+            case 5: RepoReadyScreen(model: model)
             default: BoardScreen(model: model)
             }
         }

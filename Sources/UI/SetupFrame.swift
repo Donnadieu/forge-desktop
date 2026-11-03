@@ -9,12 +9,23 @@ struct SetupFrame<Content: View>: View {
     let primaryEnabled: Bool
     let busy: Bool
     let action: () -> Void
+    /// A second, quieter choice beside the main button ("Skip for now").
+    var secondary: (title: String, action: () -> Void)? = nil
+    @ObservedObject var updater = Updater.shared
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StepDots(current: model.screen)
-                .padding(.bottom, 28)
+            HStack {
+                StepDots(current: model.screen)
+                Spacer()
+                // Answers are saved screen by screen, so updating mid-setup picks up where it left off.
+                if let rel = updater.available, !model.preview {
+                    Button(updater.installing ? "Updating…" : "Update to \(rel.version)") { Task { await updater.install() } }
+                        .disabled(updater.installing)
+                }
+            }
+            .padding(.bottom, 28)
             Text(question)
                 .font(.system(size: 26, weight: .semibold))
                 .padding(.bottom, 8)
@@ -32,6 +43,7 @@ struct SetupFrame<Content: View>: View {
                 }
                 Spacer()
                 if busy { ProgressView().controlSize(.small).padding(.trailing, 8) }
+                if let s = secondary { Button(s.title, action: s.action).disabled(busy) }
                 Button(primary, action: action)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!primaryEnabled || busy)

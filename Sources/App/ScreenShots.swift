@@ -21,11 +21,17 @@ extension ScreenRender {
         done.worker = .claude
         done.model = "claude-sonnet-5"
         done.workerChecked = true
+        var report = done
+        report.repoReadyCard = "show-report"
+        var ready = done
+        ready.repoReady = true
         return [
             Shot(name: "3-github", screen: 2, choices: project),
             Shot(name: "4-repo", screen: 3, choices: github),
             Shot(name: "5-agent", screen: 4, choices: repo),
-            Shot(name: "6-board", screen: 5, choices: done, engine: SampleBoard.state),
+            Shot(name: "6-ready", screen: 5, choices: done),
+            Shot(name: "6-ready-report", screen: 5, choices: report),
+            Shot(name: "7-board", screen: AppModel.boardScreen, choices: ready, engine: SampleBoard.state),
         ]
     }
 }

@@ -36,6 +36,24 @@ final class AppModel: ObservableObject {
             ### Notes
             Two helpers are writing the tests while the lead updates the docs.
             """
+        var report = RepoReader.Report(
+            summary: [
+                "A small Node app with a web page and a test folder.",
+                "Tests run with npm test, and CI runs them on every pull request.",
+                "There's no formatter, linter or agent guide yet.",
+            ],
+            has: ["Tests in test/", "CI on pull requests"],
+            missing: ["Formatter and linter", "AGENTS.md", "Pre-commit hook"],
+            risks: ["Nothing stops a very large file or a hard-coded key"],
+            guardrails: [
+                .init(
+                    id: "formatter-linter", title: "Formatter and linter", why: "Keeps every change in one style and catches common mistakes.",
+                    recommended: true),
+                .init(id: "agents-md", title: "Agent guide (AGENTS.md)", why: "Agents learn how to build, test and run the app.", recommended: true),
+                .init(id: "file-length", title: "File size limit", why: "Stops files growing too big to change safely.", recommended: true),
+                .init(id: "no-secrets", title: "No keys in the code", why: "Blocks a commit that contains a key or password.", recommended: true),
+                .init(id: "layer-rules", title: "Layer rules", why: "The page code can't reach into the server code.", recommended: false),
+            ])
         var repos = [
             GitHub.Repo(fullName: "acme/forge-desktop-e2e", defaultBranch: "main", canPush: true),
             GitHub.Repo(fullName: "acme/website", defaultBranch: "main", canPush: true),
@@ -51,15 +69,18 @@ final class AppModel: ObservableObject {
         if !preview { GitHub.account = c.githubLogin }
     }
 
-    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Board"]
+    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Ready", "Board"]
+
+    /// The board's screen number (the last one).
+    static let boardScreen = 6
 
     func save() {
         if !preview { choices.save() }
-        if screen < 5 { settingsChanged = true }
+        if screen < Self.boardScreen { settingsChanged = true }
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(5, s))
+        screen = max(0, min(Self.boardScreen, s))
     }
 
     func next() {

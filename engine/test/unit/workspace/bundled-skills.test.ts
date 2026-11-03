@@ -22,6 +22,8 @@ const NAMED: Array<[string, string]> = [
   ["qa-plan-forge", "qa-plan-forge/SKILL.md"],
   ["land", "land/SKILL.md"],
   ["linear", "linear/SKILL.md"],
+  ["repo-assessment", "repo-assessment/SKILL.md"],
+  ["harness-engineering", "harness-engineering/SKILL.md"],
 ];
 
 let dir: string | undefined;
@@ -37,7 +39,7 @@ function allFiles(root: string, rel = ""): string[] {
 }
 
 describe("the bundled agent skills", () => {
-  it("has all eleven skills the plan names", () => {
+  it("has every skill the plan names, plus the repo-readiness pair", () => {
     for (const [name, path] of NAMED) {
       expect(existsSync(join(SKILLS, path)), name).toBe(true);
       expect(readFileSync(join(SKILLS, path), "utf-8")).toMatch(

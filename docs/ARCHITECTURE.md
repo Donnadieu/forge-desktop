@@ -77,6 +77,17 @@ when no helper runs. While the lead waits, the read and turn timeouts pause; one
 (`agent.helper_wait_ms`, 60 minutes). If it is hit, the run stops and the card gets a plain note.
 Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails on Forge's old runner.
 
+## Getting a repo ready for agents (setup 6)
+
+- `EngineHost/RepoReader.swift` shallow-clones the repo into a scratch folder and runs the chosen agent
+  once, read-only (Claude Code with only Read/Grep/Glob allowed; Codex with `--sandbox read-only`), with
+  the bundled `repo-assessment` skill. The answer ends in a JSON block: summary, what's missing, risks,
+  and the guardrails worth adding. It's saved in `repo-report.json`, so closing Forge doesn't lose it.
+- The person ticks guardrails; Forge makes one Linear card in Todo whose description lists them and
+  names the `harness-engineering` skill. The pipeline does the rest: a pull request that lands in Human
+  Review. "Skip for now" moves on; the Workflow button brings the screen back.
+- Kimi can't do the read yet (it says so on the screen).
+
 ## The board
 
 - The engine reads every card in the board's columns (`board.columns`) from Linear on start, on every

@@ -44,3 +44,4 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 - [x] 9. Agent skills (eleven skills bundled in `engine/skills`, copied into each card's folder where Claude Code finds them, kept out of git)
 - [ ] 10. End to end
 - [x] 11. Signed release (Developer ID + hardened runtime, notarized and stapled, `Forge.zip`/`Forge.dmg`, in-app updater from the repo's releases; see docs/RELEASING.md)
+- [x] 12. Setup 6, "Get your repo ready for agents": an agent reads the whole repo read-only (`repo-assessment` skill) and proposes guardrails; the person picks; one card runs the `harness-engineering` skill through the pipeline (asked for by Omar on Nov 3)

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { link, open, rename, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { z } from "zod";
 import {
@@ -223,18 +223,40 @@ async function writeAtomic(lockPath: string, contents: string, replace: boolean)
  * links it back. Not airtight: a third acquirer that creates a lock while the
  * fresh one is moved aside makes the link-back fail (SPEC §9.6 limitation).
  */
+/**
+ * Remove the lock only if it still holds `staleRaw`. Reclaimers take turns
+ * through a short-lived `.reclaiming` directory (mkdir is atomic), so the check
+ * and the removal can't interleave with another reclaimer. The previous
+ * move-aside-and-link-back left a window where the live lock was briefly absent,
+ * a third acquirer created a new one, and two acquirers both held the lock.
+ */
 async function reclaimStale(lockPath: string, staleRaw: string | null): Promise<void> {
-  const moved = `${lockPath}.${randomUUID()}.stale`;
+  const gate = `${lockPath}.reclaiming`;
+  for (let i = 0; ; i++) {
+    try {
+      await mkdir(gate);
+      break;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") return;
+      // A gate left by a crashed reclaimer is cleared after RECLAIM_GATE_MS.
+      const age = await stat(gate)
+        .then((s) => Date.now() - s.mtimeMs)
+        .catch(() => 0);
+      if (age > RECLAIM_GATE_MS) await rmdir(gate).catch(() => {});
+      if (i > 400) return;
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  }
   try {
-    await rename(lockPath, moved);
-  } catch {
-    return; // Already gone: another reclaimer moved it.
+    if ((await readLockFile(lockPath).catch(() => undefined)) === staleRaw) {
+      await unlink(lockPath).catch(() => {});
+    }
+  } finally {
+    await rmdir(gate).catch(() => {});
   }
-  if ((await readLockFile(moved).catch(() => undefined)) !== staleRaw) {
-    await link(moved, lockPath).catch(() => {});
-  }
-  await unlink(moved).catch(() => {});
 }
+
+const RECLAIM_GATE_MS = 10_000;
 
 /**
  * Reclaim `workspacePath`'s lock if it still has the contents `expectedRaw`

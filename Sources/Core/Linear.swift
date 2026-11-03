@@ -96,6 +96,30 @@ struct LinearAPI: Sendable {
         if !r.workflowStateCreate.success { throw Failure(message: "Linear didn't create \(column.name).") }
     }
 
+    struct NewIssue: Decodable, Sendable {
+        let identifier: String
+        let url: String
+    }
+
+    /// Makes a card in the project, in the named column.
+    func createIssue(team: String, project: String, column: String, title: String, description: String) async throws -> NewIssue {
+        guard let state = try await states(team: team).first(where: { Pipeline.normalized($0.name) == Pipeline.normalized(column) }) else {
+            throw Failure(message: "The team has no \(column) column.")
+        }
+        struct P: Decodable {
+            let success: Bool
+            let issue: NewIssue?
+        }
+        struct R: Decodable { let issueCreate: P }
+        let q = """
+            mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }
+            """
+        let input: [String: Any] = ["teamId": team, "projectId": project, "stateId": state.id, "title": title, "description": description]
+        let r = try await run(q, ["input": input], as: R.self)
+        guard r.issueCreate.success, let issue = r.issueCreate.issue else { throw Failure(message: "Linear didn't make the card.") }
+        return issue
+    }
+
     /// Triage is a team switch in Linear, not a normal status. Turns it on; false if Linear refuses.
     func enableTriage(team: String) async -> Bool {
         struct P: Decodable { let success: Bool }

@@ -73,6 +73,8 @@ export const WorkflowConfigSchema = z.object({
       max_turns: z.coerce.number().default(50),
       turn_timeout_ms: z.number().default(1_800_000),
       read_timeout_ms: z.number().default(480_000),
+      // How long a lead may wait for its helpers after ending its turn (worker/helper-wait.ts).
+      helper_wait_ms: z.number().default(3_600_000),
       stall_timeout_seconds: z.number().default(900),
       approval_policy: z.string().default("on-request"),
       max_retry_backoff_ms: z.number().default(300_000),

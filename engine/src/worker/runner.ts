@@ -5,6 +5,7 @@ import type { TokenTotals } from "../telemetry/types.js";
 import type { NormalizedIssue, TrackerAdapter, TrackerConfig } from "../tracker/types.js";
 import { lockHolderLogFields, WORKSPACE_LOCK_HELD } from "../workspace/lock.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
+import { DEFAULT_HELPER_WAIT_MS, HelperWatch } from "./helper-wait.js";
 import { IssueStateChecker } from "./issue-state-checker.js";
 import { renderFirstTurnPrompt } from "./prompt-renderer.js";
 import { addUsageTokens } from "./usage.js";
@@ -24,6 +25,8 @@ export interface WorkerConfig {
   logger?: Logger;
   /** Maximum consecutive state-check failures before the worker aborts. */
   maxStateCheckRetries?: number;
+  /** How long the lead may wait for its helpers after ending its turn (helper-wait.ts). */
+  helperWaitMs?: number;
 }
 
 export interface WorkerResult {
@@ -229,12 +232,14 @@ export async function runWorker(
 
       callbacks?.onTurnStart?.(issue.id, turnNumber);
 
-      // Turn timeout
+      // Turn timeout. Time spent waiting for helpers doesn't count against it
+      // (the helper limit covers that), so it is checked only while the lead works.
       let turnTimedOut = false;
       let turnTimer: ReturnType<typeof setTimeout> | undefined;
+      let turnOverdue = false;
       if (config.turnTimeoutMs) {
         turnTimer = setTimeout(() => {
-          turnTimedOut = true;
+          turnOverdue = true;
         }, config.turnTimeoutMs);
       }
 
@@ -274,15 +279,21 @@ export async function runWorker(
         break;
       }
 
-      // Stream events with optional read timeout
+      // Stream events with optional read timeout. While the lead waits for its
+      // helpers (helper-wait.ts) the read timeout pauses and the helper limit applies.
       let turnSuccess = true;
       let eventCount = 0;
       let readTimer: ReturnType<typeof setTimeout> | undefined;
       let readTimedOut = false;
+      const helpers = new HelperWatch();
+      const helperWaitMs = config.helperWaitMs ?? DEFAULT_HELPER_WAIT_MS;
+      let helperTimer: ReturnType<typeof setTimeout> | undefined;
+      let helperLimitHit = false;
+      let waitedForHelpers = false;
 
       const resetReadTimer = () => {
         if (readTimer) clearTimeout(readTimer);
-        if (config.readTimeoutMs) {
+        if (config.readTimeoutMs && !helpers.waiting) {
           readTimer = setTimeout(() => {
             readTimedOut = true;
             handle.abortController.abort();
@@ -293,6 +304,19 @@ export async function runWorker(
       resetReadTimer();
 
       for await (const event of agent.streamEvents(handle)) {
+        helpers.observe(event);
+        if (helpers.waiting) waitedForHelpers = true;
+        if (helpers.waiting && !helperTimer) {
+          logger.info({ helpers: helpers.count }, "Lead ended its turn; waiting for its helpers");
+          helperTimer = setTimeout(() => {
+            helperLimitHit = true;
+            handle.abortController.abort();
+          }, helperWaitMs);
+        }
+        if (!helpers.waiting && helperTimer) {
+          clearTimeout(helperTimer);
+          helperTimer = undefined;
+        }
         resetReadTimer();
         eventCount++;
 
@@ -323,8 +347,20 @@ export async function runWorker(
       );
 
       if (readTimer) clearTimeout(readTimer);
+      if (helperTimer) clearTimeout(helperTimer);
+      // A turn that ran long only because the lead waited for its helpers isn't overdue.
+      turnTimedOut = turnOverdue && !waitedForHelpers;
 
       if (turnTimer) clearTimeout(turnTimer);
+      if (helperLimitHit) {
+        logger.warn({ helpers: helpers.count, helperWaitMs }, "Helper wait limit hit");
+        await tracker
+          .createComment?.(issue.id, helpers.limitMessage(helperWaitMs))
+          .catch((err) => logger.warn({ err: String(err) }, "Could not leave the wait-limit note"));
+        await agent.stopSession(handle);
+        lastTurnSuccess = false;
+        break;
+      }
       if (turnTimedOut || readTimedOut) {
         logger.debug({ turnTimedOut, readTimedOut }, "Killing session");
         await agent.stopSession(handle);

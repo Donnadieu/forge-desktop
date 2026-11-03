@@ -26,4 +26,4 @@ Each rule names what enforces it. A rule with no enforcer is a gap; close it wit
 | Agents can find their way | `forge-lint: docs-map` (links resolve, docs indexed, AGENTS.md ≤ 80 lines) |
 | Consistent Swift formatting | `swift-format lint` |
 | Secrets only in the Keychain | not enforced yet: lands with setup screen 1 (a gap) |
-| The lead waits for its helpers | not enforced yet: lands with the engine change (a gap) |
+| The lead waits for its helpers | `engine/test/unit/worker/lead-waits-for-helpers.test.ts` (fails on the old runner) |

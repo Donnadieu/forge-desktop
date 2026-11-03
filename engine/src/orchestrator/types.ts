@@ -14,6 +14,8 @@ export interface OrchestratorConfig {
   maxTurns: number;
   turnTimeoutMs?: number;
   readTimeoutMs?: number;
+  /** How long a lead agent may wait for its helpers after ending its turn (worker/helper-wait.ts). */
+  helperWaitMs?: number;
   approvalPolicy?: string;
   stallTimeoutSeconds: number;
   maxRetryAttempts: number;

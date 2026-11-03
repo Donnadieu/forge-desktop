@@ -61,4 +61,20 @@ export type AgentEvent =
       cacheReadTokens?: number;
       cacheWriteTokens?: number;
     }
+  | {
+      /**
+       * A helper the agent sent (a background subagent or background command)
+       * started or finished. While any helper runs, the agent's turn is not over:
+       * the runner keeps the session alive and waits (see worker/runner.ts).
+       */
+      type: "helper";
+      id: string;
+      status: "started" | "finished";
+      description?: string;
+    }
+  | {
+      /** The agent ended its turn but helpers still run; the session stays open until they finish. */
+      type: "waiting_for_helpers";
+      running: number;
+    }
   | { type: "done"; success: boolean };

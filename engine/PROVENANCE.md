@@ -15,7 +15,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/child-env.ts | 05deefb0a43a | src/agent/child-env.ts | unchanged |
 | src/agent/claude-env.ts | 05deefb0a43a | src/agent/claude-env.ts | unchanged |
 | src/agent/claude-usage.ts | 05deefb0a43a | src/agent/claude-usage.ts | unchanged |
-| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop |
+| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`) |
 | src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name) |
 | src/agent/codex-sandbox.ts | 05deefb0a43a | src/agent/codex-sandbox.ts | unchanged |
 | src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name) |
@@ -26,7 +26,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/kimi.ts | 05deefb0a43a | src/agent/kimi.ts | dropped the container privilege drop and lent-home usage read |
 | src/agent/mcp-bridge.ts | 05deefb0a43a | src/agent/mcp-bridge.ts | comment reworded (no old project name); fills `${VAR}` placeholders from the agent's env (`expandEnv`) |
 | src/agent/run-once.ts | 05deefb0a43a | src/agent/run-once.ts | unchanged |
-| src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | unchanged |
+| src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | `helper` and `waiting_for_helpers` events |
 | src/config/boolean-token.ts | 05deefb0a43a | src/config/boolean-token.ts | unchanged |
 | src/config/custom-base-url.ts | 05deefb0a43a | src/config/custom-base-url.ts | unchanged |
 | src/config/env-validator.ts | 05deefb0a43a | src/config/env-validator.ts | unchanged |
@@ -37,7 +37,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/provider-table.ts | 05deefb0a43a | src/config/provider-table.ts | unchanged |
 | src/config/providers.ts | 05deefb0a43a | src/config/providers.ts | unchanged |
 | src/config/resolver.ts | 05deefb0a43a | src/config/resolver.ts | unchanged |
-| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | unchanged |
+| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min) |
 | src/config/watcher.ts | 05deefb0a43a | src/config/watcher.ts | unchanged |
 | src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | unchanged |
 | src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools; run by the engine's own Node; the key is a `${LINEAR_API_KEY}` placeholder, never written |
@@ -54,7 +54,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/observability/types.ts | 05deefb0a43a | src/observability/types.ts | unchanged |
 | src/orchestrator/claim-gate.ts | 05deefb0a43a | src/orchestrator/claim-gate.ts | unchanged |
 | src/orchestrator/cost-ceiling.ts | 05deefb0a43a | src/orchestrator/cost-ceiling.ts | unchanged |
-| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters |
+| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs` |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
 | src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks |
@@ -64,7 +64,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/session-guard.ts | 05deefb0a43a | src/orchestrator/session-guard.ts | unchanged |
 | src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | unchanged |
 | src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | unchanged |
-| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields |
+| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs` |
 | src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | unchanged |
 | src/orchestrator/workpad-parser.ts | 05deefb0a43a | src/orchestrator/workpad-parser.ts | unchanged |
 | src/orchestrator/workspace-gc.ts | 05deefb0a43a | src/orchestrator/workspace-gc.ts | unchanged |
@@ -95,7 +95,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | unchanged |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | unchanged |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
-| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | unchanged |
+| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
 | src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | unchanged |
@@ -109,3 +109,4 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
+| src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |

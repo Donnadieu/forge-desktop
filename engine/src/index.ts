@@ -87,6 +87,7 @@ async function main(): Promise<void> {
       maxTurns: config.agent.max_turns,
       turnTimeoutMs: config.agent.turn_timeout_ms,
       readTimeoutMs: config.agent.read_timeout_ms,
+      helperWaitMs: config.agent.helper_wait_ms,
       approvalPolicy: config.agent.approval_policy,
       stallTimeoutSeconds: config.agent.stall_timeout_seconds,
       maxRetryAttempts: config.retry.max_attempts,

@@ -42,7 +42,7 @@ Layer N may import only from lower layers. Enforced by `engine/test/architecture
 | 1 | `mcp/` | Linear tools for agents | tracker, observability, config |
 | 1 | `workspace/` | one folder per card, hooks, skills copy, git identity | tracker, process |
 | 1 | `store/` | the engine's SQLite file: Start/Stop intent, finished runs and their tokens | none |
-| 2 | `worker/` | one card's agent run, turns, the lead waiting for its helpers | agent, tracker, workspace, telemetry |
+| 2 | `worker/` | one card's agent run, turns, the lead waiting for its helpers (`helper-wait.ts`) | agent, tracker, workspace, telemetry |
 | 3 | `orchestrator/` | the board loop: poll, claim, dispatch, retry, reconcile | agent, tracker, workspace, worker, observability, telemetry, config |
 | 3 | `server/` | the local API the app talks to (127.0.0.1 + launch token, HTTP + live WebSocket) | orchestrator, observability, config, store |
 | 4 | `src/index.ts` | wires it together | anything |
@@ -67,6 +67,15 @@ The full import list (which Forge files come over) is in the plan,
 - Agents get the person's login-shell PATH plus the usual tool folders (an app opened from the Dock has a bare PATH).
 - The Linear tools for agents are configured with a `${LINEAR_API_KEY}` placeholder, filled from the agent's
   environment, so no key is ever written into a card's folder.
+
+## The lead waits for its helpers
+
+A lead agent sends helpers (Claude Code background subagents or commands) and may end its turn while
+they work. Claude Code keeps the session alive, reports each helper's end (`task_started` /
+`task_notification`) and runs another turn. The engine follows those events: a turn is over only
+when no helper runs. While the lead waits, the read and turn timeouts pause; one limit applies
+(`agent.helper_wait_ms`, 60 minutes). If it is hit, the run stops and the card gets a plain note.
+Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails on Forge's old runner.
 
 ## Local state
 

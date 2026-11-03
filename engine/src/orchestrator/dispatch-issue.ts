@@ -132,6 +132,7 @@ export async function dispatchIssue(
     maxTurns: deps.config.maxTurns,
     turnTimeoutMs: deps.config.turnTimeoutMs,
     readTimeoutMs: deps.config.readTimeoutMs,
+    helperWaitMs: deps.config.helperWaitMs,
     approvalPolicy: deps.config.approvalPolicy,
     promptTemplate: deps.config.promptTemplate,
     trackerConfig: deps.config.trackerConfig,

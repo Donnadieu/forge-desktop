@@ -19,6 +19,8 @@ interface SessionState {
   // claude-usage.ts. Reset at each turn start via resetTurnUsage().
   usage: UsageAccountingState;
   stderrBuffers: Buffer[];
+  /** Helpers (background subagents and commands) started and not yet finished, by task id. */
+  helpers: Map<string, string>;
 }
 
 export class ClaudeCodeAdapter implements AgentAdapter {
@@ -168,6 +170,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       meaningfulEventCount: 0,
       usage: newUsageState(),
       stderrBuffers: stderrChunks,
+      helpers: new Map(),
     });
 
     return { id: sessionId, pid: child.pid ?? undefined, abortController };
@@ -208,10 +211,24 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             session.meaningfulEventCount++;
             yield usage;
           }
+          const helper = trackHelper(session.helpers, raw);
+          if (helper) {
+            session.meaningfulEventCount++;
+            yield helper;
+          }
           const mapped = this.mapEvent(raw);
           if (mapped) {
             const events = Array.isArray(mapped) ? mapped : [mapped];
             for (const event of events) {
+              // The lead ended its turn while its helpers still work. Claude Code keeps
+              // the session alive, tells the lead when each helper finishes and runs
+              // another turn. Keep reading: the turn is over only when no helper runs.
+              if (event.type === "done" && event.success && session.helpers.size > 0) {
+                resetTurnUsage(session.usage);
+                session.meaningfulEventCount++;
+                yield { type: "waiting_for_helpers", running: session.helpers.size };
+                continue;
+              }
               if (event.type === "done") session.resultReceived = true;
               session.meaningfulEventCount++;
               yield event;
@@ -374,4 +391,30 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     return null;
   }
+}
+
+/**
+ * Follows the helpers an agent sends, from Claude Code's `system` events:
+ * `task_started` (a subagent or background command began) and
+ * `task_notification` (it completed, failed or was stopped). Returns the
+ * matching `helper` event, or null for any other line.
+ */
+export function trackHelper(
+  helpers: Map<string, string>,
+  raw: Record<string, unknown>,
+): AgentEvent | null {
+  if (raw.type !== "system") return null;
+  const id = String(raw.task_id ?? raw.tool_use_id ?? "");
+  if (!id) return null;
+  if (raw.subtype === "task_started") {
+    const description = typeof raw.description === "string" ? raw.description : "";
+    helpers.set(id, description);
+    return { type: "helper", id, status: "started", description };
+  }
+  if (raw.subtype === "task_notification") {
+    const description = helpers.get(id);
+    helpers.delete(id);
+    return { type: "helper", id, status: "finished", description };
+  }
+  return null;
 }

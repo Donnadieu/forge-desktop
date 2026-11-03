@@ -72,6 +72,15 @@ enum Checks {
             "Here's what I found.\n```json\n{\"summary\":[\"Small app.\"],\"guardrails\":[{\"id\":\"lint\",\"title\":\"Linter\",\"why\":\"Catches mistakes.\"}]}\n```"
         check("the agent's guardrail list is read from its answer", RepoReader.parse(answer)?.guardrails.first?.id == "lint")
         check("an answer without the list is refused", RepoReader.parse("All good!") == nil)
+        check(
+            "an expired Claude sign-in is read as signed out",
+            AgentSignIn.looksSignedOut("Claude Code said: Failed to authenticate: OAuth session expired and could not be refreshed"))
+        check("a missing program is not read as signed out", !AgentSignIn.looksSignedOut("Claude Code isn't installed on this Mac."))
+        let printed =
+            "Opening browser to sign in… If the browser didn't open, visit: https://claude.ai/oauth/authorize?code=true&x=1 Paste code here if prompted > "
+        let scanned = AgentSignIn.scan(printed)
+        check("the sign-in link is read from what Claude Code prints", scanned.link?.host == "claude.ai")
+        check("the paste-a-code prompt is noticed", scanned.wantsCode)
         check("1.2.10 is newer than 1.2.9", Updater.newer("1.2.10", than: "1.2.9"))
         check("1.0 is not newer than 1.0.0", !Updater.newer("1.0", than: "1.0.0"))
         check("0.9.9 is not newer than 1.0.0", !Updater.newer("0.9.9", than: "1.0.0"))

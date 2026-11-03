@@ -10,6 +10,7 @@ enum ScreenRender {
         let screen: Int
         var choices = SetupChoices()
         var engine: EngineState?
+        var scene: String?
     }
 
     static func shots() -> [Shot] {
@@ -32,6 +33,7 @@ enum ScreenRender {
         for shot in shots() {
             let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
             model.engine = shot.engine
+            model.sample.scene = shot.scene
             let ok = render(RootView(model: model), size: NSSize(width: 960, height: 680), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }

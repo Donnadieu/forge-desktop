@@ -20,6 +20,8 @@ final class AppModel: ObservableObject {
 
     /// What render mode shows instead of the person's real Linear and GitHub.
     struct Sample {
+        /// Which variant of a screen render mode draws (e.g. "signed-out").
+        var scene: String?
         var teams = [LinearAPI.Team(id: "t1", name: "Engineering", key: "ENG", triageEnabled: false)]
         var projects = [LinearAPI.Project(id: "p1", name: "Forge Desktop test", slugId: "forge-desktop-test")]
         var states = ["Backlog", "Todo", "In Progress", "Done", "Canceled"]

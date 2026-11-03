@@ -9,6 +9,10 @@ struct WorkerScreen: View {
     @State private var busy = false
     @State private var problem: String?
     @State private var works = false
+    /// The last check failed because the agent's sign-in lapsed: Sign in is the one thing to do.
+    @State private var signedOut = false
+    @State private var guideOpen = false
+    @StateObject private var signIn = AgentSignIn()
 
     struct Option {
         let worker: SetupChoices.Worker
@@ -41,7 +45,7 @@ struct WorkerScreen: View {
             question: "Who does the work?",
             detail: "The agent that works the cards. Forge asks it one small question to be sure it answers.",
             primary: works ? "Continue" : "Check and continue",
-            primaryEnabled: option.keyLabel == nil || !key.isEmpty || hasSavedKey,
+            primaryEnabled: !signedOut && (option.keyLabel == nil || !key.isEmpty || hasSavedKey),
             busy: busy,
             action: works ? finish : check
         ) {
@@ -68,6 +72,17 @@ struct WorkerScreen: View {
             .padding(.top, 14)
             if works { GoodLine(text: "\(option.title) answered.").padding(.top, 12) }
             ProblemLine(text: problem)
+            if signedOut {
+                Button("Sign in to \(option.title)") { openGuide() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.top, 12)
+            }
+        }
+        .overlay {
+            if guideOpen {
+                SignInGuide(name: option.title, signIn: signIn, close: closeGuide)
+            }
         }
         .onAppear(perform: restore)
         .onChange(of: worker) { _, _ in
@@ -75,6 +90,15 @@ struct WorkerScreen: View {
             key = ""
             works = false
             problem = nil
+            signedOut = false
+        }
+        .onChange(of: signIn.stage) { _, stage in
+            // Signed in: close the guide and check again by itself.
+            if stage == .done {
+                guideOpen = false
+                signedOut = false
+                check()
+            }
         }
     }
 
@@ -92,6 +116,14 @@ struct WorkerScreen: View {
         if let w = model.choices.worker { worker = w }
         agentModel = model.choices.model.flatMap { m in option.models.contains(m) ? m : nil } ?? option.models[0]
         works = model.preview && model.choices.workerChecked
+        if model.preview, let scene = model.sample.scene, scene.hasPrefix("signed-out") {
+            problem = "Claude Code said: Failed to authenticate: OAuth session expired and could not be refreshed"
+            signedOut = true
+            if scene == "signed-out-guide" {
+                guideOpen = true
+                signIn.preview(link: URL(string: "https://claude.ai/oauth/authorize"))
+            }
+        }
     }
 
     private func check() {
@@ -113,8 +145,20 @@ struct WorkerScreen: View {
                 finish()
             case .fails(let why):
                 problem = why
+                signedOut = AgentSignIn.command(for: worker) != nil && AgentSignIn.looksSignedOut(why)
             }
         }
+    }
+
+    private func openGuide() {
+        guideOpen = true
+        if model.preview { return }
+        Task { await signIn.start(worker) }
+    }
+
+    private func closeGuide() {
+        signIn.cancel()
+        guideOpen = false
     }
 
     private func finish() {

@@ -8,7 +8,7 @@ Guardrails enforced by tools, not goodwill. Each rule has a one-line why and a `
 | Formatter | `xcrun swift-format` with `.swift-format` (line length 150) | pre-commit, `make check`, CI |
 | Custom rules | `tools/lint/forge-lint.py` (`--list` for all) | pre-commit, `make check`, CI |
 | Debt ratchet | `tools/lint/baseline.json` may only shrink; `check-baseline.sh` compares with `main` | pre-commit, `make check`, CI |
-| Engine | Biome (`engine/biome.json`) + `engine/test/architecture/boundaries.test.ts` | pre-commit (engine files), `make engine`, CI |
+| Engine | Biome (`engine/biome.json`), `tsc --noEmit`, the engine's unit tests and `engine/test/architecture/boundaries.test.ts`; the macOS process table is also tested on CI's Mac | pre-commit (engine files), `make engine`, CI |
 | App gate | `tools/preflight.sh`: build, version, LICENSE/NOTICE inside the app, no secrets or .env values in the bundle, `--selftest`, a real window titled Forge, every lint rule proven to block (`forge-lint.py --prove`) | `make check`, CI |
 | Identity | `tools/check-identity.sh` (local, against `.env`), `tools/ci-verified.sh` (CI asks GitHub every commit is verified) | pre-commit, pre-push, `make check`, CI |
 

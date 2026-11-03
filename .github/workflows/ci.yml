@@ -36,6 +36,17 @@ jobs:
         run: python3 tools/lint/forge-lint.py
       - name: The debt list only shrinks
         run: tools/lint/check-baseline.sh ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: engine/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: engine/pnpm-lock.yaml
+      - name: The engine on macOS (process table)
+        working-directory: engine
+        run: pnpm install --frozen-lockfile && pnpm exec vitest run test/unit/process
       - name: Build, selftest, window, guards proven
         env:
           FORGE_FAST_BUILD: '1'
@@ -61,7 +72,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Biome
         run: pnpm exec biome ci .
-      - name: Layer-boundary tests
+      - name: Types
+        run: pnpm exec tsc --noEmit
+      - name: Tests (layer boundaries + the engine's own)
         run: pnpm exec vitest run
 
   identity:

@@ -86,7 +86,7 @@ def r_banned_name(path, lines, ctx):
             yield i, "names the project Forge is based on"
 
 EMAIL = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
-EMAIL_OK = re.compile(r'@(example\.(com|org)|users\.noreply\.github\.com)$|^noreply@github\.com$|^git@github\.com$')
+EMAIL_OK = re.compile(r'@(example\.(com|org)|[a-z.]*\.test|users\.noreply\.github\.com)$|^noreply@github\.com$|^git@github\.com$')
 KEY_ID = re.compile(r'(?<![0-9A-Fa-f])(?:[0-9A-F]{16}|[0-9A-F]{40})(?![0-9A-Fa-f])')
 def r_hardcoded_identity(path, lines, ctx):
     if path in (".env.example",): return
@@ -100,7 +100,8 @@ def r_hardcoded_identity(path, lines, ctx):
             if v in l:
                 yield i, "a value from your .env"
 
-SECRET = re.compile(r'lin_api_[A-Za-z0-9]{8}|sk-ant-[A-Za-z0-9]|sk-proj-[A-Za-z0-9]|\bghp_[A-Za-z0-9]{20}|\bgho_[A-Za-z0-9]{20}'
+# Real keys are long; short look-alikes (a prefix table, test fixtures like "sk-ant-oat-owner") are not secrets.
+SECRET = re.compile(r'lin_api_[A-Za-z0-9]{32}|sk-ant-[A-Za-z0-9_-]{60}|sk-proj-[A-Za-z0-9_-]{40}|\bghp_[A-Za-z0-9]{30}|\bgho_[A-Za-z0-9]{30}'
                     r'|github_pat_[A-Za-z0-9_]{20}|xox[bp]-[A-Za-z0-9-]{10}|-----BEGIN [A-Z ]*PRIVATE KEY-----|AIza[0-9A-Za-z_-]{30}')
 def r_no_secrets(path, lines, ctx):
     for i, l in enumerate(lines, 1):
@@ -159,7 +160,7 @@ CANARIES = {
     "process-area": ("Sources/UI/Canary.swift", "let p = Process()\n"),
     "banned-name": ("docs/canary.md", "Based on " + BANNED_WORD.title() + ".\n"),
     "hardcoded-identity": ("Sources/Core/Canary.swift", '// signed by ' + "0123456789ABCDEF" + '\nlet e = "' + "someone" + "@" + "forjado.ai" + '"\n'),
-    "no-secrets": ("Sources/Core/Canary.swift", 'let k = "' + "lin_api_" + 'abcdefgh12345678"\n'),
+    "no-secrets": ("Sources/Core/Canary.swift", 'let k = "' + "lin_api_" + "a1B2c3D4" * 5 + '"\n'),
     "engine-provenance": ("engine/src/config/canary.ts", "export const x = 1;\n"),
     "docs-map": ("docs/canary-orphan.md", "# Orphan\n"),
 }

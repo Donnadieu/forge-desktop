@@ -4,7 +4,11 @@ The board engine Forge Desktop runs beside the app (as a separate process the ap
 It is **copied from Forge**, the web app's repo (`Forge-Factory-AI/forge`), not written here and not
 shared as a package. The two repos only share this code.
 
-**Empty for now.** The first import is step 2 of the plan (docs/exec-plans/active/scaffold.md).
+**Pull 1** came from Forge `05deefb0a` (see [PROVENANCE.md](PROVENANCE.md)). What was cut and why
+is in each row's last column; the macOS process table (`src/process/ps-table.ts`) is new here.
+
+Checks: `make engine` runs Biome, `tsc --noEmit` and the tests (Forge's own unit tests for the
+files that came over, plus the layer-boundary test).
 
 ## Where it comes from
 

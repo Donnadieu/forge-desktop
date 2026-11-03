@@ -9,5 +9,7 @@ fi
 python3 tools/lint/forge-lint.py
 tools/lint/check-baseline.sh
 if git diff --cached --name-only | grep -q '^engine/'; then
-  tools/engine.sh pnpm run check || { echo "FIX: run 'make engine-fix', then add the files again."; exit 1; }
+  # git exports the commit's identity and index to hooks; the engine's own git tests must not inherit them.
+  env -u GIT_AUTHOR_NAME -u GIT_AUTHOR_EMAIL -u GIT_AUTHOR_DATE -u GIT_COMMITTER_NAME -u GIT_COMMITTER_EMAIL \
+    -u GIT_COMMITTER_DATE -u GIT_INDEX_FILE -u GIT_DIR -u GIT_PREFIX tools/engine.sh pnpm run check || { echo "FIX: run 'make engine-fix', then add the files again."; exit 1; }
 fi

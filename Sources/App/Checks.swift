@@ -5,6 +5,7 @@ import SwiftUI
 ///   Forge --selftest            facts about the app + the main view draws
 ///   Forge --version             prints the version
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
+///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
 @MainActor
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
@@ -14,6 +15,9 @@ enum Checks {
         }
         if args.contains("--selftest") {
             return selftest()
+        }
+        if args.contains("--engine-check") {
+            return EngineCheck.run()
         }
         return nil
     }

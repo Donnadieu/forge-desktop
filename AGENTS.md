@@ -4,7 +4,7 @@ Forge for Mac. A native SwiftUI app (the window) that runs the Forge board engin
 copied from Forge) beside it. You point it at a Linear project and a GitHub repo, press Start,
 and one lead agent drives the cards to merged pull requests. **Simplicity is the north star.**
 
-Status: building (see the plan's Progress). The engine is imported from Forge; the app is an empty window.
+Status: building (see the plan's Progress). The engine is imported from Forge and runs inside the app; the window is still empty.
 
 ## Stack
 Swift 6 toolchain (language mode 5) / SwiftUI + AppKit / macOS 14+, Apple Silicon / no Xcode project:

@@ -1,24 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { buildMcpServers } from "../../../src/mcp/config.js";
 
-/** The forge-pipeline child's `env:` map produced by buildMcpServers. */
-function pipelineEnv(trackerKind = "linear"): Record<string, string> {
-  const servers = buildMcpServers(trackerKind);
-  const pipeline = servers["forge-pipeline"] as { env: Record<string, string> };
-  expect(pipeline, "forge-pipeline server not configured").toBeTruthy();
-  return pipeline.env;
-}
+describe("buildMcpServers", () => {
+  it("gives Linear cards the Linear tools, run by the engine's own Node", () => {
+    const servers = buildMcpServers("linear") as Record<
+      string,
+      { command: string; args: string[] }
+    >;
+    expect(Object.keys(servers)).toEqual(["forge-linear"]);
+    expect(servers["forge-linear"].command).toBe(process.execPath);
+    expect(servers["forge-linear"].args[0]).toMatch(/linear-graphql-server\.js$/);
+  });
 
-describe("buildMcpServers forge-pipeline env (worker-spawned MCP)", () => {
-  it("OMITS FORGE_FLY_API_TOKEN so the boot fail-fast does not fire on the worker", () => {
-    // The build worker is factory-scope and its own process carries
-    // FORGE_FLY_API_TOKEN. If that token reached the worker's forge-pipeline
-    // child, assertFactoryMcpReady (server.ts) would run assertScaffoldDeployEnv
-    // against the worker's env — which lacks STRIPE_SECRET_KEY, GH_TOKEN, the
-    // internal token, Linear vars — and crash-loop every build's MCP. The worker
-    // path is safe ONLY because this curated env omits the Fly token; assert that
-    // contract so a future "thread everything through" change fails loudly here
-    // instead of bricking builds.
-    expect(pipelineEnv()).not.toHaveProperty("FORGE_FLY_API_TOKEN");
+  it("never writes the Linear key itself, only a placeholder the agent's env fills", () => {
+    process.env.LINEAR_API_KEY = "lin_api_should_not_appear";
+    try {
+      const json = JSON.stringify(buildMcpServers("linear"));
+      expect(json).not.toContain("should_not_appear");
+      expect(json).toContain("${LINEAR_API_KEY}");
+    } finally {
+      delete process.env.LINEAR_API_KEY;
+    }
+  });
+
+  it("gives other trackers no servers", () => {
+    expect(buildMcpServers("memory")).toEqual({});
   });
 });

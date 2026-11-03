@@ -14,7 +14,7 @@ OPT=(-O)
 SOURCES=()
 while IFS= read -r f; do SOURCES+=("$f"); done < <(find Sources -name '*.swift' | sort)
 swiftc "${OPT[@]}" -parse-as-library -target arm64-apple-macosx14.0 -swift-version 5 \
-  -framework SwiftUI -framework AppKit \
+  -framework SwiftUI -framework AppKit -framework Security \
   "${SOURCES[@]}" -o "$APP/Contents/MacOS/Forge"
 VERSION=$(tr -d ' \n' < VERSION)
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -33,5 +33,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 cp LICENSE NOTICE "$APP/Contents/Resources/"
+tools/bundle-engine.sh "$APP/Contents/Resources/engine"
 codesign --force --deep -s - "$APP" >/dev/null 2>&1
 echo "built $APP ($VERSION)"

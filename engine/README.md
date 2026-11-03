@@ -7,6 +7,8 @@ shared as a package. The two repos only share this code.
 **Pull 1** came from Forge `05deefb0a` (see [PROVENANCE.md](PROVENANCE.md)). What was cut and why
 is in each row's last column; the macOS process table (`src/process/ps-table.ts`) is new here.
 
+How the app runs it: [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md#how-the-app-runs-the-engine).
+
 Checks: `make engine` runs Biome, `tsc --noEmit` and the tests (Forge's own unit tests for the
 files that came over, plus the layer-boundary test).
 

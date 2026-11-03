@@ -44,10 +44,15 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: engine/pnpm-lock.yaml
+      - name: The pinned Node and the engine's packages from the last run
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: engine-bundle-${{ hashFiles('engine/node-version.txt', 'engine/pnpm-lock.yaml', 'engine/package.json') }}
       - name: The engine on macOS (process table)
         working-directory: engine
         run: pnpm install --frozen-lockfile && pnpm exec vitest run test/unit/process
-      - name: Build, selftest, window, guards proven
+      - name: Build, bundle the engine, selftest, window, engine check, guards proven
         env:
           FORGE_FAST_BUILD: '1'
           FORGE_MODULE_CACHE: ${{ runner.temp }}/swift-module-cache

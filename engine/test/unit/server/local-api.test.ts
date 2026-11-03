@@ -1,0 +1,87 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { WebSocket } from "ws";
+import { type LocalApi, startLocalApi } from "../../../src/server/local-api.js";
+
+const TOKEN = "t".repeat(48);
+
+function nextMessage(ws: WebSocket): Promise<{ type: string; state: { n: number } }> {
+  return new Promise((resolve) => ws.once("message", (d) => resolve(JSON.parse(String(d)))));
+}
+
+describe("local API", () => {
+  let api: LocalApi | undefined;
+  afterEach(async () => {
+    await api?.close();
+    api = undefined;
+  });
+
+  const boot = async (state: { n: number }, calls: string[] = []) => {
+    api = await startLocalApi({
+      token: TOKEN,
+      getState: () => ({ ...state }),
+      start: async () => {
+        calls.push("start");
+        return { started: true };
+      },
+      stop: async () => {
+        calls.push("stop");
+        return { stopped: true };
+      },
+      refresh: () => calls.push("refresh"),
+      pushCheckMs: 20,
+    });
+    return `http://127.0.0.1:${api.port}`;
+  };
+
+  it("binds to 127.0.0.1 only", async () => {
+    await boot({ n: 1 });
+    const addr = api?.server.address();
+    expect(typeof addr === "object" && addr?.address).toBe("127.0.0.1");
+  });
+
+  it("refuses a request without the launch token", async () => {
+    const base = await boot({ n: 1 });
+    expect((await fetch(`${base}/api/v1/state`)).status).toBe(401);
+    const wrong = await fetch(`${base}/api/v1/state`, {
+      headers: { authorization: `Bearer ${"x".repeat(48)}` },
+    });
+    expect(wrong.status).toBe(401);
+  });
+
+  it("answers with the token: state, start, stop, refresh", async () => {
+    const calls: string[] = [];
+    const base = await boot({ n: 7 }, calls);
+    const auth = { authorization: `Bearer ${TOKEN}` };
+    const state = await fetch(`${base}/api/v1/state`, { headers: auth });
+    expect(await state.json()).toEqual({ n: 7 });
+    for (const p of ["start", "stop", "refresh"]) {
+      const r = await fetch(`${base}/api/v1/${p}`, { method: "POST", headers: auth });
+      expect(r.ok).toBe(true);
+    }
+    expect(calls).toEqual(["start", "stop", "refresh"]);
+  });
+
+  it("refuses a live connection without the token", async () => {
+    const base = await boot({ n: 1 });
+    const ws = new WebSocket(`${base.replace("http", "ws")}/api/v1/live`);
+    const failed = await new Promise<boolean>((r) => {
+      ws.on("error", () => r(true));
+      ws.on("open", () => r(false));
+    });
+    expect(failed).toBe(true);
+  });
+
+  it("pushes the state at once and again whenever it changes", async () => {
+    const state = { n: 1 };
+    const base = await boot(state);
+    const ws = new WebSocket(`${base.replace("http", "ws")}/api/v1/live`, {
+      headers: { authorization: `Bearer ${TOKEN}` },
+    });
+    const first = await nextMessage(ws);
+    expect(first).toEqual({ type: "state", state: { n: 1 } });
+    const second = nextMessage(ws);
+    state.n = 2;
+    expect((await second).state.n).toBe(2);
+    ws.close();
+  });
+});

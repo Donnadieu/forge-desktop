@@ -56,7 +56,7 @@ export class McpBridge {
         const transport = new StdioClientTransport({
           command: serverConfig.command,
           args: serverConfig.args,
-          env: { ...baseEnv, ...serverConfig.env } as Record<string, string>,
+          env: { ...baseEnv, ...expandEnv(serverConfig.env, baseEnv) } as Record<string, string>,
         });
         const client = new Client({ name: "forge-codex-bridge", version: "0.1.0" }, {});
         await client.connect(transport);
@@ -138,4 +138,19 @@ function failureResult(payload: unknown): DynamicToolResult {
     output,
     contentItems: [{ type: "inputText", text: output }],
   };
+}
+
+/**
+ * `${VAR}` placeholders in a server's env, filled from the agent's env (the same
+ * expansion Claude Code does), so no secret has to be written into the card's folder.
+ */
+export function expandEnv(
+  env: Record<string, string> | undefined,
+  from: NodeJS.ProcessEnv,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env ?? {})) {
+    out[k] = v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, name: string) => from[name] ?? "");
+  }
+  return out;
 }

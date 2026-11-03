@@ -1,0 +1,184 @@
+#!/usr/bin/env node
+/**
+ * The Forge engine, as the Forge app runs it. The app starts this process with
+ * everything in its environment (secrets come from the Keychain, never a file):
+ *
+ *   FORGE_API_TOKEN   the launch token every local API request must carry (required)
+ *   FORGE_HOME        Forge's folder (default ~/Library/Application Support/Forge)
+ *   FORGE_WORKFLOW    the workflow file (default $FORGE_HOME/WORKFLOW.md)
+ *   FORGE_LOG_FILE    the log (default ~/Library/Logs/Forge/engine.log)
+ *
+ * On start it prints one line to stdout, `FORGE_ENGINE_READY {"port":N}`, and
+ * nothing else ever goes to stdout. SIGTERM drains: no new cards, running agents
+ * get FORGE_DRAIN_MS (default 20 s) to finish, then they are stopped.
+ *
+ * New in Forge Desktop (Forge's entry is a CLI for its hosted platform).
+ */
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { createWorkerAgent, scrubMcpServerEnvs } from "./agent/index.js";
+import { validateRequiredEnv } from "./config/env-validator.js";
+import { WorkflowStore } from "./config/watcher.js";
+import { buildMcpServersConfig } from "./mcp/builders.js";
+import { createLogger } from "./observability/logger.js";
+import { resolveCostCeiling } from "./orchestrator/cost-ceiling.js";
+import { Orchestrator } from "./orchestrator/orchestrator.js";
+import { buildEngineState } from "./server/engine-state.js";
+import { startLocalApi } from "./server/local-api.js";
+import { createOrchestratorControls } from "./server/orchestrator-controls.js";
+import { openLocalStore } from "./store/local-store.js";
+import { createTracker } from "./tracker/index.js";
+import type { TrackerConfig } from "./tracker/types.js";
+import { loadSkillsManifest } from "./worker/prompt-renderer.js";
+import { WorkspaceManager } from "./workspace/manager.js";
+
+async function main(): Promise<void> {
+  const token = process.env.FORGE_API_TOKEN ?? "";
+  if (token.length < 32) throw new Error("FORGE_API_TOKEN is missing or too short");
+  const home = process.env.FORGE_HOME ?? join(homedir(), "Library/Application Support/Forge");
+  const workflowPath = resolve(process.env.FORGE_WORKFLOW ?? join(home, "WORKFLOW.md"));
+  const logFile = process.env.FORGE_LOG_FILE ?? join(homedir(), "Library/Logs/Forge/engine.log");
+  if (!existsSync(workflowPath)) throw new Error(`no workflow file at ${workflowPath}`);
+
+  const logger = createLogger({ level: "info", logFile, fileOnly: true });
+  const store = new WorkflowStore(workflowPath);
+  const { config, promptTemplate } = store.current();
+  validateRequiredEnv(config);
+  logger.info({ workflowPath, tracker: config.tracker.kind }, "Forge engine starting");
+
+  const tracker = createTracker(config.tracker.kind, {
+    endpoint: config.tracker.endpoint,
+    apiKey: config.tracker.api_key ?? process.env.LINEAR_API_KEY,
+  });
+  const trackerConfig: TrackerConfig = {
+    kind: config.tracker.kind,
+    project_slug: config.tracker.project_slug,
+    active_states: config.tracker.active_states,
+    terminal_states: config.tracker.terminal_states,
+    done_states: config.tracker.done_states,
+    labels: config.tracker.labels,
+  };
+  const agent = createWorkerAgent(config.agent.kind, {
+    command: config.agent.command,
+    model: config.agent.model,
+    logger,
+    envDenylist: config.agent.env_denylist,
+  });
+  const skillsDir = config.workspace.skills_dir
+    ? resolve(dirname(workflowPath), config.workspace.skills_dir)
+    : undefined;
+  const workspace = new WorkspaceManager({
+    root: config.workspace.root,
+    hooks: config.workspace.hooks,
+    hookTimeoutMs: config.workspace.hooks.timeout_ms,
+    skillsDir,
+  });
+  const local = openLocalStore(join(home, "forge.sqlite"));
+
+  let notify = (): void => {};
+  const orchestrator = new Orchestrator(
+    tracker,
+    agent,
+    workspace,
+    {
+      pollIntervalMs: config.polling.interval_ms,
+      maxConcurrentAgents: config.agent.max_concurrent_agents,
+      maxTurns: config.agent.max_turns,
+      turnTimeoutMs: config.agent.turn_timeout_ms,
+      readTimeoutMs: config.agent.read_timeout_ms,
+      approvalPolicy: config.agent.approval_policy,
+      stallTimeoutSeconds: config.agent.stall_timeout_seconds,
+      maxRetryAttempts: config.retry.max_attempts,
+      maxRetryDelayMs: config.agent.max_retry_backoff_ms,
+      retryBaseDelayMs: config.retry.base_delay_seconds * 1000,
+      trackerConfig,
+      promptTemplate,
+      mcpServers: scrubMcpServerEnvs(
+        buildMcpServersConfig(config.tracker.kind),
+        config.agent.env_denylist,
+      ),
+      skillsManifest: skillsDir ? loadSkillsManifest(skillsDir) : undefined,
+      logger,
+      costCeiling: resolveCostCeiling(config.cost, { logger }),
+      customWorkflows: true,
+      claimOptions: { assignee: "me" },
+    },
+    {
+      onDispatch: (issue) => {
+        logger.info({ identifier: issue.identifier }, "Dispatching");
+        notify();
+      },
+      onComplete: (_id, result, issue) => {
+        logger.info({ identifier: issue.identifier, success: result.success }, "Completed");
+        notify();
+      },
+      onError: (issueId, err) => logger.error({ issueId, err }, "Card run failed"),
+      onPollError: (err) => logger.warn({ err }, "Board poll failed"),
+      onTicketComplete: (_id, t) => {
+        local.recordRun({
+          issueId: t.issueId,
+          identifier: t.identifier,
+          outcome: t.status,
+          startedAt: new Date(t.startedAtMs).toISOString(),
+          finishedAt: new Date(t.finishedAtMs).toISOString(),
+          inputTokens: t.tokens.input,
+          outputTokens: t.tokens.output,
+          cacheReadTokens: t.tokens.cacheRead,
+          cacheWriteTokens: t.tokens.cacheWrite,
+        });
+      },
+    },
+  );
+
+  const controls = createOrchestratorControls({
+    orchestrator,
+    workflowPath,
+    config,
+    logger,
+    intendedState: {
+      read: async () => local.readDesired(),
+      write: async (desired) => local.writeDesired(desired),
+    },
+  });
+
+  const api = await startLocalApi({
+    token,
+    logger,
+    getState: () => buildEngineState({ controls, orchestrator, local }),
+    start: () => controls.startOrchestrator(null),
+    stop: () => controls.stopOrchestrator(null),
+    refresh: () => orchestrator.triggerPoll(),
+  });
+  notify = api.notify;
+  await controls.restoreFromPersistedIntent();
+
+  let stopping = false;
+  const shutdown = async (signal: string): Promise<void> => {
+    if (stopping) return;
+    stopping = true;
+    logger.info({ signal }, "Forge engine stopping");
+    const drainMs = Number(process.env.FORGE_DRAIN_MS ?? 20_000);
+    const drained = orchestrator.stop().then(() => true);
+    const timedOut = new Promise<boolean>((r) => setTimeout(() => r(false), drainMs).unref());
+    if (!(await Promise.race([drained, timedOut]))) {
+      logger.warn({ drainMs }, "Agents still running after the drain window; stopping them");
+      await orchestrator.stop({ abort: true }).catch(() => {});
+    }
+    await api.close();
+    local.close();
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+
+  process.stdout.write(`FORGE_ENGINE_READY ${JSON.stringify({ port: api.port })}\n`);
+  logger.info({ port: api.port }, "Forge engine ready");
+}
+
+main().catch((err) => {
+  process.stderr.write(
+    `Forge engine could not start: ${err instanceof Error ? err.message : err}\n`,
+  );
+  process.exit(1);
+});

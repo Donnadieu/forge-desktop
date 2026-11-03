@@ -24,7 +24,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/kimi-tree.ts | 05deefb0a43a | src/agent/kimi-tree.ts | unchanged |
 | src/agent/kimi-usage.ts | 05deefb0a43a | src/agent/kimi-usage.ts | unchanged |
 | src/agent/kimi.ts | 05deefb0a43a | src/agent/kimi.ts | dropped the container privilege drop and lent-home usage read |
-| src/agent/mcp-bridge.ts | 05deefb0a43a | src/agent/mcp-bridge.ts | comment reworded (no old project name) |
+| src/agent/mcp-bridge.ts | 05deefb0a43a | src/agent/mcp-bridge.ts | comment reworded (no old project name); fills `${VAR}` placeholders from the agent's env (`expandEnv`) |
 | src/agent/run-once.ts | 05deefb0a43a | src/agent/run-once.ts | unchanged |
 | src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | unchanged |
 | src/config/boolean-token.ts | 05deefb0a43a | src/config/boolean-token.ts | unchanged |
@@ -40,7 +40,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | unchanged |
 | src/config/watcher.ts | 05deefb0a43a | src/config/watcher.ts | unchanged |
 | src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | unchanged |
-| src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | unchanged |
+| src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools; run by the engine's own Node; the key is a `${LINEAR_API_KEY}` placeholder, never written |
 | src/mcp/handler-log.ts | 05deefb0a43a | src/mcp/forge-pipeline/handler-log.ts | moved from mcp/forge-pipeline/handler-log.ts |
 | src/mcp/linear-graphql-server.ts | 05deefb0a43a | src/mcp/linear-graphql-server.ts | imports handler-log from its new path |
 | src/observability/index.ts | 05deefb0a43a | src/observability/index.ts | dropped the terminal dashboard export |
@@ -105,3 +105,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
+| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM) |
+| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket |
+| src/server/engine-state.ts | new | | the one state object the app shows |
+| src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |

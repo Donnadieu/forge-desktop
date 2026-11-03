@@ -24,7 +24,7 @@ vi.mock("node:fs", () => ({
 }));
 
 import { readFileSync } from "node:fs";
-import { McpBridge } from "../../../src/agent/mcp-bridge.js";
+import { expandEnv, McpBridge } from "../../../src/agent/mcp-bridge.js";
 
 function makeConfig(
   servers: Record<
@@ -367,5 +367,13 @@ describe("McpBridge", () => {
       await expect(bridge.close()).resolves.toBeUndefined();
       expect(closeMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("expandEnv", () => {
+  it("fills ${VAR} placeholders from the agent's env and leaves other text alone", () => {
+    expect(
+      expandEnv({ A: "${KEY}", B: "x-${KEY}-y", C: "plain", D: "${MISSING}" }, { KEY: "k" }),
+    ).toEqual({ A: "k", B: "x-k-y", C: "plain", D: "" });
   });
 });

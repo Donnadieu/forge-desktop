@@ -20,7 +20,9 @@ PV=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Conten
 for f in LICENSE NOTICE; do
   [ -f "$APP/Contents/Resources/$f" ] && ok "$f ships inside the app" || bad "$f missing from the app" "build.sh must copy LICENSE and NOTICE (Apache-2.0 requires them)"
 done
-if grep -rIl -E 'lin_api_|sk-ant-|github_pat_|ghp_|PRIVATE KEY' "$APP" >/dev/null 2>&1; then
+# Real keys are long; the engine's own code has short look-alikes (a prefix table), which are fine.
+# A real PEM key has its BEGIN header alone on a line; code that checks for one quotes it.
+if grep -rIl -E 'lin_api_[A-Za-z0-9]{32}|sk-ant-[A-Za-z0-9_-]{60}|github_pat_[A-Za-z0-9_]{40}|ghp_[A-Za-z0-9]{30}|^-----BEGIN [A-Z ]*PRIVATE KEY-----$' "$APP" >/dev/null 2>&1; then
   bad "something that looks like a secret is inside the app" "secrets come from the Keychain at run time, never the bundle"
 else ok "no secrets in the app"; fi
 if [ -f .env ]; then
@@ -39,6 +41,7 @@ for _ in $(seq 1 40); do [ -s "$OUT" ] && break; sleep 0.25; done
 kill "$PID" 2>/dev/null
 if grep -q '^ok' "$OUT" 2>/dev/null; then ok "the app opens a window titled Forge"; else bad "no window titled Forge ($(cat "$OUT" 2>/dev/null))" "the main scene is Window(AppInfo.name, ...) in Sources/App/ForgeApp.swift"; fi
 rm -f "$OUT"
+if "$BIN" --engine-check; then ok "the engine starts, answers only with its token, is watched and stops"; else bad "engine check failed" "see the ✗ lines above; the engine log is in the scratch folder it names"; fi
 
 echo; echo "Guardrails"
 if python3 tools/lint/forge-lint.py --prove >/dev/null; then ok "every lint rule blocks its planted violation"; else bad "a lint rule let its canary through" "run tools/lint/forge-lint.py --prove"; fi

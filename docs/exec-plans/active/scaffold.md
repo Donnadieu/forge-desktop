@@ -35,7 +35,7 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 ## Progress
 - [x] 1. Repo and guardrails
 - [x] 2. Engine import (Forge 05deefb0a, 94 files, Forge's unit tests green, macOS process table)
-- [ ] 3. Engine host
+- [x] 3. Engine host (bundled Node 22.23.4, `EngineHost`, local API + live WebSocket, `--engine-check` in preflight)
 - [ ] 4. Lead waits for helpers
 - [ ] 5. Setup 1 and 2
 - [ ] 6. Setup 3 and 4

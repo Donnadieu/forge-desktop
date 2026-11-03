@@ -127,7 +127,13 @@ def r_docs_map(path, lines, ctx):
     if path == "AGENTS.md" and len(lines) > 80:
         yield 1, f"AGENTS.md is {len(lines)} lines (max 80): it's a map, not a manual"
     if path.endswith(".md"):
+        fenced = False
         for i, l in enumerate(lines, 1):
+            # Links inside ``` code blocks are examples (message templates), not links.
+            if l.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            if fenced: continue
             for target in LINK.findall(l):
                 if re.match(r'[a-z]+:', target): continue
                 full = os.path.normpath(os.path.join(ctx["root"], os.path.dirname(path), target))

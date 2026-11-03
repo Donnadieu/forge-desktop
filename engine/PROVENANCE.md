@@ -11,6 +11,13 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
   command, run the project the way its README says). The app writes the settings block above it.
+- **Agent skills:** `skills/` holds eleven of Forge's `.agents/skills` at the same commit: triage,
+  commit, push, pull, simplify, code-review (with code-review-nuclear, code-review-fix and the review
+  helpers it calls), qa-plan-forge, land, linear. Changed: qa-plan-forge and its template rewritten for
+  any repo (Forge's own stack removed); push lost two Forge-only sections; linear's lifecycle defers to
+  the workflow (one `## Forge Workpad` comment, no summary comments); "GPG-signed" became "signed";
+  three dead pointers to an `EDGE_CASE_TEMPLATE.md` Forge never had were removed.
+  Forge's worker variant of linear (merge without Human Review) is not shipped.
 
 | Our path | Forge commit | Forge path | What changed |
 |---|---|---|---|

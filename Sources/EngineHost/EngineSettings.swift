@@ -8,20 +8,26 @@ enum EngineSettings {
         let description: String
     }
 
+    static var engineDir: URL? {
+        ProcessInfo.processInfo.environment["FORGE_ENGINE_DIR"].map { URL(fileURLWithPath: $0) }
+            ?? Bundle.main.resourceURL?.appendingPathComponent("engine")
+    }
+
     /// The lead's instructions, bundled with the engine (engine/workflow/lead.md).
     static var leadInstructions: String? {
-        let env = ProcessInfo.processInfo.environment
-        let dir = env["FORGE_ENGINE_DIR"].map { URL(fileURLWithPath: $0) } ?? Bundle.main.resourceURL?.appendingPathComponent("engine")
-        guard let url = dir?.appendingPathComponent("workflow/lead.md") else { return nil }
+        guard let url = engineDir?.appendingPathComponent("workflow/lead.md") else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
     }
+
+    /// The agent skills, bundled with the engine (engine/skills); copied into each card's folder.
+    static var skillsFolder: String? { engineDir?.appendingPathComponent("skills").path }
 
     static func quoted(_ s: String) -> String {
         "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     /// The workflow file's settings block. Pure, so checks can read it.
-    static func frontMatter(_ c: SetupChoices, cardsFolder: String) -> String {
+    static func frontMatter(_ c: SetupChoices, cardsFolder: String, skillsFolder: String? = nil) -> String {
         let branch = c.defaultBranch ?? "main"
         let kind: String =
             switch c.worker ?? .claude {
@@ -41,6 +47,9 @@ enum EngineSettings {
             "workspace:",
             "  root: \(quoted(cardsFolder))",
             "  base_branch: \(quoted(branch))",
+        ]
+        if let s = skillsFolder { lines.append("  skills_dir: \(quoted(s))") }
+        lines += [
             "  hooks:",
             "    after_create: |",
             "      set -e",
@@ -87,7 +96,7 @@ enum EngineSettings {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         try FileManager.default.createDirectory(at: Paths.cards, withIntermediateDirectories: true)
-        let text = frontMatter(c, cardsFolder: Paths.cards.path) + lead
+        let text = frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + lead
         try text.write(to: Paths.workflow, atomically: true, encoding: .utf8)
     }
 
@@ -96,6 +105,8 @@ enum EngineSettings {
         guard let linear = Keychain.get(.linearKey) else { throw Problem(description: "Forge doesn't have your Linear key. Run setup again.") }
         guard let repo = c.repo else { throw Problem(description: "Setup isn't finished yet.") }
         var env: [String: String] = ["LINEAR_API_KEY": linear, "REPO_URL": "https://github.com/\(repo).git"]
+        // Agents run unattended: the commit skill commits without asking.
+        env["COMMIT_AUTO_MODE"] = "true"
         GitHub.account = c.githubLogin
         let gh = await GitHub.env()
         guard gh["GH_TOKEN"] != nil else { throw Problem(description: "Forge couldn't use your GitHub sign-in on this Mac.") }

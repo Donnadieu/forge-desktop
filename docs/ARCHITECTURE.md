@@ -87,7 +87,9 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 - Card detail adds the workpad: `GET /api/v1/cards/<id>/workpad` reads the card's workpad note.
 - Before starting the engine the app writes `WORKFLOW.md` (settings from setup plus the bundled lead
   instructions, `engine/workflow/lead.md`) and builds its environment from the Keychain and the `gh`
-  sign-in (`EngineHost/EngineSettings.swift`). git asks `gh` for the GitHub sign-in through
+  sign-in (`EngineHost/EngineSettings.swift`). The workflow points `skills_dir` at the bundled agent
+  skills (`engine/skills`); the engine copies them into each card's folder (`.claude/skills`,
+  `.forge/skills`, git-excluded) before the agent starts. git asks `gh` for the GitHub sign-in through
   `GIT_CONFIG_*` in that environment; nothing is stored on disk.
 
 ## GitHub and signing

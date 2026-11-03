@@ -5,6 +5,7 @@
 - [DESIGN.md](DESIGN.md): how the window looks and talks
 - [HARNESS.md](HARNESS.md): the guardrails: linters, the debt ratchet, hooks, CI, identity, landing a change
 - [design-docs/golden-principles.md](design-docs/golden-principles.md): every rule and what enforces it
+- [design-docs/decisions.md](design-docs/decisions.md): answers to the plan's open questions (triage, signing key, GitHub sign-in)
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress

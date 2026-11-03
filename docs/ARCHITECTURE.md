@@ -13,12 +13,12 @@ Forge.app (SwiftUI)  --starts/stops-->  engine (Node, bundled)  --runs-->  claud
 
 ## The app (`Sources/`)
 
-Dependencies point one way: **App -> UI -> Core**. Each area is a folder; a new area is a new folder.
+Dependencies point one way: **App -> UI -> EngineHost -> Core**. Each area is a folder; a new area is a new folder.
 
 | Folder | What lives there | May use |
 |---|---|---|
 | `Sources/App/` | the entry point, the scene, check modes (`--selftest`, `--window-check`) | UI, Core |
-| `Sources/UI/` | SwiftUI views | Core |
+| `Sources/UI/` | SwiftUI views and the app's one model (`AppModel`): setup screens, the board | EngineHost, Core |
 | `Sources/Core/` | plain logic and facts every layer reads; Foundation only | nothing above it |
 | `Sources/EngineHost/` | the only code that starts programs: the engine (`EngineHost`, single-flight start, watch, drain), the person's PATH (`ToolPath`), `--engine-check` | Core |
 

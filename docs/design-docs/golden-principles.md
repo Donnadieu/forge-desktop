@@ -11,7 +11,7 @@ Each rule names what enforces it. A rule with no enforcer is a gap; close it wit
 | The window is titled Forge | preflight "the app opens a window titled Forge" (`--window-check`) |
 | Plain words on screen | `forge-lint: ui-jargon` |
 | Files stay under 400 lines | `forge-lint: file-length` |
-| App layers point one way (App -> UI -> Core) | `forge-lint: core-imports` |
+| App layers point one way (App -> UI -> EngineHost -> Core) | `forge-lint: core-imports` |
 | Programs start from one place | `forge-lint: process-area` |
 | Engine layers point one way; no web platform | `engine/test/architecture/boundaries.test.ts` |
 | Engine formatting and lint | Biome (`engine/biome.json`) |
@@ -25,5 +25,5 @@ Each rule names what enforces it. A rule with no enforcer is a gap; close it wit
 | Every lint rule really blocks | `forge-lint.py --prove` in preflight |
 | Agents can find their way | `forge-lint: docs-map` (links resolve, docs indexed, AGENTS.md ≤ 80 lines) |
 | Consistent Swift formatting | `swift-format lint` |
-| Secrets only in the Keychain | not enforced yet: lands with setup screen 1 (a gap) |
+| Secrets only in the Keychain | `forge-lint: keychain-only` (Keychain calls in `Core/Keychain.swift` only, nothing secret in UserDefaults) |
 | The lead waits for its helpers | `engine/test/unit/worker/lead-waits-for-helpers.test.ts` (fails on the old runner) |

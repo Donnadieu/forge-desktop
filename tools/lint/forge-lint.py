@@ -73,7 +73,7 @@ PROCESS_OK = ("Sources/EngineHost/",)
 def r_process_area(path, lines, ctx):
     if path.startswith(PROCESS_OK): return
     for i, l in enumerate(lines, 1):
-        if re.search(r'\bProcess\s*\(\s*\)|\bposix_spawn\b|\bsystem\s*\(', code_part(l)):
+        if re.search(r'\bProcess\s*\(\s*\)|\bposix_spawn\b|(?<![.\w])system\s*\(', code_part(l)):
             yield i, "runs a program outside Sources/EngineHost/"
 
 # ---------------------------------------------------------------- repo-wide rules (every committed text file)
@@ -108,6 +108,15 @@ def r_no_secrets(path, lines, ctx):
         if SECRET.search(l):
             yield i, "looks like a secret"
 
+def r_keychain_only(path, lines, ctx):
+    """Secrets go through Sources/Core/Keychain.swift only, and never into UserDefaults."""
+    for i, l in enumerate(lines, 1):
+        c = code_part(l)
+        if path != "Sources/Core/Keychain.swift" and re.search(r'\bSecItem(Add|Update|CopyMatching|Delete)\b', c):
+            yield i, "talks to the Keychain outside Sources/Core/Keychain.swift"
+        if re.search(r'UserDefaults', c) and re.search(r'(?i)(key|token|secret|password)"', c):
+            yield i, "keeps something secret-looking in UserDefaults"
+
 def r_engine_provenance(path, lines, ctx):
     if not path.startswith("engine/src/"): return
     if path[len("engine/"):] not in ctx["provenance"]:
@@ -127,7 +136,7 @@ def r_docs_map(path, lines, ctx):
     if path.startswith("docs/") and path.endswith(".md") and path not in ctx["indexed"] and path != "docs/INDEX.md":
         yield 1, "not linked from docs/INDEX.md"
 
-SWIFT_RULES = {"file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area"}
+SWIFT_RULES = {"file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area", "keychain-only"}
 RULES = {
     "file-length":   (r_file_length, "Big files are hard to read and to change safely.",
                       "Move whole declarations into a new file for that area (see docs/ARCHITECTURE.md)."),
@@ -139,6 +148,8 @@ RULES = {
                       "Say it in plain words (see docs/PRODUCT_SENSE.md 'Words on screen')."),
     "process-area":  (r_process_area, "Running programs is risky; it happens in one known place.",
                       "Move the call into Sources/EngineHost/ (the code that starts and stops the engine)."),
+    "keychain-only": (r_keychain_only, "Secrets live in the Keychain and nowhere else (plan section 2).",
+                      "Use Keychain.get/set (Sources/Core/Keychain.swift). Settings that aren't secret go in setup.json."),
     "banned-name":   (r_banned_name, "This is Forge. The project it was based on is never named, except in NOTICE.",
                       "Remove the name. Credit lives only in NOTICE, which travels with copied code."),
     "hardcoded-identity": (r_hardcoded_identity, "Twelve-factor: names, emails and key IDs come from env or the Keychain.",
@@ -158,6 +169,7 @@ CANARIES = {
     "no-browser-view": ("Sources/UI/Canary.swift", "import WebKit\n"),
     "ui-jargon": ("Sources/UI/Canary.swift", 'let t = Text("Restart the orchestrator")\n'),
     "process-area": ("Sources/UI/Canary.swift", "let p = Process()\n"),
+    "keychain-only": ("Sources/UI/Canary.swift", 'func f() { UserDefaults.standard.set("x", forKey: "linearKey") }\n'),
     "banned-name": ("docs/canary.md", "Based on " + BANNED_WORD.title() + ".\n"),
     "hardcoded-identity": ("Sources/Core/Canary.swift", '// signed by ' + "0123456789ABCDEF" + '\nlet e = "' + "someone" + "@" + "forjado.ai" + '"\n'),
     "no-secrets": ("Sources/Core/Canary.swift", 'let k = "' + "lin_api_" + "a1B2c3D4" * 5 + '"\n'),

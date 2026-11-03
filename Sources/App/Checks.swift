@@ -19,6 +19,9 @@ enum Checks {
         if args.contains("--engine-check") {
             return EngineCheck.run()
         }
+        if let i = args.firstIndex(of: "--render-screens"), i + 1 < args.count {
+            return ScreenRender.run(into: args[i + 1])
+        }
         return nil
     }
 
@@ -30,10 +33,17 @@ enum Checks {
         }
         check("the app is called Forge", AppInfo.name == "Forge")
         check("the version comes from the bundle", AppInfo.version != "dev")
-        let renderer = ImageRenderer(content: RootView().frame(width: 720, height: 480))
+        let renderer = ImageRenderer(content: RootView(model: AppModel(preview: true)).frame(width: 720, height: 560))
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
-        check("the main window's view draws", size.width == 720 && size.height == 480)
+        check("the main window's view draws", size.width == 720 && size.height == 560)
+        check("every pipeline column is missing from an empty team", Pipeline.missing(existing: []).count == 10)
+        check(
+            "a new Linear team misses six columns (Triage, AI Review, QA, Human Review, Rework, Merging)",
+            Pipeline.missing(existing: ["Backlog", "Todo", "In Progress", "Done", "Canceled"]).map(\.name)
+                == ["Triage", "AI Review", "QA", "Human Review", "Rework", "Merging"])
+        check("column names match whatever their case and spacing", Pipeline.missing(existing: Pipeline.names.map { $0.uppercased() }).isEmpty)
+        check("setup starts at the Linear screen", SetupChoices().nextScreen == 0)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

@@ -25,8 +25,17 @@ struct ForgeApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var termSource: DispatchSourceSignal?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         WindowCheck.startIfAsked(CommandLine.arguments)
+        // SIGTERM (the installer, the updater, logout) quits the normal way, so agents drain first.
+        signal(SIGTERM, SIG_IGN)
+        let src = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        src.setEventHandler { NSApp.terminate(nil) }
+        src.resume()
+        termSource = src
+        Updater.shared.startChecking()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

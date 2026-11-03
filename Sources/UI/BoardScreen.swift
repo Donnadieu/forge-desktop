@@ -4,6 +4,7 @@ import SwiftUI
 /// helpers, usage, Start and Stop, and each card's detail. Pushed by the engine; nothing is polled here.
 struct BoardScreen: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var updater = Updater.shared
     @State private var open: EngineState.Card?
     @State private var busy = false
 
@@ -48,6 +49,11 @@ struct BoardScreen: View {
             }
             Spacer()
             UsageView(state: state)
+            if let rel = updater.available, !model.preview {
+                Button(updater.installing ? "Updating…" : "Update to \(rel.version)") { Task { await updater.install() } }
+                    .disabled(updater.installing)
+                    .help(updater.problem ?? "Agents finish what they're doing, then Forge restarts on the new version.")
+            }
             Button("Workflow") { model.go(0) }
             if state?.isRunning == true {
                 Button("Stop") { act { await model.link.stop() } }.disabled(busy)

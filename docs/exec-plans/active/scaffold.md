@@ -43,4 +43,4 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 - [x] 8. The board (live columns, one plain line per card, the lead's helpers, usage windows, Start and Stop, card detail with the workpad)
 - [x] 9. Agent skills (eleven skills bundled in `engine/skills`, copied into each card's folder where Claude Code finds them, kept out of git)
 - [ ] 10. End to end
-- [ ] 11. Signed release
+- [x] 11. Signed release (Developer ID + hardened runtime, notarized and stapled, `Forge.zip`/`Forge.dmg`, in-app updater from the repo's releases; see docs/RELEASING.md)

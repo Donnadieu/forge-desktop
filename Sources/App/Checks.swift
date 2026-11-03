@@ -19,6 +19,12 @@ enum Checks {
         if args.contains("--engine-check") {
             return EngineCheck.run()
         }
+        if args.contains("--update-now") {
+            return SetupProbe.updateNow()
+        }
+        if args.contains("--check-update") {
+            return SetupProbe.checkUpdate()
+        }
         if let i = args.firstIndex(of: "--worker-check"), i + 1 < args.count {
             return SetupProbe.worker(args[i + 1], model: i + 2 < args.count ? args[i + 2] : nil)
         }
@@ -50,6 +56,9 @@ enum Checks {
                 == ["Triage", "AI Review", "QA", "Human Review", "Rework", "Merging"])
         check("column names match whatever their case and spacing", Pipeline.missing(existing: Pipeline.names.map { $0.uppercased() }).isEmpty)
         check("setup starts at the Linear screen", SetupChoices().nextScreen == 0)
+        check("1.2.10 is newer than 1.2.9", Updater.newer("1.2.10", than: "1.2.9"))
+        check("1.0 is not newer than 1.0.0", !Updater.newer("1.0", than: "1.0.0"))
+        check("0.9.9 is not newer than 1.0.0", !Updater.newer("0.9.9", than: "1.0.0"))
         let expired = #"{"type":"result","is_error":true,"result":"Failed to authenticate: OAuth session expired"}"#
         check(
             "a Claude login that exits 0 but can't answer fails the check",

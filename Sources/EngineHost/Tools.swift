@@ -68,4 +68,14 @@ enum Tools {
         let t = String(data: errData, encoding: .utf8) ?? ""
         return Result(status: p.terminationReason == .uncaughtSignal ? 124 : p.terminationStatus, out: s, err: t)
     }
+
+    /// Starts a program that outlives Forge (the updater's swap script). Its output is discarded.
+    static func launchDetached(_ path: String, _ args: [String]) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: path)
+        p.arguments = args
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+    }
 }

@@ -16,6 +16,45 @@ enum SetupProbe {
 
     private final class Box: @unchecked Sendable { var code: Int32 = 1 }
 
+    /// `Forge --update-now`: finds, downloads, checks and stages the newest release; swaps it in on exit.
+    static func updateNow() -> Int32 {
+        let done = DispatchSemaphore(value: 0)
+        let box = Box()
+        Task { @MainActor in
+            GitHub.account = SetupChoices.load().githubLogin ?? ProcessInfo.processInfo.environment["FORGE_GITHUB_ACCOUNT"]
+            await Updater.shared.check()
+            if let rel = Updater.shared.available {
+                await Updater.shared.install()
+                if let staged = Updater.shared.staged {
+                    print("✓ staged \(staged); it replaces this copy once Forge exits")
+                    box.code = 0
+                } else {
+                    print("✗ \(Updater.shared.problem ?? "the update didn't install") (\(rel.version))")
+                }
+            } else {
+                print("· up to date (\(Updater.current))")
+                box.code = 0
+            }
+            done.signal()
+        }
+        while done.wait(timeout: .now()) == .timedOut { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        return box.code
+    }
+
+    /// `Forge --check-update`: this copy's version, the repo it updates from, and the newest release there.
+    static func checkUpdate() -> Int32 {
+        let done = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            GitHub.account = SetupChoices.load().githubLogin ?? ProcessInfo.processInfo.environment["FORGE_GITHUB_ACCOUNT"]
+            await Updater.shared.check()
+            let found = Updater.shared.available.map { "update available: \($0.version)" } ?? "up to date"
+            print("Forge \(Updater.current) · releases from \(Updater.repo ?? "nowhere") · \(found)")
+            done.signal()
+        }
+        while done.wait(timeout: .now()) == .timedOut { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        return 0
+    }
+
     /// `Forge --worker-check <claude|codex|kimi|apiKey> [model]`: setup 5's real call, from the command line.
     static func worker(_ name: String, model: String?) -> Int32 {
         guard let w = SetupChoices.Worker(rawValue: name) else {

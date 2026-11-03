@@ -12,8 +12,12 @@ struct Column: Equatable, Sendable {
 
 enum Pipeline {
     static let columns: [Column] = [
-        Column(name: "Backlog", kind: "backlog", color: "#bec2c8", line: "Ideas and later work. Agents leave these alone."),
-        Column(name: "Triage", kind: "triage", color: "#fc7840", line: "New cards. The lead agent sizes them up and moves ready ones to Todo."),
+        Column(
+            name: "Backlog", kind: "backlog", color: "#bec2c8",
+            line: "Ideas and later work. Agents leave these alone; move a card to Todo when it should be built."),
+        Column(
+            name: "Triage", kind: "triage", color: "#fc7840",
+            line: "Cards to look into first. The lead agent plans them, writes no code, and puts them back in Backlog marked ready."),
         Column(name: "Todo", kind: "unstarted", color: "#e2e2e2", line: "Ready to start. The lead agent picks these up."),
         Column(name: "In Progress", kind: "started", color: "#f2c94c", line: "An agent is writing the code and opening a pull request."),
         Column(name: "AI Review", kind: "started", color: "#bb87fc", line: "Another agent reviews the pull request and fixes what it finds."),

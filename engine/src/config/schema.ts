@@ -92,6 +92,25 @@ export const WorkflowConfigSchema = z.object({
       interval_ms: z.number().default(30_000),
     })
     .default({}),
+  // The app's board: its columns, in order (Forge Desktop).
+  board: z
+    .object({
+      columns: z
+        .array(z.string())
+        .default([
+          "Backlog",
+          "Triage",
+          "Todo",
+          "In Progress",
+          "AI Review",
+          "QA",
+          "Human Review",
+          "Rework",
+          "Merging",
+          "Done",
+        ]),
+    })
+    .default({}),
   // Per-build runaway-cost ceiling (FRG-958). max_build_usd <= 0 disables
   // enforcement (default), preserving prior unbounded behavior.
   cost: z

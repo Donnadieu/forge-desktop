@@ -365,6 +365,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       return null;
     }
 
+    if (type === "rate_limit_event") return mapRateLimit(raw);
+
     if (type === "result") {
       // result.usage is consumed by accountUsage() (the end-of-turn reconcile);
       // mapEvent only turns the line into the terminal done event.
@@ -417,4 +419,26 @@ export function trackHelper(
     return { type: "helper", id, status: "finished", description };
   }
   return null;
+}
+
+/**
+ * Claude Code's `rate_limit_event`: a subscription window (five_hour,
+ * seven_day...) with how much is used and when it resets. Read defensively:
+ * the fields are Claude Code's, not ours.
+ */
+export function mapRateLimit(raw: Record<string, unknown>): AgentEvent | null {
+  const info = (raw.rate_limit_info ?? raw) as Record<string, unknown>;
+  const window = typeof info.rateLimitType === "string" ? info.rateLimitType : null;
+  if (!window) return null;
+  const u = typeof info.utilization === "number" ? info.utilization : null;
+  const percent = u === null ? null : Math.round(u <= 1 ? u * 100 : u);
+  const r = typeof info.resetsAt === "number" ? info.resetsAt : null;
+  const resetsAt = r === null ? null : new Date(r < 1e12 ? r * 1000 : r).toISOString();
+  return {
+    type: "rate_limit",
+    window,
+    percent,
+    resetsAt,
+    status: String(info.status ?? "allowed"),
+  };
 }

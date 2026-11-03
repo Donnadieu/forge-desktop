@@ -695,6 +695,9 @@ describe("Orchestrator — tracker-done reconciliation", () => {
       turnCount: 3,
       lastEvent: "",
       lastMessage: "",
+      activity: "",
+      helpers: [],
+      recent: [],
       host: null,
       turnTimings: [],
     });
@@ -781,6 +784,9 @@ describe("Orchestrator — tracker-done reconciliation", () => {
       turnCount: 3,
       lastEvent: "",
       lastMessage: "",
+      activity: "",
+      helpers: [],
+      recent: [],
       host: null,
       turnTimings: [],
     });
@@ -854,6 +860,9 @@ describe("Orchestrator — tracker-done reconciliation", () => {
       turnCount: 0,
       lastEvent: "",
       lastMessage: "",
+      activity: "",
+      helpers: [],
+      recent: [],
       host: null,
       turnTimings: [],
     });

@@ -77,6 +77,19 @@ when no helper runs. While the lead waits, the read and turn timeouts pause; one
 (`agent.helper_wait_ms`, 60 minutes). If it is hit, the run stops and the card gets a plain note.
 Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails on Forge's old runner.
 
+## The board
+
+- The engine reads every card in the board's columns (`board.columns`) from Linear on start, on every
+  poll interval and on Refresh, and merges in what each agent holding a card is doing:
+  one plain line built from its events (`orchestrator/activity.ts`), its helpers, and its last lines.
+- The state reaches the app over the live WebSocket when it changes. The app never polls.
+- Usage: a Claude plan's windows (5 hours, week) from Claude Code's `rate_limit_event`; otherwise tokens today.
+- Card detail adds the workpad: `GET /api/v1/cards/<id>/workpad` reads the card's workpad note.
+- Before starting the engine the app writes `WORKFLOW.md` (settings from setup plus the bundled lead
+  instructions, `engine/workflow/lead.md`) and builds its environment from the Keychain and the `gh`
+  sign-in (`EngineHost/EngineSettings.swift`). git asks `gh` for the GitHub sign-in through
+  `GIT_CONFIG_*` in that environment; nothing is stored on disk.
+
 ## GitHub and signing
 
 - GitHub: the `gh` sign-in already on the Mac. If `gh` holds several accounts, setup picks one and Forge

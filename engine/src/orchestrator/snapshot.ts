@@ -26,6 +26,9 @@ function buildRunningSnapshot(entry: RunningEntry, now: number): RunningSessionS
     turnCount: entry.turnCount,
     lastEvent: entry.lastEvent,
     lastMessage: entry.lastMessage,
+    activity: entry.activity,
+    helpers: entry.helpers.map((h) => ({ ...h })),
+    recent: [...entry.recent],
     startedAt: new Date(Date.now() - elapsedMs).toISOString(),
     lastEventAt: new Date(Date.now() - lastActivityMs).toISOString(),
     tokens: {
@@ -138,7 +141,7 @@ export function buildStateSnapshot(
     },
     progress,
     terminalBuildOutcome: state.terminalBuildOutcome,
-    rateLimits: null,
+    rateLimits: Object.keys(state.rateLimits).length ? { ...state.rateLimits } : null,
   };
 }
 

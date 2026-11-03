@@ -13,6 +13,9 @@ export interface RunningSessionSnapshot {
   turnCount: number;
   lastEvent: string;
   lastMessage: string;
+  activity: string;
+  helpers: Array<{ id: string; description: string; running: boolean }>;
+  recent: Array<{ at: string; line: string }>;
   startedAt: string;
   lastEventAt: string;
   tokens: { input: number; output: number; total: number };

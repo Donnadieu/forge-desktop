@@ -4,6 +4,7 @@ import type { TerminalBuildOutcome } from "../observability/types.js";
 import type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
 import type { NormalizedIssue, ProgressCounts, TrackerConfig } from "../tracker/types.js";
 import type { WorkerResult } from "../worker/runner.js";
+import type { HelperActivity } from "./activity.js";
 import type { CostCeilingConfig } from "./cost-ceiling.js";
 
 export type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
@@ -162,6 +163,12 @@ export interface RunningEntry {
   turnCount: number;
   lastEvent: string;
   lastMessage: string;
+  /** One plain line about what the agent is doing now (orchestrator/activity.ts). */
+  activity: string;
+  /** The lead's helpers, from Claude Code's background-task events. */
+  helpers: HelperActivity[];
+  /** The last plain activity lines, newest last, for the card's detail. */
+  recent: Array<{ at: string; line: string }>;
   host: string | null;
   /** Per-turn telemetry, populated by orchestrator's onTurnStart / onTurnEnd / onEvent consumers. */
   turnTimings: TurnTimingEntry[];
@@ -208,6 +215,11 @@ export interface OrchestratorState {
    */
   settling: Map<string, SettlingEntry>;
   totalTokens: TokenTotals;
+  /** The latest Claude subscription usage window seen, by window name (five_hour, seven_day...). */
+  rateLimits: Record<
+    string,
+    { percent: number | null; resetsAt: string | null; status: string; seenAt: string }
+  >;
   tickTimerId: ReturnType<typeof setTimeout> | null;
   secondsRunning: number; // sum of finished agent-seconds; see StateSnapshot.codexTotals
   /**
@@ -302,6 +314,7 @@ export function createInitialState(): OrchestratorState {
     retryAttempts: new Map(),
     settling: new Map(),
     totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    rateLimits: {},
     tickTimerId: null,
     secondsRunning: 0,
     sessionStartedAt: performance.now(),

@@ -73,6 +73,15 @@ export type AgentEvent =
       description?: string;
     }
   | {
+      /** A Claude subscription's usage window (Claude Code's rate_limit_event). */
+      type: "rate_limit";
+      window: string;
+      /** How much of the window is used, 0 to 100, when Claude Code says. */
+      percent: number | null;
+      resetsAt: string | null;
+      status: string;
+    }
+  | {
       /** The agent ended its turn but helpers still run; the session stays open until they finish. */
       type: "waiting_for_helpers";
       running: number;

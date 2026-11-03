@@ -40,7 +40,7 @@ Source of truth for the decisions: Omar's locked plan (Nov 3, 2026). This file t
 - [x] 5. Setup 1 and 2 (Linear key into the Keychain, team and project pickers, missing columns created after a yes)
 - [x] 6. Setup 3 and 4 (gh account, device sign-in, the three signing choices with a test signature, repo picker with the push check; the engine checks signing before every card)
 - [x] 7. Setup 5 (Claude Code, Codex, Kimi or an Anthropic API key; one real call whose answer is read, not the exit code; keys into the Keychain)
-- [ ] 8. The board
+- [x] 8. The board (live columns, one plain line per card, the lead's helpers, usage windows, Start and Stop, card detail with the workpad)
 - [ ] 9. Agent skills
 - [ ] 10. End to end
 - [ ] 11. Signed release

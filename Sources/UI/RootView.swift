@@ -12,24 +12,11 @@ struct RootView: View {
             case 2: GitHubScreen(model: model)
             case 3: RepoScreen(model: model)
             case 4: WorkerScreen(model: model)
-            default: NotYetScreen(model: model)
+            default: BoardScreen(model: model)
             }
         }
         .frame(minWidth: 720, minHeight: 560)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
-}
-
-/// Stands in for the screens later steps of the plan add.
-struct NotYetScreen: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        SetupFrame(
-            model: model, question: AppModel.screenTitles[min(model.screen, 5)], detail: "This part of setup arrives in the next update.",
-            primary: "Continue", primaryEnabled: false, busy: false, action: nothing
-        ) { EmptyView() }
-    }
-
-    private func nothing() {}
 }

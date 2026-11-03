@@ -9,6 +9,7 @@
 import type { AgentEvent } from "../agent/types.js";
 import type { WorkerCallbacks } from "../worker/runner.js";
 import { addUsageTokens } from "../worker/usage.js";
+import { applyHelperEvent, plainActivity } from "./activity.js";
 import type { OrchestratorCallbacks, OrchestratorState, RunningEntry } from "./types.js";
 
 export function makeWorkerCallbacks(
@@ -27,6 +28,14 @@ export function makeWorkerCallbacks(
     onEvent: (issueId, event) => {
       // Always accumulate global totals regardless of entry lookup
       addUsageTokens(state.totalTokens, event);
+      if (event.type === "rate_limit") {
+        state.rateLimits[event.window] = {
+          percent: event.percent,
+          resetsAt: event.resetsAt,
+          status: event.status,
+          seenAt: new Date().toISOString(),
+        };
+      }
       const runEntry = ownEntry(issueId);
       if (runEntry) applyEventToEntry(runEntry, event);
       callbacks.onEvent?.(issueId, event);
@@ -75,6 +84,13 @@ function applyEventToEntry(runEntry: RunningEntry, event: AgentEvent): void {
   } else if (event.type === "tool_use") {
     runEntry.lastMessage = event.tool;
   }
+  const line = plainActivity(event);
+  if (line && line !== runEntry.activity) {
+    runEntry.activity = line;
+    runEntry.recent.push({ at: new Date().toISOString(), line });
+    if (runEntry.recent.length > 40) runEntry.recent.shift();
+  }
+  applyHelperEvent(runEntry.helpers, event);
   // Attribute the event to the most recent open turn timing entry, if any.
   const last = runEntry.turnTimings[runEntry.turnTimings.length - 1];
   if (last && last.finishedAt === null) {

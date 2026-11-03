@@ -22,6 +22,7 @@ import { validateRequiredEnv } from "./config/env-validator.js";
 import { WorkflowStore } from "./config/watcher.js";
 import { buildMcpServersConfig } from "./mcp/builders.js";
 import { createLogger } from "./observability/logger.js";
+import { BoardReader } from "./orchestrator/board-reader.js";
 import { resolveCostCeiling } from "./orchestrator/cost-ceiling.js";
 import { Orchestrator } from "./orchestrator/orchestrator.js";
 import { buildEngineState } from "./server/engine-state.js";
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
     skillsDir,
   });
   const local = openLocalStore(join(home, "forge.sqlite"));
+  const board = new BoardReader(tracker, trackerConfig, config.board.columns);
 
   let notify = (): void => {};
   const orchestrator = new Orchestrator(
@@ -112,7 +114,7 @@ async function main(): Promise<void> {
       },
       onComplete: (_id, result, issue) => {
         logger.info({ identifier: issue.identifier, success: result.success }, "Completed");
-        notify();
+        void board.refresh().then(() => notify());
       },
       onError: (issueId, err) => logger.error({ issueId, err }, "Card run failed"),
       onPollError: (err) => logger.warn({ err }, "Board poll failed"),
@@ -146,12 +148,29 @@ async function main(): Promise<void> {
   const api = await startLocalApi({
     token,
     logger,
-    getState: () => buildEngineState({ controls, orchestrator, local }),
+    getState: () =>
+      buildEngineState({
+        controls,
+        orchestrator,
+        local,
+        board: () => board.view(orchestrator.getSnapshot().running),
+      }),
+    workpad: (id) => board.workpad(id),
     start: () => controls.startOrchestrator(null),
     stop: () => controls.stopOrchestrator(null),
-    refresh: () => orchestrator.triggerPoll(),
+    refresh: () => {
+      void board.refresh().then(() => notify());
+      return orchestrator.triggerPoll();
+    },
   });
   notify = api.notify;
+  // The board shows even while agents are stopped: read it now and on every poll interval.
+  await board.refresh();
+  const boardTimer = setInterval(
+    () => void board.refresh().then(() => notify()),
+    config.polling.interval_ms,
+  );
+  boardTimer.unref();
   await controls.restoreFromPersistedIntent();
 
   let stopping = false;
@@ -166,6 +185,7 @@ async function main(): Promise<void> {
       logger.warn({ drainMs }, "Agents still running after the drain window; stopping them");
       await orchestrator.stop({ abort: true }).catch(() => {});
     }
+    clearInterval(boardTimer);
     await api.close();
     local.close();
     process.exit(0);

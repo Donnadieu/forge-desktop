@@ -13,6 +13,10 @@ final class AppModel: ObservableObject {
     /// Render mode: views draw sample data and never touch Linear, GitHub or the Keychain.
     let preview: Bool
     var sample = Sample()
+    /// The board's link to the engine.
+    lazy var link = BoardLink(model: self)
+    /// Setup was changed since the engine started, so the board restarts it with the new answers.
+    var settingsChanged = false
 
     /// What render mode shows instead of the person's real Linear and GitHub.
     struct Sample {
@@ -21,6 +25,17 @@ final class AppModel: ObservableObject {
         var states = ["Backlog", "Todo", "In Progress", "Done", "Canceled"]
         var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
         var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
+        var workpad = """
+            ## Forge Workpad
+
+            ### Plan
+            - [x] Reproduce: the login page accepts an empty password
+            - [x] Add the check and its error message
+            - [ ] Tests for both cases
+
+            ### Notes
+            Two helpers are writing the tests while the lead updates the docs.
+            """
         var repos = [
             GitHub.Repo(fullName: "acme/forge-desktop-e2e", defaultBranch: "main", canPush: true),
             GitHub.Repo(fullName: "acme/website", defaultBranch: "main", canPush: true),
@@ -40,6 +55,7 @@ final class AppModel: ObservableObject {
 
     func save() {
         if !preview { choices.save() }
+        if screen < 5 { settingsChanged = true }
     }
 
     func go(_ s: Int) {

@@ -36,6 +36,17 @@ struct EngineClient: Sendable {
     func stop() async throws { _ = try await call("/api/v1/stop", method: "POST") }
     func refresh() async throws { _ = try await call("/api/v1/refresh", method: "POST") }
 
+    struct Workpad: Decodable, Sendable, Equatable {
+        var workpad: String?
+        var comments: Int
+    }
+
+    /// The card's workpad note, for the card's detail.
+    func workpad(card: String) async throws -> Workpad {
+        let safe = card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card
+        return try JSONDecoder().decode(Workpad.self, from: try await call("/api/v1/cards/\(safe)/workpad"))
+    }
+
     /// Opens the live state stream. `onState` runs for every pushed state; `onClose` once when the stream ends.
     func live(onState: @escaping @Sendable (EngineState) -> Void, onClose: @escaping @Sendable () -> Void) -> URLSessionWebSocketTask {
         let task = URLSession.shared.webSocketTask(with: request("/api/v1/live", method: "GET"))
@@ -59,34 +70,3 @@ struct EngineClient: Sendable {
 }
 
 /// The engine's state as the app shows it. Unknown fields are ignored, so the engine can grow without breaking the app.
-struct EngineState: Decodable, Sendable, Equatable {
-    /// "running", "stopping" or "stopped".
-    var status: String
-    var running: [RunningCard]
-    var poll: Poll?
-
-    struct RunningCard: Decodable, Sendable, Equatable {
-        var issue_identifier: String
-        var issue_title: String?
-        var last_message: String?
-        var turn_count: Int?
-    }
-
-    struct Poll: Decodable, Sendable, Equatable {
-        var lastPollAt: String?
-        var lastPollError: String?
-    }
-
-    static func decode(_ data: Data) throws -> EngineState {
-        try JSONDecoder().decode(EngineState.self, from: data)
-    }
-
-    private struct Frame: Decodable {
-        var type: String
-        var state: EngineState
-    }
-
-    static func decodeFrame(_ data: Data) throws -> EngineState {
-        try JSONDecoder().decode(Frame.self, from: data).state
-    }
-}

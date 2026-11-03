@@ -1,4 +1,5 @@
 import { createLogger } from "../observability/logger.js";
+import { fetchBoardCards } from "./linear-board.js";
 import { claimLinearIssue } from "./linear-claim.js";
 import {
   LinearGraphQLError,
@@ -21,6 +22,7 @@ import {
 } from "./linear-reads.js";
 import { LinearWriteClient } from "./linear-writes.js";
 import type {
+  BoardCard,
   ClaimIssueArgs,
   ClaimResult,
   CreateIssueArgs,
@@ -182,6 +184,11 @@ export class LinearTracker implements TrackerAdapter {
   }
 
   // PITFALL #1: Use issues(filter: { id: { in: $ids } }), NOT nodes(ids: [...])
+  async fetchBoard(config: TrackerConfig, states: string[]): Promise<BoardCard[]> {
+    if (!config.project_slug) throw new Error("Linear project slug is required");
+    return fetchBoardCards((q, v) => this.graphql(q, v), config.project_slug, states);
+  }
+
   async fetchIssueStatesByIds(ids: string[]): Promise<Map<string, string>> {
     if (ids.length === 0) return new Map();
 

@@ -41,6 +41,9 @@ function makeRunningEntry(issueId: string, startedAt: number): RunningEntry {
     turnCount: 0,
     lastEvent: "",
     lastMessage: "",
+    activity: "",
+    helpers: [],
+    recent: [],
     host: null,
     turnTimings: [],
   };

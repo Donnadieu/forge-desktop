@@ -25,5 +25,6 @@ cp "$(dirname "$NODE")/../LICENSE" "$DEST/NODE-LICENSE"
 cp -R engine/dist "$DEST/dist"
 cp -R "$PROD/node_modules" "$DEST/node_modules"
 cp engine/package.json "$DEST/package.json"
+cp -R engine/workflow "$DEST/workflow"
 find "$DEST/dist" -name '*.map' -delete
 echo "engine bundled ($(du -sh "$DEST" | cut -f1))"

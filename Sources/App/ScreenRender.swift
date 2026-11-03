@@ -36,6 +36,13 @@ enum ScreenRender {
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }
         }
+        let detailModel = AppModel(preview: true, screen: 5)
+        let held = SampleBoard.state.cards.first { $0.agent != nil }!
+        let ok = render(
+            CardDetail(model: detailModel, card: held) {}, size: NSSize(width: 620, height: 560),
+            to: dir.appendingPathComponent("7-card-detail.png"))
+        print("\(ok ? "✓" : "✗") 7-card-detail")
+        if !ok { failed += 1 }
         return failed == 0 ? 0 : 1
     }
 

@@ -144,6 +144,11 @@ export interface ClaimResult {
 
 export interface TrackerAdapter {
   readonly kind: string;
+  /**
+   * Every card in `states` for the app's board (Forge Desktop). Throws when the
+   * tracker can't be reached. Optional: the board falls back to fetchCandidates.
+   */
+  fetchBoard?(config: TrackerConfig, states: string[]): Promise<BoardCard[]>;
   fetchCandidates(config: TrackerConfig): Promise<NormalizedIssue[]>;
   fetchIssueStatesByIds(ids: string[]): Promise<Map<string, string>>;
   fetchTerminalIssues(config: TrackerConfig): Promise<NormalizedIssue[]>;
@@ -181,4 +186,19 @@ export interface TrackerAdapter {
    * Smith bug intake path to deduplicate against orphan Linear tickets.
    */
   fetchOpenProjectIssues?(projectId: string): Promise<NormalizedIssue[]>;
+}
+
+/** One card on the app's board (Forge Desktop). */
+export interface BoardCard {
+  id: string;
+  identifier: string;
+  title: string;
+  state: string;
+  url: string | null;
+  assignee: string | null;
+  branchName: string | null;
+  /** The card's GitHub pull request, from the tracker's GitHub link on the card. */
+  prUrl: string | null;
+  priority: number | null;
+  updatedAt: string;
 }

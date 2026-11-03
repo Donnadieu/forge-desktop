@@ -22,6 +22,9 @@ export function toRunningJson(s: RunningSessionSnapshot): Record<string, unknown
     turn_count: s.turnCount,
     last_event: s.lastEvent,
     last_message: s.lastMessage,
+    activity: s.activity,
+    helpers: s.helpers,
+    recent: s.recent,
     started_at: s.startedAt,
     last_event_at: s.lastEventAt,
     tokens: {

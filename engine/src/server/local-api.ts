@@ -7,6 +7,7 @@
  *   POST /api/v1/start   start taking cards
  *   POST /api/v1/stop    stop taking cards (running agents finish first)
  *   POST /api/v1/refresh look at the board now instead of at the next poll
+ *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
  *   WS   /api/v1/live    pushes the state whenever it changes
  *
  * New in Forge Desktop. Replaces Forge's hosted router.
@@ -25,6 +26,8 @@ export interface LocalApiDeps {
   start: () => Promise<unknown>;
   stop: () => Promise<unknown>;
   refresh: () => void;
+  /** The card's workpad note (card detail). */
+  workpad?: (cardId: string) => Promise<unknown>;
   logger?: Logger;
   /** How often the API checks for a changed state to push (ms). */
   pushCheckMs?: number;
@@ -83,8 +86,14 @@ export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
         if (!post) return methodNotAllowed(res, "POST");
         deps.refresh();
         return jsonResponse(res, 202, { ok: true });
-      default:
+      default: {
+        const card = /^\/api\/v1\/cards\/([A-Za-z0-9-]{1,64})\/workpad$/.exec(path);
+        if (card && deps.workpad) {
+          if (req.method !== "GET") return methodNotAllowed(res, "GET");
+          return jsonResponse(res, 200, await deps.workpad(card[1]));
+        }
         return notFound(res);
+      }
     }
   };
 

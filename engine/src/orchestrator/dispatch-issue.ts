@@ -160,6 +160,9 @@ export async function dispatchIssue(
     turnCount: 0,
     lastEvent: "",
     lastMessage: "",
+    activity: "Starting",
+    helpers: [],
+    recent: [],
     host: null,
     turnTimings: [],
   };

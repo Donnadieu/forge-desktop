@@ -13,7 +13,11 @@ enum WorkerCheck {
     /// The environment the agent runs with: the key from setup, if this worker needs one, or the
     /// long-lived Claude Code token Forge's sign-in kept (AgentSignIn).
     static func env(_ worker: SetupChoices.Worker, key: String?) -> [String: String] {
-        if worker == .claude, let token = Keychain.get(.claudeToken), !token.isEmpty { return ["CLAUDE_CODE_OAUTH_TOKEN": token] }
+        if worker == .claude, let kept = Keychain.get(.claudeToken), !kept.isEmpty {
+            let token = AgentSignIn.repaired(kept)
+            if token != kept { Keychain.set(token, for: .claudeToken) }
+            return ["CLAUDE_CODE_OAUTH_TOKEN": token]
+        }
         guard let key, !key.isEmpty else { return [:] }
         switch worker {
         case .apiKey: return ["ANTHROPIC_API_KEY": key]

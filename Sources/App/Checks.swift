@@ -105,6 +105,18 @@ enum Checks {
             "the sign-in's token is read through terminal codes",
             AgentSignIn.token(in: tokenScreen) == "sk-ant-oat01-AbC_d-123456789012345678901234567890")
         check("no token before the person approves", AgentSignIn.token(in: "Opening browser to sign in…\r\nPaste code here if prompted > ") == nil)
+        let glued =
+            "Your OAuth token (valid for 1 year):\u{1B}[2B\u{1B}[1Gsk-ant-oat01-AbC_d-123456789012345678901234567890\u{1B}[2B\u{1B}[1GStore this token securely."
+        check(
+            "a cursor move ends the token (0.2.7 glued \"Store\" on)",
+            AgentSignIn.token(in: glued) == "sk-ant-oat01-AbC_d-123456789012345678901234567890")
+        check("half a token read mid-print doesn't count", AgentSignIn.token(in: "sk-ant-oat01-AbC_d-1234567890123456789012") == nil)
+        check(
+            "a token kept with \"Store\" stuck on is repaired",
+            AgentSignIn.repaired("sk-ant-oat01-AbC_d-123456789012345678901234567890Store") == "sk-ant-oat01-AbC_d-123456789012345678901234567890")
+        check(
+            "a good token is left alone",
+            AgentSignIn.repaired("sk-ant-oat01-AbC_d-123456789012345678901234567890") == "sk-ant-oat01-AbC_d-123456789012345678901234567890")
         check(
             "terminal codes come off, the text stays",
             AgentSignIn.plain("\u{1B}]8;;https://x.y\u{07}link\u{1B}]8;;\u{07} \u{1B}[1mhi\u{1B}[0m") == "link hi")

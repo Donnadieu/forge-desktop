@@ -49,17 +49,28 @@ final class AgentSignIn: ObservableObject {
     /// Claude Code's sign-in draws a terminal screen: it runs in one (wide, so nothing wraps).
     nonisolated static func needsTerminal(_ worker: SetupChoices.Worker) -> Bool { worker == .claude }
 
-    /// Removes a terminal's colour and cursor codes, keeping the text.
+    /// Removes a terminal's colour and cursor codes, keeping the text. A cursor move becomes a line
+    /// break: Claude Code draws its screen with moves instead of newlines, and dropping them glued the
+    /// next line's first word onto the token (0.2.7 kept "<token>Store").
     nonisolated static func plain(_ text: String) -> String {
         text.replacingOccurrences(of: "\u{1B}\\][^\u{07}\u{1B}]*(\u{07}|\u{1B}\\\\)", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[A-HJKSTf]", with: "\n", options: .regularExpression)
             .replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]", with: "", options: .regularExpression)
             .replacingOccurrences(of: "\r", with: "")
     }
 
-    /// The long-lived token `claude setup-token` prints once the person approves, if it's there yet.
+    /// The long-lived token `claude setup-token` prints once the person approves, if it's all there:
+    /// only a token followed by a space or line break counts, so half of one read mid-print never does.
     nonisolated static func token(in text: String) -> String? {
-        guard let r = plain(text).range(of: "sk-ant-oat[0-9]{2}-[A-Za-z0-9_-]{20,}", options: .regularExpression) else { return nil }
-        return String(plain(text)[r])
+        let t = plain(text)
+        guard let r = t.range(of: "sk-ant-oat[0-9]{2}-[A-Za-z0-9_-]{20,}(?=\\s)", options: .regularExpression) else { return nil }
+        return String(t[r])
+    }
+
+    /// Repairs a token 0.2.7 kept with the next line's first word stuck on ("…Store"), so that sign-in
+    /// works without approving again.
+    nonisolated static func repaired(_ token: String) -> String {
+        token.hasPrefix("sk-ant-oat") && token.hasSuffix("Store") ? String(token.dropLast(5)) : token
     }
 
     /// True when a failed check reads like a lapsed or missing sign-in rather than a broken install.
@@ -143,8 +154,16 @@ final class AgentSignIn: ObservableObject {
         if found.wantsCode { acceptsCode = true }
         if worker == .claude, stage == .waiting, let token = Self.token(in: seen) {
             stage = Keychain.set(token, for: .claudeToken) ? .done : .failed("Forge couldn't keep the sign-in in your Keychain.")
-            if let p = process, p.isRunning { p.terminate() }
+            stop(process)
         }
+    }
+
+    /// Ends the sign-in program; a terminal program may ignore the polite signal, so it's forced after 2 s.
+    private func stop(_ p: Process?) {
+        guard let p, p.isRunning else { return }
+        p.terminate()
+        let pid = p.processIdentifier
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2) { if p.isRunning { kill(pid, SIGKILL) } }
     }
 
     /// A terminal pair 400 columns wide, so a long link or token prints on one line.
@@ -177,7 +196,7 @@ final class AgentSignIn: ObservableObject {
     }
 
     func cancel() {
-        if let p = process, p.isRunning { p.terminate() }
+        stop(process)
         process = nil
         stage = .idle
     }

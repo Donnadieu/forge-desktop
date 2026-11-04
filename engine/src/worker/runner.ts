@@ -66,6 +66,9 @@ export async function runWorker(
   let sessionId: string | undefined;
   let currentHandle: SessionHandle | null = null;
   let aborted = false;
+  // The agent's own reason for a failed turn (e.g. "OAuth session expired"), kept so the
+  // orchestrator can show it and retry instead of the run failing without a word.
+  let lastError: string | undefined;
 
   if (callbacks?.signal?.aborted) {
     return { issueId: issue.id, turns: 0, tokens: totalTokens, success: false, error: "Aborted" };
@@ -179,6 +182,7 @@ export async function runWorker(
 
           addUsageTokens(totalTokens, event);
           if (event.type === "error") {
+            lastError = event.message;
             turnSuccess = false;
             break;
           }
@@ -216,11 +220,13 @@ export async function runWorker(
         if (stateCheck === "break") break;
         if (stateCheck) return stateCheck;
       }
+      const success = lastTurnSuccess && !aborted;
       return {
         issueId: issue.id,
         turns: turnNumber,
         tokens: totalTokens,
-        success: lastTurnSuccess && !aborted,
+        success,
+        ...(!success && lastError ? { error: lastError } : {}),
         workspacePath,
         preserveWorkspace: false,
       };
@@ -325,6 +331,7 @@ export async function runWorker(
         addUsageTokens(totalTokens, event);
 
         if (event.type === "error") {
+          lastError = event.message;
           turnSuccess = false;
           break;
         }
@@ -418,7 +425,7 @@ export async function runWorker(
     tokens: totalTokens,
     // An abort anywhere (between turns, during a state check) is a failure.
     success: lastTurnSuccess && !aborted,
-    ...(aborted ? { error: "Aborted" } : {}),
+    ...(aborted ? { error: "Aborted" } : !lastTurnSuccess && lastError ? { error: lastError } : {}),
     workspacePath: workspacePath,
     preserveWorkspace: !agent.persistentSession,
   };

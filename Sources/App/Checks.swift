@@ -98,6 +98,16 @@ enum Checks {
             "an expired Claude sign-in is read as signed out",
             AgentSignIn.looksSignedOut("Claude Code said: Failed to authenticate: OAuth session expired and could not be refreshed"))
         check("a missing program is not read as signed out", !AgentSignIn.looksSignedOut("Claude Code isn't installed on this Mac."))
+        check("Claude Code signs in with a long-lived token", AgentSignIn.command(for: .claude) == ["claude", "setup-token"])
+        let tokenScreen =
+            "\u{1B}[32m✓\u{1B}[39m Long-lived authentication token created successfully!\r\n\r\nYour OAuth token (valid for 1 year):\r\n\r\n\u{1B}[1msk-ant-oat01-AbC_d-123456789012345678901234567890\u{1B}[22m\r\n\r\nStore this token securely."
+        check(
+            "the sign-in's token is read through terminal codes",
+            AgentSignIn.token(in: tokenScreen) == "sk-ant-oat01-AbC_d-123456789012345678901234567890")
+        check("no token before the person approves", AgentSignIn.token(in: "Opening browser to sign in…\r\nPaste code here if prompted > ") == nil)
+        check(
+            "terminal codes come off, the text stays",
+            AgentSignIn.plain("\u{1B}]8;;https://x.y\u{07}link\u{1B}]8;;\u{07} \u{1B}[1mhi\u{1B}[0m") == "link hi")
         let printed =
             "Opening browser to sign in… If the browser didn't open, visit: https://claude.ai/oauth/authorize?code=true&x=1 Paste code here if prompted > "
         let scanned = AgentSignIn.scan(printed)

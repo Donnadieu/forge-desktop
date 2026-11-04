@@ -10,8 +10,10 @@ enum WorkerCheck {
 
     static let prompt = "Reply with the single word: ready"
 
-    /// The environment the agent runs with: the key from setup, if this worker needs one.
+    /// The environment the agent runs with: the key from setup, if this worker needs one, or the
+    /// long-lived Claude Code token Forge's sign-in kept (AgentSignIn).
     static func env(_ worker: SetupChoices.Worker, key: String?) -> [String: String] {
+        if worker == .claude, let token = Keychain.get(.claudeToken), !token.isEmpty { return ["CLAUDE_CODE_OAUTH_TOKEN": token] }
         guard let key, !key.isEmpty else { return [:] }
         switch worker {
         case .apiKey: return ["ANTHROPIC_API_KEY": key]

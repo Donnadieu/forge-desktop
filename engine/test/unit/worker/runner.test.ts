@@ -396,6 +396,35 @@ describe("runWorker", () => {
     expect(result.success).toBe(false);
   });
 
+  it("keeps the agent's reason when a turn fails, so the window can show it", async () => {
+    const reason = "Failed to authenticate: OAuth session expired and could not be refreshed";
+    const agent = createMockAgent([
+      [
+        { type: "error", message: reason },
+        { type: "done", success: false },
+      ],
+    ]);
+    const tracker = new MemoryTracker([testIssue]);
+    const result = await runWorker(
+      testIssue,
+      {
+        maxTurns: 5,
+        promptTemplate: "Fix it",
+        trackerConfig: {
+          kind: "memory",
+          project_slug: "test",
+          active_states: ["Todo"],
+          terminal_states: ["Done"],
+        },
+      },
+      agent,
+      tracker,
+      createMockWorkspace(),
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(reason);
+  });
+
   it("writes MCP config when mcpServers provided", async () => {
     const agent = createMockAgent([[{ type: "done", success: true }]]);
     const tracker = new MemoryTracker([testIssue]);

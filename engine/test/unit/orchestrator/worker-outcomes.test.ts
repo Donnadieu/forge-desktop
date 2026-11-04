@@ -225,6 +225,52 @@ describe("worker-outcomes retry holds the agent slot (cap=1)", () => {
     vi.useRealTimers();
   });
 
+  it("retries a failed persistent-session run that said why, so the reason reaches the window", () => {
+    vi.useFakeTimers();
+    const deps = makeDeps();
+    seedRunning(deps, "issue-1", "FORGE-1");
+    const reason = "Failed to authenticate: OAuth session expired and could not be refreshed";
+    handleWorkerComplete(
+      deps,
+      "issue-1",
+      {
+        issueId: "issue-1",
+        success: false,
+        turns: 1,
+        tokens: { input: 0, output: 0 },
+        preserveWorkspace: false,
+        error: reason,
+      },
+      1,
+    );
+    expect(deps.state.retryAttempts.get("issue-1")?.error).toBe(reason);
+    cancelAllRetries(deps.state);
+    vi.useRealTimers();
+  });
+
+  it("does not retry a stopped run or a failure with no reason from a persistent session", () => {
+    vi.useFakeTimers();
+    for (const error of ["Aborted", undefined]) {
+      const deps = makeDeps();
+      seedRunning(deps, "issue-1", "FORGE-1");
+      handleWorkerComplete(
+        deps,
+        "issue-1",
+        {
+          issueId: "issue-1",
+          success: false,
+          turns: 1,
+          tokens: { input: 0, output: 0 },
+          preserveWorkspace: false,
+          ...(error ? { error } : {}),
+        },
+        1,
+      );
+      expect(deps.state.retryAttempts.has("issue-1")).toBe(false);
+    }
+    vi.useRealTimers();
+  });
+
   it("after a retryable failure, the slot stays occupied so a waiting feature is not dispatched", () => {
     vi.useFakeTimers();
     const deps = makeDeps(); // maxConcurrentAgents: 1, maxRetryAttempts: 3

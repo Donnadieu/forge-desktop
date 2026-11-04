@@ -79,7 +79,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | activity, helpers, recent lines, usage windows |
 | src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events |
 | src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits` |
-| src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | unchanged |
+| src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | a failed run that says why (a lapsed sign-in) goes on the retry queue with its reason, for every agent |
 | src/orchestrator/workpad-parser.ts | 05deefb0a43a | src/orchestrator/workpad-parser.ts | unchanged |
 | src/orchestrator/workspace-gc.ts | 05deefb0a43a | src/orchestrator/workspace-gc.ts | unchanged |
 | src/orchestrator/workspace-lock-gate.ts | 05deefb0a43a | src/orchestrator/workspace-lock-gate.ts | unchanged |
@@ -109,7 +109,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard`, optional `fetchBoard` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | unchanged |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
-| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card |
+| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error` |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
 | src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity |

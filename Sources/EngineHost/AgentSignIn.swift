@@ -1,9 +1,14 @@
 import AppKit
+import Darwin
 import Foundation
 
-/// Signs an agent back in without a terminal: runs the agent's own sign-in (`claude auth login`,
+/// Signs an agent back in without a terminal: runs the agent's own sign-in (`claude setup-token`,
 /// `codex login`), which opens the browser itself. Forge shows the guide, offers the link again, and
 /// passes along the code when the page asks the person to paste one.
+///
+/// Claude Code gets a long-lived token (about a year) that Forge keeps in the Keychain and hands to
+/// its agents. A browser login has a time limit that renewing doesn't move ("OAuth session expired"),
+/// and Claude Code itself says to use `setup-token` for unattended work.
 @MainActor
 final class AgentSignIn: ObservableObject {
     enum Stage: Equatable {
@@ -20,10 +25,11 @@ final class AgentSignIn: ObservableObject {
     @Published private(set) var acceptsCode = false
     private var process: Process?
     private var input: FileHandle?
+    private var worker: SetupChoices.Worker?
 
     static func command(for worker: SetupChoices.Worker) -> [String]? {
         switch worker {
-        case .claude: return ["claude", "auth", "login", "--claudeai"]
+        case .claude: return ["claude", "setup-token"]
         case .codex: return ["codex", "login"]
         case .kimi, .apiKey, .codexKey: return nil
         }
@@ -40,6 +46,22 @@ final class AgentSignIn: ObservableObject {
         return (url, wantsCode)
     }
 
+    /// Claude Code's sign-in draws a terminal screen: it runs in one (wide, so nothing wraps).
+    nonisolated static func needsTerminal(_ worker: SetupChoices.Worker) -> Bool { worker == .claude }
+
+    /// Removes a terminal's colour and cursor codes, keeping the text.
+    nonisolated static func plain(_ text: String) -> String {
+        text.replacingOccurrences(of: "\u{1B}\\][^\u{07}\u{1B}]*(\u{07}|\u{1B}\\\\)", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\u{1B}\\[[0-9;?]*[ -/]*[@-~]", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\r", with: "")
+    }
+
+    /// The long-lived token `claude setup-token` prints once the person approves, if it's there yet.
+    nonisolated static func token(in text: String) -> String? {
+        guard let r = plain(text).range(of: "sk-ant-oat[0-9]{2}-[A-Za-z0-9_-]{20,}", options: .regularExpression) else { return nil }
+        return String(plain(text)[r])
+    }
+
     /// True when a failed check reads like a lapsed or missing sign-in rather than a broken install.
     nonisolated static func looksSignedOut(_ message: String) -> Bool {
         let m = message.lowercased()
@@ -49,6 +71,7 @@ final class AgentSignIn: ObservableObject {
     func start(_ worker: SetupChoices.Worker) async {
         cancel()
         guard let cmd = Self.command(for: worker) else { return }
+        self.worker = worker
         stage = .waiting
         link = nil
         acceptsCode = false
@@ -58,33 +81,47 @@ final class AgentSignIn: ObservableObject {
         p.arguments = cmd
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = path
+        // A token already in the environment would stand in for the new sign-in.
+        env.removeValue(forKey: "CLAUDE_CODE_OAUTH_TOKEN")
+        let reader: FileHandle
+        if Self.needsTerminal(worker), let tty = Self.openTerminal() {
+            env["TERM"] = "xterm-256color"
+            p.standardInput = tty.child
+            p.standardOutput = tty.child
+            p.standardError = tty.child
+            reader = tty.parent
+            input = tty.parent
+        } else {
+            let out = Pipe()
+            let inp = Pipe()
+            p.standardOutput = out
+            p.standardError = out
+            p.standardInput = inp
+            reader = out.fileHandleForReading
+            input = inp.fileHandleForWriting
+        }
         p.environment = env
-        let out = Pipe()
-        let inp = Pipe()
-        p.standardOutput = out
-        p.standardError = out
-        p.standardInput = inp
         var seen = ""
-        out.fileHandleForReading.readabilityHandler = { [weak self] h in
+        reader.readabilityHandler = { [weak self] h in
             let chunk = String(data: h.availableData, encoding: .utf8) ?? ""
             guard !chunk.isEmpty else { return }
             Task { @MainActor in
                 guard let self else { return }
                 seen += chunk
-                let found = Self.scan(seen)
-                if self.link == nil, let u = found.link { self.link = u }
-                if found.wantsCode { self.acceptsCode = true }
+                self.read(seen)
             }
         }
         p.terminationHandler = { [weak self] proc in
             let status = proc.terminationStatus
             Task { @MainActor in
                 guard let self, self.process === proc else { return }
-                out.fileHandleForReading.readabilityHandler = nil
+                reader.readabilityHandler = nil
                 self.process = nil
-                if status == 0 {
+                // Already settled (signed in, cancelled, or a problem said): keep that answer.
+                if self.stage != .waiting { return }
+                if status == 0, !Self.needsTerminal(worker) {
                     self.stage = .done
-                } else if self.stage != .idle {
+                } else {
                     self.stage = .failed("The sign-in didn't finish. Try again.")
                 }
             }
@@ -92,17 +129,39 @@ final class AgentSignIn: ObservableObject {
         do {
             try p.run()
             process = p
-            input = inp.fileHandleForWriting
+            if Self.needsTerminal(worker) { try? (p.standardInput as? FileHandle)?.close() }
         } catch {
             stage = .failed("\(cmd[0]) isn't installed on this Mac.")
         }
+    }
+
+    /// Reads what the sign-in printed so far: the link, a code prompt, and Claude Code's token.
+    private func read(_ seen: String) {
+        let found = Self.scan(Self.plain(seen))
+        // A terminal may print the link only inside a hyperlink code: look in the raw text too.
+        if link == nil, let u = found.link ?? Self.scan(seen).link { link = u }
+        if found.wantsCode { acceptsCode = true }
+        if worker == .claude, stage == .waiting, let token = Self.token(in: seen) {
+            stage = Keychain.set(token, for: .claudeToken) ? .done : .failed("Forge couldn't keep the sign-in in your Keychain.")
+            if let p = process, p.isRunning { p.terminate() }
+        }
+    }
+
+    /// A terminal pair 400 columns wide, so a long link or token prints on one line.
+    private static func openTerminal() -> (parent: FileHandle, child: FileHandle)? {
+        var parent: Int32 = -1
+        var child: Int32 = -1
+        var size = winsize(ws_row: 50, ws_col: 400, ws_xpixel: 0, ws_ypixel: 0)
+        guard openpty(&parent, &child, nil, nil, &size) == 0 else { return nil }
+        return (FileHandle(fileDescriptor: parent, closeOnDealloc: true), FileHandle(fileDescriptor: child, closeOnDealloc: true))
     }
 
     /// Sends the code the sign-in page showed.
     func send(code: String) {
         let c = code.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !c.isEmpty else { return }
-        input?.write(Data((c + "\n").utf8))
+        // A terminal takes Return as "\r"; a pipe takes a newline.
+        input?.write(Data((c + (worker.map(Self.needsTerminal) == true ? "\r" : "\n")).utf8))
         stage = .waiting
     }
 

@@ -137,7 +137,10 @@ enum EngineSettings {
             env["CODEX_API_KEY"] = env["OPENAI_API_KEY"]
         case .kimi:
             env["KIMI_API_KEY"] = Keychain.get(.kimiKey) ?? ""
-        case .claude, .codex:
+        case .claude:
+            // The long-lived token from Forge's sign-in; without one the agents use Claude Code's own login.
+            env.merge(WorkerCheck.env(.claude, key: nil)) { $1 }
+        case .codex:
             break
         }
         return env

@@ -289,8 +289,15 @@ export function handleWorkerComplete(
   const { identifier } = entry;
   const retryCallback = (id: string): void => deps.refetchAndDispatch(id, attempt + 1, true);
   const isContinuation = hitMaxTurns || (result.preserveWorkspace && result.success);
+  // A failed run is retried with backoff when its workspace was kept (single-turn agents) or
+  // when the agent said why it failed (a lapsed sign-in, a usage limit): the retry queue carries
+  // that reason to the window, which shows it with its fix instead of the card failing silently
+  // and being picked up again on the next poll. A stop or kill ("Aborted") is never retried here.
+  const saidWhy = result.error !== undefined && result.error !== "Aborted";
   const isRetryableFailure =
-    result.preserveWorkspace && !result.success && attempt < deps.config.maxRetryAttempts;
+    !result.success &&
+    (result.preserveWorkspace === true || saidWhy) &&
+    attempt < deps.config.maxRetryAttempts;
   // A retryable failure will be re-dispatched below — tell onComplete so a
   // terminal consumer (Smith `failed`) doesn't finalize a build that may yet
   // succeed on the next attempt.

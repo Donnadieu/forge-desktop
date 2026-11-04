@@ -9,6 +9,8 @@ struct OrchestratorScreen: View {
     @State private var busy = false
     @State private var guideOpen = false
     @StateObject private var signIn = AgentSignIn()
+    /// The sign-in already opened by itself for this lapse (once, so closing it isn't undone).
+    @State private var signInOffered = false
 
     private var state: EngineState? { model.engine }
     private var project: String { model.choices.projectName ?? "your project" }
@@ -48,8 +50,17 @@ struct OrchestratorScreen: View {
         .onChange(of: signIn.stage) { _, stage in
             if stage == .done {
                 guideOpen = false
-                Task { await model.link.refresh() }
+                signInOffered = false
+                // The agents' sign-in is read when the engine starts: restart it, and the card goes again.
+                Task { await model.link.connect(restart: true) }
             }
+        }
+        .onChange(of: signedOutLine) { _, line in
+            // Signed out: open the sign-in by itself, once. The person only approves it in the browser.
+            // Cards blink between running and waiting, so the line comes and goes: offer it once until signed in.
+            guard line != nil, !signInOffered, !guideOpen, !model.preview, AgentSignIn.command(for: agent) != nil else { return }
+            signInOffered = true
+            openGuide()
         }
     }
 
@@ -155,7 +166,11 @@ struct OrchestratorScreen: View {
     private var agent: SetupChoices.Worker { model.choices.worker ?? .claude }
 
     private func notice(_ text: String) -> some View {
-        Notice(title: text, detail: "Forge tries again by itself.") {
+        Notice(
+            title: text,
+            detail: text == signedOutLine
+                ? "Forge opened the sign-in for you. Cards start again once you approve it." : "Forge tries again by itself."
+        ) {
             if text == signedOutLine, AgentSignIn.command(for: agent) != nil {
                 Button("Sign in to \(WorkerScreen.name(agent))") { openGuide() }
                     .buttonStyle(ForgeButton(kind: .primary, large: true))

@@ -201,4 +201,8 @@ export interface BoardCard {
   prUrl: string | null;
   priority: number | null;
   updatedAt: string;
+  /** The card's label names (e.g. `ready-for-execution` after triage). */
+  labels?: string[];
+  /** Identifiers of the cards that block this one and aren't finished yet. */
+  blockedBy?: string[];
 }

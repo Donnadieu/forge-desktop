@@ -156,6 +156,12 @@ async function main(): Promise<void> {
         board: () => board.view(orchestrator.getSnapshot().running),
       }),
     workpad: (id) => board.workpad(id),
+    move: async (id, to) => {
+      const result = await board.move(id, to);
+      logger.info({ issueId: id, to, ok: result.ok }, "Card moved from the board");
+      if (result.ok) void orchestrator.triggerPoll();
+      return result;
+    },
     start: () => controls.startOrchestrator(null),
     stop: () => controls.stopOrchestrator(null),
     refresh: () => {

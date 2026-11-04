@@ -82,6 +82,8 @@ struct OrchestratorTables: View {
     @ObservedObject var model: AppModel
     let state: EngineState?
     @Binding var open: EngineState.Card?
+    /// A bulk move waiting for the person's yes (the screen shows the confirm sheet).
+    @Binding var confirm: BulkMove?
     @State private var expanded: Set<String> = []
 
     /// Columns where a card is (or waits to be) in an agent's hands.
@@ -106,7 +108,8 @@ struct OrchestratorTables: View {
                     if flying.isEmpty { empty("No agent is working on a card") } else { runningTable(flying) }
                 }
                 let yours = cards(["Human Review"])
-                section("Your turn", count: yours.count, stage: "Human Review") {
+                let mergeAll = mergeOn && CardMoves.showsBulk(yours) ? ("Merge all", { confirm = BulkMove(kind: .merge, cards: yours) }) : nil
+                section("Your turn", count: yours.count, stage: "Human Review", bulk: mergeAll) {
                     if yours.isEmpty { empty("Nothing in Human Review") } else { ForEach(yours) { yourTurnRow($0) } }
                 }
                 HStack(alignment: .top, spacing: 16) {
@@ -115,7 +118,9 @@ struct OrchestratorTables: View {
                         if next.isEmpty { empty("No cards waiting") } else { ForEach(next) { listRow($0) } }
                     }
                     let later = cards(["Backlog"])
-                    section("Later", count: later.count) {
+                    let ready = later.filter(CardMoves.isReady)
+                    let startAll = CardMoves.showsBulk(ready) ? ("Start all ready", { confirm = BulkMove(kind: .start, cards: ready) }) : nil
+                    section("Later", count: later.count, bulk: startAll) {
                         if later.isEmpty { empty("Nothing in Backlog") } else { ForEach(later) { listRow($0) } }
                     }
                 }
@@ -125,12 +130,17 @@ struct OrchestratorTables: View {
 
     // MARK: Sections
 
-    private func section<C: View>(_ title: String, count: Int?, stage: String? = nil, @ViewBuilder rows: () -> C) -> some View {
+    private func section<C: View>(
+        _ title: String, count: Int?, stage: String? = nil, bulk: (String, () -> Void)? = nil, @ViewBuilder rows: () -> C
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 Text(title.uppercased()).font(Theme.mono(11)).tracking(1.5).foregroundStyle(Theme.textSec)
                 if let count { Text("(\(count))").font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
                 Spacer()
+                if let bulk {
+                    Button(bulk.0, action: bulk.1).buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
+                }
                 if let stage {
                     HStack(spacing: 4) {
                         StageDot(stage: stage)
@@ -139,6 +149,8 @@ struct OrchestratorTables: View {
                     .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 }
             }
+            // Same height with or without a bulk button, so side-by-side sections line up.
+            .frame(minHeight: 32)
             VStack(spacing: 0) { rows() }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.wash1))
@@ -205,11 +217,19 @@ struct OrchestratorTables: View {
             cardCell(c).frame(maxWidth: .infinity, alignment: .leading)
             Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
                 .frame(width: 72, alignment: .leading)
-            Text("Look at the pull request, then move it to Merging or Rework.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
-                .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+            Text(
+                mergeOn
+                    ? "Look at the pull request, then merge it or ask for changes."
+                    : "Look at the pull request, then merge it yourself or ask for changes."
+            )
+            .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            .lineLimit(2).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
             if let pr = c.prUrl {
-                Button("Open pull request \(pr.split(separator: "/").last.map { "#\($0)" } ?? "") ↗") { model.openLink(pr) }
-                    .buttonStyle(ForgeButton(kind: .secondary))
+                Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
+            }
+            Button("Ask for changes") { move([c], to: "Rework") }.buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
+            if mergeOn {
+                Button("Merge") { move([c], to: "Merging") }.buttonStyle(ForgeButton(kind: .primary)).lineLimit(1).fixedSize()
             }
         }
         .padding(.horizontal, 16).frame(minHeight: 52)
@@ -217,14 +237,32 @@ struct OrchestratorTables: View {
     }
 
     private func listRow(_ c: EngineState.Card) -> some View {
-        HStack(spacing: 12) {
-            cardCell(c).frame(maxWidth: .infinity, alignment: .leading)
-            Pill(text: c.state, stage: c.state)
+        let ready = c.state == "Backlog" && CardMoves.isReady(c)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                cardCell(c)
+                if c.state == "Todo", let waiting = CardMoves.waitingLine(c) {
+                    Text(waiting).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if ready {
+                Pill(text: "Ready", stage: "Todo")
+                Button("Start") { move([c], to: "Todo") }.buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
+            } else {
+                Pill(text: c.state, stage: c.state)
+            }
         }
-        .padding(.horizontal, 16).frame(minHeight: 48)
+        .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 48)
+        .background(ready ? Theme.wash2 : Color.clear)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1).opacity(0.6) }
         .contentShape(Rectangle()).onTapGesture { open = c }
     }
+
+    /// Merging is on unless Workflow Studio turned it off (then the person merges on GitHub).
+    private var mergeOn: Bool { model.choices.stageOn("Merging") }
+
+    private func move(_ cards: [EngineState.Card], to: String) { Task { await model.link.move(cards, to: to) } }
 
     private func cardCell(_ c: EngineState.Card) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {

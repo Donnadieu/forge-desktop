@@ -109,7 +109,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/linear-writes.ts | 05deefb0a43a | src/tracker/linear-writes.ts | unchanged |
 | src/tracker/linear.ts | 05deefb0a43a | src/tracker/linear.ts | comment reworded (no old project name); `fetchBoard` |
 | src/tracker/memory.ts | 05deefb0a43a | src/tracker/memory.ts | unchanged |
-| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard`, optional `fetchBoard` |
+| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | unchanged |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
 | src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn |
@@ -122,11 +122,11 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad |
-| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/stop` answers at once |
+| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls |
+| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |
-| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity |
-| src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request |
+| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework) |
+| src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers |

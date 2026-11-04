@@ -8,6 +8,7 @@
  *   POST /api/v1/stop    stop taking cards; answers at once, running agents finish in the background
  *   POST /api/v1/refresh look at the board now instead of at the next poll
  *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
+ *   POST /api/v1/cards/<id>/move     `{"to": "<column>"}`: the person moves a card (Start, Merge, Ask for changes)
  *   WS   /api/v1/live    pushes the state whenever it changes
  *
  * New in Forge Desktop. Replaces Forge's hosted router.
@@ -28,6 +29,8 @@ export interface LocalApiDeps {
   refresh: () => void;
   /** The card's workpad note (card detail). */
   workpad?: (cardId: string) => Promise<unknown>;
+  /** The person moves a card to another column (board buttons). */
+  move?: (cardId: string, to: string) => Promise<{ ok: boolean; problem?: string }>;
   logger?: Logger;
   /** How often the API checks for a changed state to push (ms). */
   pushCheckMs?: number;
@@ -46,6 +49,21 @@ function tokenMatches(header: string | undefined, token: string): boolean {
   const a = Buffer.from(given);
   const b = Buffer.from(token);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** The `to` column from a small JSON body (`{"to": "Merging"}`); null when it's missing or too big. */
+async function readTo(req: IncomingMessage): Promise<string | null> {
+  let body = "";
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > 1024) return null;
+  }
+  try {
+    const to = (JSON.parse(body) as { to?: unknown }).to;
+    return typeof to === "string" && to.length > 0 && to.length <= 64 ? to : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
@@ -91,6 +109,16 @@ export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
         if (card && deps.workpad) {
           if (req.method !== "GET") return methodNotAllowed(res, "GET");
           return jsonResponse(res, 200, await deps.workpad(card[1]));
+        }
+        const move = /^\/api\/v1\/cards\/([A-Za-z0-9-]{1,64})\/move$/.exec(path);
+        if (move && deps.move) {
+          if (!post) return methodNotAllowed(res, "POST");
+          const to = await readTo(req);
+          if (!to)
+            return jsonResponse(res, 400, { ok: false, problem: "Say where the card goes." });
+          const result = await deps.move(move[1], to);
+          jsonResponse(res, result.ok ? 200 : 409, result);
+          return notify();
         }
         return notFound(res);
       }

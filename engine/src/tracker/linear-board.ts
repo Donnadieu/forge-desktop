@@ -21,7 +21,17 @@ interface RawBoardIssue {
   state: { name: string };
   assignee?: { displayName?: string | null; name?: string | null } | null;
   attachments?: { nodes: Array<{ url?: string | null; sourceType?: string | null }> } | null;
+  labels?: { nodes: Array<{ name: string }> } | null;
+  inverseRelations?: {
+    nodes: Array<{
+      type: string;
+      issue?: { identifier: string; state?: { type?: string | null } | null } | null;
+    }>;
+  } | null;
 }
+
+/** Linear state types that mean the work is over: a blocker in one of these no longer blocks. */
+const FINISHED = new Set(["completed", "canceled"]);
 
 const PR_URL = /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/;
 
@@ -43,6 +53,8 @@ const QUERY = `
         state { name }
         assignee { displayName name }
         attachments(first: 10) { nodes { url sourceType } }
+        labels(first: 10) { nodes { name } }
+        inverseRelations(first: 10) { nodes { type issue { identifier state { type } } } }
       }
       pageInfo { hasNextPage endCursor }
     }
@@ -65,6 +77,10 @@ export function toBoardCard(raw: RawBoardIssue): BoardCard {
     prUrl: pr ?? null,
     priority: raw.priority ?? null,
     updatedAt: raw.updatedAt,
+    labels: (raw.labels?.nodes ?? []).map((l) => l.name),
+    blockedBy: (raw.inverseRelations?.nodes ?? [])
+      .filter((r) => r.type === "blocks" && r.issue && !FINISHED.has(r.issue.state?.type ?? ""))
+      .map((r) => r.issue?.identifier ?? ""),
   };
 }
 

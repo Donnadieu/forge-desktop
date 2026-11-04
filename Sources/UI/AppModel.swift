@@ -9,6 +9,8 @@ final class AppModel: ObservableObject {
     /// The live board, pushed by the engine.
     @Published var engine: EngineState?
     @Published var engineProblem: String?
+    /// Why the last card move from the board didn't happen; cleared by the next move.
+    @Published var moveProblem: String?
 
     /// Render mode: views draw sample data and never touch Linear, GitHub or the Keychain.
     let preview: Bool

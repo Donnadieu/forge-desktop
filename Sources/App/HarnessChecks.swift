@@ -67,4 +67,26 @@ extension Checks {
             "a saved harness record loads back",
             (try? JSONDecoder().decode(SetupChoices.self, from: Data(withRecord.utf8)))?.harnessHere.card == "ENG-1")
     }
+
+    /// Rules for the cards a person moves from the Orchestrator.
+    static func moveChecks(_ check: (String, Bool) -> Void) {
+        let moves = SampleBoard.moves.cards
+        let ready = moves.filter(CardMoves.isReady)
+        check("only cards triage marked ready show Start", ready.map(\.identifier) == ["AIT-17", "AIT-18"])
+        check(
+            "a blocked Todo card says what it waits on",
+            moves.first { $0.identifier == "AIT-16" }.flatMap(CardMoves.waitingLine) == "Waiting on AIT-15")
+        check("a card with nothing blocking it says nothing", moves.first { $0.identifier == "AIT-17" }.flatMap(CardMoves.waitingLine) == nil)
+        check("a bulk button needs two cards or more", CardMoves.showsBulk(ready) && !CardMoves.showsBulk(Array(ready.prefix(1))))
+        let merge = BulkMove(kind: .merge, cards: moves.filter { $0.state == "Human Review" })
+        check(
+            "Merge all moves the pull requests to Merging",
+            merge.to == "Merging" && merge.title == "Merge 3 pull requests?" && merge.button == "Merge all")
+        let start = BulkMove(kind: .start, cards: ready)
+        check("Start all moves the ready cards to Todo", start.to == "Todo" && start.title == "Start 2 cards?" && start.button == "Start all")
+        let old =
+            #"{"status":"running","running":[],"board":{"columns":[{"name":"Todo","cards":[{"id":"1","identifier":"A-1","title":"t","state":"Todo","helpers":[]}]}],"read_at":null,"problem":null}}"#
+        let decoded = try? EngineState.decode(Data(old.utf8))
+        check("a board from an engine without labels still loads", decoded?.cards.first?.labels == nil && decoded?.cards.count == 1)
+    }
 }

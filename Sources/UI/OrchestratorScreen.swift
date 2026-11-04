@@ -11,6 +11,8 @@ struct OrchestratorScreen: View {
     @StateObject private var signIn = AgentSignIn()
     /// The sign-in already opened by itself for this lapse (once, so closing it isn't undone).
     @State private var signInOffered = false
+    /// A bulk move (Merge all, Start all ready) waiting for the person's yes.
+    @State private var confirm: BulkMove?
 
     private var state: EngineState? { model.engine }
     private var project: String { model.choices.projectName ?? "your project" }
@@ -24,7 +26,8 @@ struct OrchestratorScreen: View {
                     header
                     if let problem { notice(problem) }
                     StatsRow(state: state)
-                    OrchestratorTables(model: model, state: state, open: $open)
+                    ProblemLine(text: model.moveProblem)
+                    OrchestratorTables(model: model, state: state, open: $open, confirm: $confirm)
                         .opacity(problem != nil ? 0.4 : 1)
                         .allowsHitTesting(problem == nil)
                 }
@@ -47,6 +50,15 @@ struct OrchestratorScreen: View {
             CardDetail(model: model, card: state?.cards.first { $0.id == card.id } ?? card) { open = nil }
         }
         .overlay { if guideOpen { SignInGuide(worker: agent, signIn: signIn, close: closeGuide) } }
+        .overlay {
+            if let move = confirm {
+                MoveConfirm(move: move, cancel: { confirm = nil }) {
+                    confirm = nil
+                    Task { await model.link.move(move.cards, to: move.to) }
+                }
+            }
+        }
+        .onAppear { confirm = Self.previewConfirm(model) }
         .onChange(of: signIn.stage) { _, stage in
             if stage == .done {
                 guideOpen = false
@@ -61,6 +73,16 @@ struct OrchestratorScreen: View {
             guard line != nil, !signInOffered, !guideOpen, !model.preview, AgentSignIn.command(for: agent) != nil else { return }
             signInOffered = true
             openGuide()
+        }
+    }
+
+    /// Render mode: the confirm sheet a shot asks for (`merge-all`, `start-all`).
+    static func previewConfirm(_ model: AppModel) -> BulkMove? {
+        guard model.preview, let scene = model.sample.scene, let cards = model.engine?.cards else { return nil }
+        switch scene {
+        case "merge-all": return BulkMove(kind: .merge, cards: cards.filter { $0.state == "Human Review" })
+        case "start-all": return BulkMove(kind: .start, cards: cards.filter { $0.state == "Backlog" && CardMoves.isReady($0) })
+        default: return nil
         }
     }
 

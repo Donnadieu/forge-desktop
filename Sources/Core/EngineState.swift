@@ -72,6 +72,9 @@ struct EngineState: Decodable, Sendable, Equatable {
         var agent: Agent?
         var helpers: [Helper]
         var recent: [Line]?
+        /// The card's labels (`ready-for-execution` after triage) and the unfinished cards blocking it.
+        var labels: [String]?
+        var blockedBy: [String]?
     }
 
     struct Agent: Decodable, Sendable, Equatable {

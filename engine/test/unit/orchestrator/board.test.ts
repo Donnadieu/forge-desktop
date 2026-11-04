@@ -185,6 +185,87 @@ describe("the board", () => {
   });
 });
 
+describe("the person moves cards from the board", () => {
+  const moving = (cards: BoardCard[], moved: Array<[string, string]>, fail = false) =>
+    ({
+      kind: "linear",
+      fetchBoard: async () => cards,
+      updateIssueState: async (id: string, to: string) => {
+        if (fail) throw new Error("Linear API error: 500");
+        moved.push([id, to]);
+        const c = cards.find((x) => x.id === id);
+        if (c) c.state = to;
+      },
+    }) as unknown as TrackerAdapter;
+
+  it("starts a Backlog card and decides on a pull request, then reads the board again", async () => {
+    const cards = [card("1", "Backlog"), card("2", "Human Review"), card("3", "Human Review")];
+    const moved: Array<[string, string]> = [];
+    const reader = new BoardReader(moving(cards, moved), config, [
+      "Backlog",
+      "Todo",
+      "Human Review",
+      "Merging",
+      "Rework",
+    ]);
+    await reader.refresh();
+    expect(await reader.move("1", "Todo")).toEqual({ ok: true });
+    expect(await reader.move("2", "Merging")).toEqual({ ok: true });
+    expect(await reader.move("3", "Rework")).toEqual({ ok: true });
+    expect(moved).toEqual([
+      ["1", "Todo"],
+      ["2", "Merging"],
+      ["3", "Rework"],
+    ]);
+    const view = reader.view([]);
+    expect(view.columns.find((c) => c.name === "Merging")?.cards.map((c) => c.id)).toEqual(["2"]);
+  });
+
+  it("refuses every other move and says why", async () => {
+    const cards = [card("1", "Todo"), card("2", "Human Review")];
+    const moved: Array<[string, string]> = [];
+    const reader = new BoardReader(moving(cards, moved), config, columns);
+    await reader.refresh();
+    expect((await reader.move("1", "Done")).ok).toBe(false);
+    expect((await reader.move("2", "Done")).problem).toMatch(/can't be moved to Done/);
+    expect((await reader.move("9", "Todo")).problem).toMatch(/can't find that card/);
+    expect(moved).toEqual([]);
+  });
+
+  it("says when Linear didn't move the card", async () => {
+    const reader = new BoardReader(moving([card("1", "Backlog")], [], true), config, [
+      "Backlog",
+      "Todo",
+    ]);
+    await reader.refresh();
+    expect((await reader.move("1", "Todo")).problem).toMatch(
+      /Linear didn't move FD-1: Linear API error: 500/,
+    );
+  });
+});
+
+describe("a board card's labels and blockers", () => {
+  it("keeps label names and only the blockers that aren't finished", () => {
+    const c = toBoardCard({
+      id: "1",
+      identifier: "FD-16",
+      title: "t",
+      updatedAt: "2026-11-03T00:00:00Z",
+      state: { name: "Todo" },
+      labels: { nodes: [{ name: "ready-for-execution" }] },
+      inverseRelations: {
+        nodes: [
+          { type: "blocks", issue: { identifier: "FD-15", state: { type: "started" } } },
+          { type: "blocks", issue: { identifier: "FD-9", state: { type: "completed" } } },
+          { type: "related", issue: { identifier: "FD-17", state: { type: "backlog" } } },
+        ],
+      },
+    });
+    expect(c.labels).toEqual(["ready-for-execution"]);
+    expect(c.blockedBy).toEqual(["FD-15"]);
+  });
+});
+
 describe("a Claude subscription's usage windows", () => {
   it("reads Claude Code's rate_limit_event into a window, a percent and a reset time", () => {
     const e = mapRateLimit({

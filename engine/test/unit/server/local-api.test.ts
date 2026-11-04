@@ -28,6 +28,10 @@ describe("local API", () => {
         return { stopped: true };
       },
       refresh: () => calls.push("refresh"),
+      move: async (id, to) => {
+        calls.push(`move ${id} ${to}`);
+        return to === "Done" ? { ok: false, problem: "no" } : { ok: true };
+      },
       pushCheckMs: 20,
     });
     return `http://127.0.0.1:${api.port}`;
@@ -59,6 +63,35 @@ describe("local API", () => {
       expect(r.ok).toBe(true);
     }
     expect(calls).toEqual(["start", "stop", "refresh"]);
+  });
+
+  it("moves a card when asked, and refuses a move without a column", async () => {
+    const calls: string[] = [];
+    const base = await boot({ n: 1 }, calls);
+    const auth = { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" };
+    const ok = await fetch(`${base}/api/v1/cards/abc-1/move`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ to: "Merging" }),
+    });
+    expect(ok.status).toBe(200);
+    const refused = await fetch(`${base}/api/v1/cards/abc-1/move`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ to: "Done" }),
+    });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ ok: false, problem: "no" });
+    const empty = await fetch(`${base}/api/v1/cards/abc-1/move`, {
+      method: "POST",
+      headers: auth,
+      body: "{}",
+    });
+    expect(empty.status).toBe(400);
+    expect(
+      (await fetch(`${base}/api/v1/cards/abc-1/move`, { method: "POST", body: "{}" })).status,
+    ).toBe(401);
+    expect(calls).toEqual(["move abc-1 Merging", "move abc-1 Done"]);
   });
 
   it("refuses a live connection without the token", async () => {

@@ -47,6 +47,23 @@ final class BoardLink {
     func stop() async { await send(.stop) { try await $0.stop() } }
     func refresh() async { await send(.refresh) { try await $0.refresh() } }
 
+    /// Moves cards for the person, one after another; the first refusal is shown on the board.
+    func move(_ cards: [EngineState.Card], to: String) async {
+        guard let client, let model, !model.preview else { return }
+        model.moveProblem = nil
+        for c in cards {
+            do {
+                if let problem = try await client.move(card: c.id, to: to) {
+                    model.moveProblem = problem
+                    return
+                }
+            } catch {
+                model.moveProblem = "Forge's engine didn't answer: \(error)"
+                return
+            }
+        }
+    }
+
     func workpad(card: String) async -> EngineClient.Workpad? {
         guard let client else { return nil }
         return try? await client.workpad(card: card)

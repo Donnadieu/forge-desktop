@@ -108,6 +108,26 @@ enum SampleBoard {
         return s
     }
 
+    /// Cards the person can move: three pull requests to decide on, a card blocked by one of them,
+    /// two cards triage marked ready and one it hasn't seen.
+    static var moves: EngineState {
+        var s = empty
+        s.status = "running"
+        var blocked = card(16, "Fix correctness defects in utils/changelog.py", "Todo")
+        blocked.blockedBy = ["AIT-15"]
+        var ready1 = card(17, "Reconcile the three changelog artifacts", "Backlog")
+        ready1.labels = [CardMoves.readyLabel]
+        var ready2 = card(18, "Add a pre-commit config", "Backlog")
+        ready2.labels = [CardMoves.readyLabel]
+        s.board = board([
+            card(15, "Add pytest tests for utils/changelog.py", "Human Review", pr: true),
+            card(19, "Pin the changelog limits", "Human Review", pr: true),
+            card(20, "Add pytest config and CI", "Human Review", pr: true),
+            blocked, ready1, ready2, card(21, "Document the paper-trading mode", "Backlog"),
+        ])
+        return s
+    }
+
     /// The agent's sign-in lapsed: cards wait to try again with the reason.
     static var signedOut: EngineState {
         var s = state

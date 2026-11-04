@@ -36,6 +36,20 @@ struct EngineClient: Sendable {
     func stop() async throws { _ = try await call("/api/v1/stop", method: "POST") }
     func refresh() async throws { _ = try await call("/api/v1/refresh", method: "POST") }
 
+    /// The person moves a card (Start, Merge, Ask for changes). Returns the engine's plain-words
+    /// problem when the move was refused, nil when it worked.
+    func move(card: String, to: String) async throws -> String? {
+        let safe = card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card
+        var r = request("/api/v1/cards/\(safe)/move", method: "POST")
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try JSONSerialization.data(withJSONObject: ["to": to])
+        let (data, response) = try await URLSession.shared.data(for: r)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if (200..<300).contains(code) { return nil }
+        let problem = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["problem"] as? String
+        return problem ?? "Forge couldn't move the card (\(code))."
+    }
+
     struct Workpad: Decodable, Sendable, Equatable {
         var workpad: String?
         var comments: Int

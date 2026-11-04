@@ -13,6 +13,8 @@ enum ScreenRender {
         var scene: String?
         /// Opened from Settings: the setup timeline in its changing mode.
         var changing = false
+        /// Window height; taller shots show a whole board.
+        var height: CGFloat = 800
     }
 
     static func shots() -> [Shot] {
@@ -39,7 +41,8 @@ enum ScreenRender {
             if shot.changing { model.returnTo = AppModel.settingsScreen }
             if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
             if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
-            let ok = render(RootView(model: model), size: NSSize(width: 1200, height: 800), to: dir.appendingPathComponent("\(shot.name).png"))
+            let ok = render(
+                RootView(model: model), size: NSSize(width: 1200, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }
         }

@@ -47,6 +47,15 @@ function fromIssue(i: NormalizedIssue): BoardCard {
   };
 }
 
+/**
+ * The moves a person makes from the board: start a card that waits in Backlog,
+ * and decide on a pull request in Human Review (merge it, or ask for changes).
+ */
+export const PERSON_MOVES: Readonly<Record<string, readonly string[]>> = {
+  Backlog: ["Todo"],
+  "Human Review": ["Merging", "Rework"],
+};
+
 export class BoardReader {
   private cards: BoardCard[] = [];
   private readAt: string | null = null;
@@ -81,6 +90,31 @@ export class BoardReader {
         err instanceof Error ? err.message : String(err)
       }`;
     }
+  }
+
+  /**
+   * Moves a card for the person, from the board: only the moves the window offers
+   * (see {@link PERSON_MOVES}), and only from the column the board last read the
+   * card in. Reads the board again after, so the window shows the card where it went.
+   */
+  async move(cardId: string, to: string): Promise<{ ok: boolean; problem?: string }> {
+    const card = this.cards.find((c) => c.id === cardId);
+    if (!card) return { ok: false, problem: "Forge can't find that card on the board." };
+    if (!PERSON_MOVES[card.state]?.includes(to)) {
+      return { ok: false, problem: `A card in ${card.state} can't be moved to ${to} from here.` };
+    }
+    if (!this.tracker.updateIssueState)
+      return { ok: false, problem: "This board can't move cards." };
+    try {
+      await this.tracker.updateIssueState(cardId, to);
+    } catch (err) {
+      return {
+        ok: false,
+        problem: `Linear didn't move ${card.identifier}: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    await this.refresh();
+    return { ok: true };
   }
 
   /** The card's workpad: the agent's one running note on the card (its comment that starts with a Workpad heading). */

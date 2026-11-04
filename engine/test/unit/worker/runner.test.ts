@@ -1088,3 +1088,71 @@ describe("runWorker", () => {
     expect(errorLogs[0].obj.consecutiveFailures).toBe(2);
   });
 });
+
+describe("runWorker after Stop", () => {
+  const config = {
+    maxTurns: 5,
+    promptTemplate: "Fix {{ issue.identifier }}",
+    trackerConfig: {
+      kind: "memory",
+      project_slug: "test",
+      active_states: ["Todo", "In Progress"],
+      terminal_states: ["Done"],
+    },
+  };
+
+  it("finishes the turn it's on, then ends instead of starting another", async () => {
+    const tracker = new MemoryTracker([{ ...testIssue, state: "In Progress" }]);
+    let stopped = false;
+    const turns: number[] = [];
+    const result = await runWorker(
+      testIssue,
+      config,
+      createMockAgent([]),
+      tracker,
+      createMockWorkspace(),
+      {
+        onTurnStart: (_id, turn) => {
+          turns.push(turn);
+          if (turn === 2) stopped = true; // Stop pressed during turn 2
+        },
+        shouldStop: () => stopped,
+      },
+    );
+    expect(turns).toEqual([1, 2]);
+    expect(result.turns).toBe(2);
+    expect(result.success).toBe(true);
+  });
+
+  it("does the same on the runTurn path", async () => {
+    const tracker = new MemoryTracker([{ ...testIssue, state: "In Progress" }]);
+    const agent: AgentAdapter = {
+      ...createMockAgent([]),
+      async *runTurn() {
+        yield { type: "done" as const, success: true };
+      },
+    };
+    const turns: number[] = [];
+    const result = await runWorker(testIssue, config, agent, tracker, createMockWorkspace(), {
+      onTurnStart: (_id, turn) => turns.push(turn),
+      shouldStop: () => true,
+    });
+    expect(turns).toEqual([1]);
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps going while nobody pressed Stop", async () => {
+    const tracker = new MemoryTracker([{ ...testIssue, state: "In Progress" }]);
+    const result = await runWorker(
+      testIssue,
+      config,
+      createMockAgent([]),
+      tracker,
+      createMockWorkspace(),
+      {
+        shouldStop: () => false,
+      },
+    );
+    expect(result.turns).toBe(5);
+  });
+});

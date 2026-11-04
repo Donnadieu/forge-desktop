@@ -44,6 +44,8 @@ export interface WorkerCallbacks {
   onEvent?: (issueId: string, event: AgentEvent) => void;
   onTurnStart?: (issueId: string, turn: number) => void;
   onTurnEnd?: (issueId: string, turn: number) => void;
+  /** Asked between turns: true once Stop was pressed, so the agent ends after the turn it's on. */
+  shouldStop?: () => boolean;
   signal?: AbortSignal;
 }
 
@@ -209,6 +211,7 @@ export async function runWorker(
           lastTurnSuccess = false;
           break;
         }
+        if (callbacks?.shouldStop?.()) break;
 
         const stateCheck = await stateChecker.decide(
           tracker,
@@ -388,6 +391,7 @@ export async function runWorker(
       if (!agent.persistentSession) {
         break;
       }
+      if (callbacks?.shouldStop?.()) break;
 
       const stateCheck = await stateChecker.decide(
         tracker,

@@ -168,4 +168,59 @@ describe("Orchestrator.stop", () => {
       clearTimeout(retry.timerId);
     }
   });
+
+  it("without abort, a multi-turn agent ends after the turn it's on instead of starting another", async () => {
+    let turnsStarted = 0;
+    let finish!: () => void;
+    const finished = new Promise<void>((res) => {
+      finish = res;
+    });
+    const agent: AgentAdapter = {
+      name: "multi-turn",
+      persistentSession: true,
+      async startSession() {
+        return { id: "s-1", abortController: new AbortController() };
+      },
+      async *streamEvents(): AsyncIterable<AgentEvent> {
+        turnsStarted++;
+        // Turn 1 ends when the test says so; any later turn would never end.
+        if (turnsStarted === 1) await finished;
+        else await new Promise(() => {});
+        yield { type: "done", success: true };
+      },
+      async stopSession() {},
+    };
+    const issue = createTestIssue({ id: "id-1", identifier: "MT-1" });
+    const orchestrator = new Orchestrator(
+      new MemoryTracker([issue]),
+      agent,
+      createWorkspace(),
+      {
+        pollIntervalMs: 100_000,
+        maxConcurrentAgents: 1,
+        maxTurns: 5,
+        stallTimeoutSeconds: 300,
+        maxRetryAttempts: 3,
+        maxRetryDelayMs: 300_000,
+        trackerConfig: {
+          kind: "memory",
+          project_slug: "test",
+          active_states: ["Todo"],
+          terminal_states: ["Done"],
+        },
+        promptTemplate: "Fix {{ issue.identifier }}",
+      },
+      {},
+    );
+    orchestrator.start();
+    await vi.waitFor(() => expect(turnsStarted).toBe(1));
+
+    const stopping = orchestrator.stop();
+    finish();
+    await stopping;
+
+    expect(turnsStarted).toBe(1);
+    expect(orchestrator.getState().running.size).toBe(0);
+    for (const retry of orchestrator.getState().retryAttempts.values()) clearTimeout(retry.timerId);
+  });
 });

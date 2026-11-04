@@ -212,7 +212,13 @@ export async function dispatchIssue(
     deps.agent,
     deps.tracker,
     deps.workspace,
-    makeWorkerCallbacks(deps.state, deps.callbacks, abortController.signal),
+    // Stop lets the agent finish the turn it's on, then ends the run instead of starting another.
+    makeWorkerCallbacks(
+      deps.state,
+      deps.callbacks,
+      abortController.signal,
+      () => deps.isStopped() || deps.isDraining(),
+    ),
   )
     .then((result) => {
       deps.handleWorkerComplete(issue.id, result, attempt, entry);

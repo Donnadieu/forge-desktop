@@ -68,7 +68,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/observability/types.ts | 05deefb0a43a | src/observability/types.ts | activity, helpers, recent lines |
 | src/orchestrator/claim-gate.ts | 05deefb0a43a | src/orchestrator/claim-gate.ts | unchanged |
 | src/orchestrator/cost-ceiling.ts | 05deefb0a43a | src/orchestrator/cost-ceiling.ts | unchanged |
-| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line |
+| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
 | src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks |
@@ -77,7 +77,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
 | src/orchestrator/session-guard.ts | 05deefb0a43a | src/orchestrator/session-guard.ts | unchanged |
 | src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | activity, helpers, recent lines, usage windows |
-| src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events |
+| src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events; passes `shouldStop` |
 | src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits` |
 | src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | a failed run that says why (a lapsed sign-in) goes on the retry queue with its reason, for every agent |
 | src/orchestrator/workpad-parser.ts | 05deefb0a43a | src/orchestrator/workpad-parser.ts | unchanged |
@@ -109,7 +109,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard`, optional `fetchBoard` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | unchanged |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
-| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error` |
+| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
 | src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity |

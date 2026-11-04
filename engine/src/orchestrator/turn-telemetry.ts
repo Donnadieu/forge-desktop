@@ -16,6 +16,7 @@ export function makeWorkerCallbacks(
   state: OrchestratorState,
   callbacks: OrchestratorCallbacks,
   signal: AbortSignal,
+  shouldStop?: () => boolean,
 ): WorkerCallbacks {
   // Only the entry dispatched with this worker's signal is ours: a killed
   // worker's late events must not refresh a successor's activity or telemetry.
@@ -25,6 +26,7 @@ export function makeWorkerCallbacks(
   };
   return {
     signal,
+    shouldStop,
     onEvent: (issueId, event) => {
       // Always accumulate global totals regardless of entry lookup
       addUsageTokens(state.totalTokens, event);

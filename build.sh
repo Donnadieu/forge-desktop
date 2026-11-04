@@ -35,12 +35,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>ForgeUpdateRepo</key><string>$UPDATE_REPO</string>
 </dict></plist>
 PLIST
 cp LICENSE NOTICE "$APP/Contents/Resources/"
 cp -R Resources/Fonts "$APP/Contents/Resources/Fonts"
+# The app icon (Finder, Dock, About): PNGs exported from the Claude Design SVGs in Resources/AppIcon.
+iconutil -c icns Resources/AppIcon/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 tools/bundle-engine.sh "$APP/Contents/Resources/engine"
 tools/sign-app.sh "$APP"
 echo "built $APP ($VERSION)"

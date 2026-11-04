@@ -49,6 +49,8 @@ enum Checks {
         check("the app is called Forge", AppInfo.name == "Forge")
         check("the version comes from the bundle", AppInfo.version != "dev")
         check("the Forge fonts ship inside the app and load", Theme.fontsLoaded)
+        check("the anvil app icon ships inside the app", AppIcon.shipsTheAnvil)
+        check("Finder and the Dock show the anvil icon, not a blank one", AppIcon.finderShowsTheAnvil)
         let renderer = ImageRenderer(content: RootView(model: AppModel(preview: true)).frame(width: 1200, height: 800))
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
@@ -102,6 +104,46 @@ enum Checks {
             WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
+    }
+}
+
+/// The icon macOS draws for this bundle. Amber in the middle means the anvil; the blank generic app icon
+/// is grey and white there.
+@MainActor
+enum AppIcon {
+    /// The bundle names AppIcon.icns, and that file is the anvil.
+    static var shipsTheAnvil: Bool {
+        guard Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String == "AppIcon",
+            let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+            let icon = NSImage(contentsOf: url)
+        else { return false }
+        return isTheAnvil(icon)
+    }
+
+    /// What Finder and the Dock draw for the app (the About box uses the same icon). A bundle built a
+    /// moment ago can still get the blank icon for a second while macOS registers it, so this asks a few
+    /// times before failing.
+    static var finderShowsTheAnvil: Bool {
+        LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+        for attempt in 0..<10 {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.5) }
+            if isTheAnvil(NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)) { return true }
+        }
+        return false
+    }
+
+    static func isTheAnvil(_ icon: NSImage) -> Bool {
+        guard
+            let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: 64, pixelsHigh: 64, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        else { return false }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        icon.draw(in: NSRect(x: 0, y: 0, width: 64, height: 64))
+        NSGraphicsContext.restoreGraphicsState()
+        guard let c = rep.colorAt(x: 32, y: 30)?.usingColorSpace(.deviceRGB) else { return false }
+        return c.redComponent > 0.6 && c.redComponent > c.greenComponent && c.greenComponent > c.blueComponent + 0.15
     }
 }
 

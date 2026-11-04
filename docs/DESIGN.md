@@ -24,6 +24,11 @@ Every colour, font and control comes from `Sources/UI/Theme.swift` and `Sources/
   (SIL Open Font License, licences beside them) and are registered at launch; the selftest checks
   they load.
 - **Mark:** the Forjado AI anvil (`AnvilMark`), drawn from the brand's SVG.
+- **App icon:** the amber anvil on a warm near-black rounded square, made in Claude Design (project
+  "Forge Desktop", files `Forge App Icon.svg` and `Forge App Icon small.svg`, the small one tuned for
+  16 and 32 px). The SVGs and their PNG exports live in `Resources/AppIcon`; `build.sh` turns the
+  `AppIcon.iconset` into `AppIcon.icns` with `iconutil`, and the selftest checks macOS draws the anvil
+  for the built bundle. To change it, change the SVGs in Claude Design and export every size again.
 - **Shape:** square-ish corners (4 to 8), surfaces and spacing instead of outlines, one soft shadow,
   an amber glow only on work that's running.
 - **Board:** columns with cards share the width; empty columns fold into thin strips so all ten fit.

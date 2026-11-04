@@ -11,6 +11,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
   command, run the project the way its README says). The app writes the settings block above it.
+  AI Review is code-review-nuclear, then code-review-fix on that review (looped), then
+  code-comment-style; every skill runs by name with no instructions that override it.
 - **Agent skills:** `skills/` holds eleven of Forge's `.agents/skills` at the same commit: triage,
   commit, push, pull, simplify, code-review (with code-review-nuclear, code-review-fix and the review
   helpers it calls), qa-plan-forge, land, linear. Changed: qa-plan-forge and its template rewritten for
@@ -18,6 +20,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   the workflow (one `## Forge Workpad` comment, no summary comments); "GPG-signed" became "signed";
   three dead pointers to an `EDGE_CASE_TEMPLATE.md` Forge never had were removed.
   Forge's worker variant of linear (merge without Human Review) is not shipped.
+  `skills/code-comment-style` is new here: the owner's own skill, copied verbatim.
 - **Repo readiness:** `skills/harness-engineering` is Forge's `.agents/skills/harness-engineering` at the
   same commit; its "Running it" section (Forge's internal `pnpm harden` tool) became the steps a card
   follows (formatter, custom rules with WHY and FIX, ratchet, three enforcement points, canary proof).
@@ -112,7 +115,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
-| src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity |
+| src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity; mirrors nested skills (code-review-nuclear, code-review-fix) to the top of `.claude/skills/`; turns off Claude Code's commit/PR attribution in the card's local settings |
 | src/workspace/git-identity.ts | 05deefb0a43a | src/workspace/git-identity.ts | SSH signing (`FORGE_GIT_SIGNING_FORMAT=ssh`); `verifyWorkspaceSigning` (a test signature before a card starts; unsigned only when chosen) |
 | src/workspace/inode-pressure.ts | 05deefb0a43a | src/workspace/inode-pressure.ts | unchanged |
 | src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | stale-lock reclaim takes turns through a `.reclaiming` gate (fixes a race where two acquirers both held the lock) |

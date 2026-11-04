@@ -56,6 +56,7 @@ export async function copyWorkspaceAssets(
   sources: WorkspaceAssetSources,
 ): Promise<void> {
   if (sources.skillsDir) copySkills(workspacePath, sources.skillsDir);
+  turnOffClaudeAttribution(workspacePath);
 
   // The provider returns an empty list whenever either feature gate is closed,
   // so this is a no-op for an unflagged deploy.
@@ -103,7 +104,9 @@ export function copySkills(workspacePath: string, skillsDir: string): void {
   // Copy every skill except worker-overrides/, then overlay the worker variants
   // (mirroring each override's relative path) on top of the matching skill.
   const mirrored: string[] = [];
-  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+  const entries = readdirSync(skillsDir, { withFileTypes: true });
+  const topLevel = new Set(entries.map((e) => e.name));
+  for (const entry of entries) {
     if (entry.isDirectory() && entry.name === WORKER_OVERRIDES_DIR) continue;
     const destDirs = [forgeDir];
     if (!clientOwned.has(entry.name)) {
@@ -111,6 +114,11 @@ export function copySkills(workspacePath: string, skillsDir: string): void {
       mirrored.push(entry.name);
     }
     copyMarkdownEntry(skillsDir, entry.name, entry.isDirectory(), destDirs, WORKER_OVERRIDES_DIR);
+    if (entry.isDirectory()) {
+      mirrored.push(
+        ...mirrorNestedSkills(join(skillsDir, entry.name), claudeDir, topLevel, clientOwned),
+      );
+    }
   }
   const overridesDir = join(skillsDir, WORKER_OVERRIDES_DIR);
   if (existsSync(overridesDir)) {
@@ -132,6 +140,65 @@ export function copySkills(workspacePath: string, skillsDir: string): void {
     ...(ownLink ? ["/skills"] : []),
     ...mirrored.map((name) => `/.claude/skills/${name}`),
   ]);
+}
+
+/**
+ * Claude Code only registers skills one level under `.claude/skills/`, so a
+ * skill that ships inside another (code-review/code-review-nuclear,
+ * code-review/code-review-fix) is also mirrored at the top level under its own
+ * name. Otherwise the Skill tool resolves that name to whatever the person has
+ * installed globally on their Mac, or to nothing. Returns the names mirrored.
+ */
+function mirrorNestedSkills(
+  parentDir: string,
+  claudeDir: string,
+  topLevel: ReadonlySet<string>,
+  clientOwned: ReadonlySet<string>,
+): string[] {
+  const names: string[] = [];
+  for (const sub of readdirSync(parentDir, { withFileTypes: true })) {
+    if (!sub.isDirectory() || topLevel.has(sub.name) || clientOwned.has(sub.name)) continue;
+    if (!existsSync(join(parentDir, sub.name, "SKILL.md"))) continue;
+    copyMarkdownEntry(parentDir, sub.name, true, [claudeDir]);
+    names.push(sub.name);
+  }
+  return names;
+}
+
+/**
+ * Agents commit as the person, never with Claude Code's own attribution: on a
+ * person's Mac Claude Code otherwise tells the agent to end every commit with
+ * a `Co-Authored-By: Claude` trailer (and every pull request with "Generated
+ * with Claude Code"), which outranks the commit skill's "no co-author
+ * trailers". The card folder's local Claude settings turn it off; any other
+ * local setting there is kept, and the file is excluded from git.
+ */
+export function turnOffClaudeAttribution(workspacePath: string): void {
+  const dir = join(workspacePath, ".claude");
+  const file = join(dir, "settings.local.json");
+  let settings: Record<string, unknown> = {};
+  if (existsSync(file)) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(file, "utf-8"));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
+        settings = parsed as Record<string, unknown>;
+    } catch {
+      // An unreadable file is replaced: the attribution setting must hold.
+    }
+  }
+  settings.attribution = { commit: "", pr: "" };
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+  excludeFromGit(workspacePath, ["/.claude/settings.local.json"]);
+  // A repo that tracks the file keeps its own copy: git ignores this edit.
+  if (gitOutput(workspacePath, ["ls-files", "--", ".claude/settings.local.json"])?.trim()) {
+    gitOutput(workspacePath, [
+      "update-index",
+      "--skip-worktree",
+      "--",
+      ".claude/settings.local.json",
+    ]);
+  }
 }
 
 /**

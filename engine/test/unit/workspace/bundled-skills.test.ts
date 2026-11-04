@@ -3,11 +3,11 @@
  * card's folder, where Claude Code's Skill tool finds them, kept out of git.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { copySkills } from "../../../src/workspace/copy-assets.js";
+import { copySkills, turnOffClaudeAttribution } from "../../../src/workspace/copy-assets.js";
 
 const SKILLS = join(process.cwd(), "skills");
 const NAMED: Array<[string, string]> = [
@@ -24,6 +24,7 @@ const NAMED: Array<[string, string]> = [
   ["linear", "linear/SKILL.md"],
   ["repo-assessment", "repo-assessment/SKILL.md"],
   ["harness-engineering", "harness-engineering/SKILL.md"],
+  ["code-comment-style", "code-comment-style/SKILL.md"],
 ];
 
 let dir: string | undefined;
@@ -66,6 +67,48 @@ describe("the bundled agent skills", () => {
     }
     const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
       cwd: dir,
+    }).toString();
+    expect(status).toBe("");
+  });
+
+  it("puts the skills that ship inside code-review at the top level, where the Skill tool finds them", () => {
+    const card = mkdtempSync(join(tmpdir(), "forge-card-nested-"));
+    dir = card;
+    execFileSync("git", ["init", "-q"], { cwd: card });
+    copySkills(card, SKILLS);
+    for (const name of ["code-review-nuclear", "code-review-fix"]) {
+      const top = join(card, ".claude", "skills", name, "SKILL.md");
+      expect(existsSync(top), name).toBe(true);
+      expect(readFileSync(top, "utf-8")).toMatch(new RegExp(`^---\\nname: ${name}\\n`));
+    }
+    const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+      cwd: card,
+    }).toString();
+    expect(status).toBe("");
+  });
+
+  it("turns off Claude Code's commit and pull request attribution, keeping other local settings", () => {
+    const card = mkdtempSync(join(tmpdir(), "forge-card-attribution-"));
+    dir = card;
+    execFileSync("git", ["init", "-q"], { cwd: card });
+    turnOffClaudeAttribution(card);
+    const file = join(card, ".claude", "settings.local.json");
+    expect(JSON.parse(readFileSync(file, "utf-8"))).toEqual({
+      attribution: { commit: "", pr: "" },
+    });
+
+    writeFileSync(
+      file,
+      JSON.stringify({ model: "x", attribution: { commit: "Co-Authored-By: Claude" } }),
+    );
+    turnOffClaudeAttribution(card);
+    expect(JSON.parse(readFileSync(file, "utf-8"))).toEqual({
+      model: "x",
+      attribution: { commit: "", pr: "" },
+    });
+
+    const status = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+      cwd: card,
     }).toString();
     expect(status).toBe("");
   });

@@ -55,6 +55,7 @@ The agent should be able to talk to Linear, either via a configured Linear MCP s
 - Operate autonomously end-to-end unless blocked by missing requirements, secrets, or permissions.
 - Use the blocked-access escape hatch only for true external blockers (missing required tools/auth) after exhausting documented fallbacks.
 - **All commits go through the `commit` skill (GPG-signed).** Never run `git commit`, `git commit -m`, or `git add -A && git commit` directly — every commit in every stage (execution, simplify, AI Review fixes, QA self-heal, land) is made with the `commit` skill.
+- **Run every skill with the Skill tool, by its name, and let it decide.** Tell a skill only what to work on (which files, which review file). Never tell it how to do its job: no commit-message format, prefix, or trailer for `commit`, no extra rules for a review. Where your own defaults disagree with a skill, the skill wins.
 
 ## The pipeline (status = who owns the ticket)
 
@@ -65,7 +66,7 @@ human-approved. The full path:
 ```
 Backlog --(you: move to Triage)--> Triage --(AI: spike/plan)--> Backlog + `ready-for-execution`
 Backlog --(you: move to Todo)----> Todo ----> In Progress --(AI: build + simplify)--> AI Review
-AI Review --(AI: review + nuclear + fix, loop)--> QA
+AI Review --(AI: nuclear review + fix, loop, then comment style)--> QA
 QA --(AI: draft + execute + self-heal, attach media, `qa-complete`)--> Human Review
 Human Review --(you)--> Merging --(AI: land)--> Done
                     \--(you)--> Rework --(AI: address feedback in place)--> Human Review   (loop)
@@ -101,9 +102,9 @@ listed in pipeline order. Reordering that list reorders dispatch priority.
 - `push`: keep remote branch current and publish updates.
 - `pull`: keep branch updated with latest `origin/<your-base-branch>` before handoff.
 - `simplify`: quality-only cleanup pass (reuse, simplification, efficiency, altitude) run at the end of execution.
-- `code-review`: `AI Review` stage — parallel-agent comprehensive review.
-- `code-review-nuclear`: `AI Review` stage — deeper, adversarial review pass.
-- `code-review-fix`: `AI Review` stage — auto-apply fixes for blocking findings.
+- `code-review-nuclear`: `AI Review` stage — the review: behavioral and structural agents in one pass.
+- `code-review-fix`: `AI Review` stage — fixes the nuclear review's findings.
+- `code-comment-style`: `AI Review` stage, last — deletes every LLM-written comment in the branch's diff.
 - `qa-plan-forge`: `QA` stage — draft, execute, and self-heal a repo-specific QA plan, then attach media.
 - `land`: when ticket reaches `Merging`, explicitly open and follow `skills/land/SKILL.md`, which includes the `land` loop.
 
@@ -114,7 +115,7 @@ listed in pipeline order. Reordering that list reorders dispatch priority.
 - `Todo` -> queued for execution; immediately transition to `In Progress` before active work.
   - Special case: if a PR is already attached, treat as feedback/rework loop (run full PR feedback sweep, address or explicitly push back, revalidate, return to `AI Review`).
 - `In Progress` -> implementation actively underway; ends by running `simplify`, then transitions to `AI Review`.
-- `AI Review` -> automated code review (`code-review` + `code-review-nuclear`) and fix loop (`code-review-fix`) until no blocking issues remain; then transition to `QA`.
+- `AI Review` -> `code-review-nuclear`, then `code-review-fix`, looped until no blocking issues remain, then `code-comment-style`; then transition to `QA`.
 - `QA` -> automated QA: draft a repo-specific plan, execute it, self-heal on failure, attach media to the PR and ticket, add `qa-complete`; then transition to `Human Review`.
 - `Human Review` -> PR is attached, reviewed, and QA'd; waiting on human approval (first human touch).
 - `Merging` -> approved by human; execute the `land` skill flow (do not call `gh pr merge` directly).
@@ -297,21 +298,24 @@ loops review → fix until no blocking issues remain.
 
 1. Confirm the branch/PR for the ticket is checked out and current with
    `origin/<your-base-branch>` (run `pull` if needed).
-2. Run the `code-review` skill (`skills/code-review/SKILL.md`). It writes a review
-   to `tmp/code-reviews/<branch>-review.md`.
-3. Run the `code-review-nuclear` skill (`skills/code-review/code-review-nuclear/SKILL.md`)
-   for a deeper adversarial pass. Merge its blocking findings into the review file.
-4. If there are **no** blocking issues, skip to step 7.
-5. Run the `code-review-fix` skill (`skills/code-review/code-review-fix/SKILL.md`) to
-   auto-apply fixes for every blocking finding. This run is unattended — do not
+2. Run the `code-review-nuclear` skill. It writes the review to
+   `tmp/code-reviews/<branch>-nuclear-review.md` (numbered on later passes).
+3. If there are **no** blocking issues, skip to step 6.
+4. Run the `code-review-fix` skill on that review: tell it the newest
+   `tmp/code-reviews/<branch>-nuclear-review*.md` is the review to address. Never
+   fix findings yourself instead of running it. This run is unattended — do not
    wait for confirmation.
-6. Re-run scope validation (`make all` or the targeted subset) and confirm green,
+5. Re-run scope validation (`make all` or the targeted subset) and confirm green,
    then commit + push with the `commit` skill. Return to step 2 to re-review.
    - Bound the loop to a maximum of 3 review→fix passes. If blocking issues
      remain after 3 passes, record them in the workpad and move to `Human Review`
      with a brief explaining what could not be auto-resolved.
+6. Run the `code-comment-style` skill over the branch's diff against
+   `origin/<your-base-branch>`: it deletes every comment an LLM wrote and leaves
+   human comments alone. Re-run validation, then commit + push any deletions with
+   the `commit` skill.
 7. Update the workpad `Notes` with a short AI-review summary (passes run, issues
-   fixed, final state) and confirm PR checks are green.
+   fixed, comments removed, final state) and confirm PR checks are green.
 8. Move the issue to `QA`.
 
 ## Step 4: QA flow (QA -> Human Review)
@@ -379,8 +383,9 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
 - Required PR metadata is present (`forge` label).
 
 ### Before leaving AI Review (AI Review -> QA)
-- `code-review` and `code-review-nuclear` have run.
+- `code-review-nuclear` has run.
 - `code-review-fix` has resolved all blocking findings (or the 3-pass bound was hit and documented).
+- `code-comment-style` has run over the branch's diff.
 - PR checks are green after fixes.
 
 ### Before leaving QA (QA -> Human Review)

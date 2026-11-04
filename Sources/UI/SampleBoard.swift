@@ -1,59 +1,110 @@
 import Foundation
 
-/// The board render mode draws: a project mid-run, with one card held by the lead and its helpers.
+/// What render mode draws on the Orchestrator: the "AI Trading Bot" project in its states.
 enum SampleBoard {
+    static let base = "https://linear.app/acme/issue/AIT-"
+
+    /// A time `seconds` ago, as the engine writes it.
+    static func ago(_ seconds: TimeInterval) -> String { ISO8601DateFormatter().string(from: Date().addingTimeInterval(-seconds)) }
+
     static func card(
-        _ n: Int, _ title: String, _ state: String, activity: String? = nil, pr: Bool = false, helpers: [EngineState.Helper] = []
+        _ n: Int, _ title: String, _ state: String, activity: String? = nil, pr: Bool = false, helpers: [EngineState.Helper] = [],
+        turn: Int = 4
     ) -> EngineState.Card {
         EngineState.Card(
-            id: "c\(n)", identifier: "FDT-\(n)", title: title, state: state, url: "https://linear.app/acme/issue/FDT-\(n)",
-            assignee: activity == nil ? nil : "Sam Rivera", branchName: "forge/FDT-\(n)",
-            prUrl: pr ? "https://github.com/acme/forge-desktop-e2e/pull/\(n)" : nil, activity: activity,
-            agent: activity == nil ? nil : .init(started_at: "2026-11-03T15:02:00Z", turn: 4, attempt: 1),
+            id: "c\(n)", identifier: "AIT-\(n)", title: title, state: state, url: "\(base)\(n)",
+            assignee: activity == nil ? nil : "Sam Rivera", branchName: "forge/AIT-\(n)",
+            prUrl: pr ? "https://github.com/acme/ai-trading-bot/pull/\(n)" : nil, activity: activity,
+            agent: activity == nil ? nil : .init(started_at: ago(turn == 4 ? 372 : 760), turn: turn, attempt: 1),
             helpers: helpers,
             recent: activity == nil
                 ? nil
                 : [
-                    .init(at: "2026-11-03T15:02:10Z", line: "Reading login.tsx"),
-                    .init(at: "2026-11-03T15:03:40Z", line: "Editing login.tsx"),
-                    .init(at: "2026-11-03T15:05:02Z", line: "Sending a helper: Write the tests"),
-                    .init(at: "2026-11-03T15:05:09Z", line: activity ?? ""),
+                    .init(at: ago(200), line: "Found where orders are placed: orders/place.py"),
+                    .init(at: ago(166), line: "Sent a helper to write the tests"),
+                    .init(at: ago(119), line: "Helper finished: the wording matches the API docs"),
+                    .init(at: ago(41), line: "Editing orders/validate.py"),
+                    .init(at: ago(0), line: activity ?? ""),
                 ])
     }
 
-    /// The same board while Linear refuses to answer.
+    static let held = card(
+        3, "Reject an order when the balance is too low", "In Progress", activity: "Writing the balance check in orders/validate.py",
+        pr: true,
+        helpers: [
+            .init(id: "h1", description: "Write the tests for the balance check", running: true),
+            .init(id: "h2", description: "Check the error message wording", running: false),
+        ])
+    static let second = card(
+        5, "Add a stop-loss to the momentum strategy", "In Progress", activity: "Running pytest on tests/test_momentum.py", turn: 9)
+
+    static func running(_ c: EngineState.Card) -> EngineState.RunningCard {
+        .init(
+            issue_id: c.id, issue_identifier: c.identifier, issue_title: c.title, last_message: nil, activity: c.activity,
+            turn_count: c.agent?.turn, state: c.state, started_at: c.agent?.started_at, attempt: 1, helpers: c.helpers,
+            recent: c.recent, tokens: .init(total_tokens: 105_600))
+    }
+
+    static func board(_ cards: [EngineState.Card], problem: String? = nil) -> EngineState.Board {
+        .init(columns: Pipeline.names.map { n in .init(name: n, cards: cards.filter { $0.state == n }) }, read_at: nil, problem: problem)
+    }
+
+    /// Running: two agents at work, one card waiting for one, one for you.
+    static var state: EngineState {
+        let cards = [
+            held, second,
+            card(4, "Log every fill to a CSV file", "AI Review"),
+            card(2, "Retry the exchange call when it times out", "Human Review", pr: true),
+            card(6, "Show the open positions on startup", "Todo"),
+            card(7, "Paper-trading mode", "Backlog"), card(8, "Backtest report as HTML", "Backlog"),
+            card(1, "Read the API keys from the environment", "Done", pr: true),
+        ]
+        return EngineState(
+            status: "running", started_at: ago(78 * 60), running: [running(held), running(second)], retrying: [], poll: nil,
+            board: board(cards), usage: .init(last_24h: .init(runs: 6, inputTokens: 380_100, outputTokens: 32_500), all_time: nil),
+            totals: nil,
+            rate_limits: [
+                "five_hour": .init(percent: 42, resetsAt: nil, status: "allowed"), "seven_day": .init(percent: 18, resetsAt: nil, status: "allowed"),
+            ])
+    }
+
+    /// Stopped with nothing on the board.
+    static var empty: EngineState {
+        EngineState(
+            status: "stopped", running: [], retrying: [], poll: nil, board: board([]),
+            usage: .init(last_24h: .init(runs: 0, inputTokens: 700, outputTokens: 53), all_time: nil), totals: nil, rate_limits: nil)
+    }
+
+    /// Stopped with a few cards waiting in Backlog and Todo.
+    static var few: EngineState {
+        var s = empty
+        s.board = board([
+            card(6, "Show the open positions on startup", "Todo"), card(9, "Cap each order at 2% of the balance", "Todo"),
+            card(7, "Paper-trading mode", "Backlog"), card(8, "Backtest report as HTML", "Backlog"),
+        ])
+        return s
+    }
+
+    /// Stopping: the agents finish what they're doing first.
+    static var stopping: EngineState {
+        var s = state
+        s.status = "stopping"
+        return s
+    }
+
+    /// Linear refuses to answer.
     static var problem: EngineState {
         var s = state
+        s.status = "running"
         s.board?.problem = "Linear said: usage limit exceeded"
         return s
     }
 
-    static var state: EngineState {
-        let held = card(
-            3, "Reject an empty password on the login page", "In Progress", activity: "Editing the README while helpers work", pr: true,
-            helpers: [
-                .init(id: "h1", description: "Write the tests for the login check", running: true),
-                .init(id: "h2", description: "Check the error message wording", running: false),
-            ])
-        let cards: [String: [EngineState.Card]] = [
-            "Backlog": [card(7, "Dark mode", "Backlog")],
-            "Todo": [card(4, "Show the version in the footer", "Todo"), card(5, "Add a health check page", "Todo")],
-            "In Progress": [held],
-            "AI Review": [],
-            "QA": [],
-            "Human Review": [card(2, "Fix the typo on the home page", "Human Review", pr: true)],
-            "Done": [card(1, "Add a README", "Done", pr: true)],
-        ]
-        return EngineState(
-            status: "running",
-            running: [
-                .init(issue_id: "c3", issue_identifier: "FDT-3", issue_title: held.title, last_message: nil, activity: held.activity, turn_count: 4)
-            ],
-            poll: nil,
-            board: .init(columns: Pipeline.names.map { .init(name: $0, cards: cards[$0] ?? []) }, read_at: nil, problem: nil),
-            usage: nil, totals: nil,
-            rate_limits: [
-                "five_hour": .init(percent: 42, resetsAt: nil, status: "allowed"), "seven_day": .init(percent: 18, resetsAt: nil, status: "allowed"),
-            ])
+    /// The agent's sign-in lapsed: cards wait to try again with the reason.
+    static var signedOut: EngineState {
+        var s = state
+        s.running = []
+        s.retrying = [.init(issue_identifier: "AIT-3", attempt: 2, due_at: nil, error: "Failed to authenticate: OAuth session expired")]
+        return s
     }
 }

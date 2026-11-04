@@ -23,7 +23,7 @@ final class AppModel: ObservableObject {
         /// Which variant of a screen render mode draws (e.g. "signed-out").
         var scene: String?
         var teams = [LinearAPI.Team(id: "t1", name: "Engineering", key: "ENG", triageEnabled: false)]
-        var projects = [LinearAPI.Project(id: "p1", name: "Forge Desktop test", slugId: "forge-desktop-test")]
+        var projects = [LinearAPI.Project(id: "p1", name: "AI Trading Bot", slugId: "ai-trading-bot")]
         var states = ["Backlog", "Todo", "In Progress", "Done", "Canceled"]
         var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
         var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
@@ -57,7 +57,7 @@ final class AppModel: ObservableObject {
                 .init(id: "layer-rules", title: "Layer rules", why: "The page code can't reach into the server code.", recommended: false),
             ])
         var repos = [
-            GitHub.Repo(fullName: "acme/forge-desktop-e2e", defaultBranch: "main", canPush: true),
+            GitHub.Repo(fullName: "acme/ai-trading-bot", defaultBranch: "main", canPush: true),
             GitHub.Repo(fullName: "acme/website", defaultBranch: "main", canPush: true),
             GitHub.Repo(fullName: "someone/library", defaultBranch: "main", canPush: false),
         ]
@@ -71,28 +71,49 @@ final class AppModel: ObservableObject {
         if !preview { GitHub.account = c.githubLogin }
     }
 
-    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Ready", "Board"]
+    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Ready", "Orchestrator"]
 
-    /// The board's screen number (the last one).
+    /// The Orchestrator's screen number (the end of setup).
     static let boardScreen = 6
+    /// The Workflow screen (stages on and off, agents at once).
+    static let workflowScreen = 7
+    /// Settings: what Forge connects to; each Change opens that setup step.
+    static let settingsScreen = 8
+
+    /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
+    @Published var returnTo: Int?
 
     func save() {
         if !preview { choices.save() }
-        if screen < Self.boardScreen { settingsChanged = true }
+        if screen < Self.boardScreen || screen == Self.workflowScreen { settingsChanged = true }
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.boardScreen, s))
+        screen = max(0, min(Self.settingsScreen, s))
+        if screen >= Self.boardScreen { returnTo = nil }
+    }
+
+    /// Opens one setup step from Settings.
+    func change(_ step: Int) {
+        go(step)
+        returnTo = Self.settingsScreen
     }
 
     func next() {
         save()
-        go(screen + 1)
+        go(returnTo ?? screen + 1)
     }
 
     var linearKey: String? { preview ? "preview" : Keychain.get(.linearKey) }
 
     var linear: LinearAPI? { linearKey.map { LinearAPI(key: $0) } }
+
+    /// The project's page in Linear (the workspace's address when Forge knows it).
+    var projectURL: String {
+        let key = choices.linearURLKey ?? engine?.cards.first?.url.flatMap { URL(string: $0)?.pathComponents.dropFirst().first }
+        guard let key else { return "https://linear.app" }
+        return "https://linear.app/\(key)" + (choices.projectSlug.map { "/project/\($0)" } ?? "")
+    }
 
     func openLink(_ s: String) {
         if let u = URL(string: s) { NSWorkspace.shared.open(u) }

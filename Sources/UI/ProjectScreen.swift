@@ -146,9 +146,9 @@ struct ColumnList: View {
         let have = Set(existing.map(Pipeline.normalized))
         VStack(spacing: 0) {
             ForEach(Array(Pipeline.columns.enumerated()), id: \.element.name) { i, c in
-                if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) }
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    ColumnDot(name: c.name).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                    StageDot(stage: c.name).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
                     Text(c.name)
                         .font(Theme.sans(13, .semibold))
                         .foregroundStyle(Theme.text)

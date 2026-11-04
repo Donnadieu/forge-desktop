@@ -101,12 +101,9 @@ export class CodexAdapter implements AgentAdapter {
       throw new Error("CodexAdapter startSession was aborted before spawn");
     }
 
-    const openaiApiKey = baseEnv.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      await mcpBridge?.close();
-      throw new Error("CodexAdapter requires OPENAI_API_KEY to be set.");
-    }
-    const env = { ...baseEnv, OPENAI_API_KEY: openaiApiKey };
+    // An OpenAI key is passed through when the person chose one; otherwise Codex uses its own
+    // sign-in on this Mac (`codex login`, ~/.codex), so no key is required.
+    const env = { ...baseEnv };
     const child = spawnProcessGroup(
       this.command,
       ["app-server"],

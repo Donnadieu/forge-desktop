@@ -55,8 +55,25 @@ enum Checks {
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
         check("the main window's view draws", size.width == 1200 && size.height == 800)
-        check("a Linear key problem offers the key screen", ProblemBanner.fix(for: "Linear didn't accept this key.")?.isLink == false)
-        check("an unknown problem offers no button that can't fix it", ProblemBanner.fix(for: "Linear answered 502.") == nil)
+        check("a Linear key problem offers the key screen", OrchestratorScreen.fix(for: "Linear didn't accept this key.")?.isLink == false)
+        check("an unknown problem offers no button that can't fix it", OrchestratorScreen.fix(for: "Linear answered 502.") == nil)
+        check("Linear's usage limit offers the Linear plan page", OrchestratorScreen.fix(for: "Linear said: usage limit exceeded")?.isLink == true)
+        check("with QA off, cards go from AI Review to Human Review", Pipeline.skipTarget("QA", off: ["QA"]) == "Human Review")
+        check("with QA and Human Review off, AI Review hands to Merging", Pipeline.skipTarget("QA", off: ["QA", "Human Review"]) == "Merging")
+        check("stages that are off leave the agents' list", !Pipeline.activeColumns(off: ["QA"]).contains("QA"))
+        check(
+            "Todo, In Progress and Rework can't be turned off",
+            Set(Pipeline.optionalColumns).isDisjoint(with: ["Todo", "In Progress", "Rework", "Backlog", "Done"]))
+        check("with every stage on, the lead's instructions are unchanged", Pipeline.routingNote(off: []) == nil)
+        check(
+            "a stage that is off is named in the lead's instructions",
+            Pipeline.routingNote(off: ["QA"])?.contains("move it to `Human Review` instead") == true)
+        check("Codex on an OpenAI key keeps its key in the Keychain", WorkerCheck.keyItem(.codexKey) == .openaiKey)
+        check("Claude Code signed in with the browser needs no key", WorkerCheck.keyItem(.claude) == nil)
+        let older = #"{"worker":"apiKey","linearUser":"a","columnsReady":true,"repoChecked":true,"workerChecked":true}"#
+        check(
+            "settings saved by 0.2.4 still load, with every stage on",
+            (try? JSONDecoder().decode(SetupChoices.self, from: Data(older.utf8))).map { $0.worker == .apiKey && $0.stagesOff == nil } == true)
         check("every pipeline column is missing from an empty team", Pipeline.missing(existing: []).count == 10)
         check(
             "a new Linear team misses six columns (Triage, AI Review, QA, Human Review, Rework, Merging)",

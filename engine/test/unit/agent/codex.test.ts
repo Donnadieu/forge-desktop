@@ -289,11 +289,26 @@ describe("CodexAdapter", () => {
     }
   });
 
-  it("requires OPENAI_API_KEY in an explicit env even when process.env has one", async () => {
-    const scoped = new CodexAdapter({ model: "gpt-5.3-codex", env: { PATH: "/usr/bin" } });
-    await expect(scoped.startSession({ prompt: "x", workspacePath: "/tmp/ws" })).rejects.toThrow(
-      /OPENAI_API_KEY/,
-    );
+  it("starts without OPENAI_API_KEY and never borrows one from process.env (Codex's own sign-in)", async () => {
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-not-for-this-agent";
+    try {
+      const mockProc = createMockProcess([
+        ...handshakeResponses(),
+        rpcNotification("turn/completed"),
+      ]);
+      vi.mocked(child_process.spawn).mockReturnValue(mockProc as any);
+      const scoped = new CodexAdapter({ model: "gpt-5.3-codex", env: { PATH: "/usr/bin" } });
+      await scoped.startSession({ prompt: "x", workspacePath: "/tmp/ws" });
+      const spawnEnv = vi.mocked(child_process.spawn).mock.calls.at(-1)?.[2]?.env as Record<
+        string,
+        string
+      >;
+      expect(spawnEnv.OPENAI_API_KEY).toBeUndefined();
+    } finally {
+      if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
   });
 
   it("passes OPENAI_API_KEY in env", async () => {

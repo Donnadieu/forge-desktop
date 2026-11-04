@@ -11,6 +11,7 @@ enum Keychain {
         case linearKey = "linear-key"
         case anthropicKey = "anthropic-key"
         case kimiKey = "kimi-key"
+        case openaiKey = "openai-key"
         case claudeToken = "claude-code-token"
         case signingKey = "signing-key"
     }

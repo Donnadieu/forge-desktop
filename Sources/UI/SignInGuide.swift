@@ -1,83 +1,99 @@
 import SwiftUI
 
-/// The small guide that walks someone through signing an agent back in. Closes with its X, Esc, or a
-/// click outside it (which also stops the sign-in).
+/// The small sheet that walks someone through signing an agent back in, in that agent's own words. Closes
+/// with its X, Esc, or a click outside it (which also stops the sign-in). It checks again by itself.
 struct SignInGuide: View {
-    let name: String
+    let worker: SetupChoices.Worker
     @ObservedObject var signIn: AgentSignIn
     let close: () -> Void
     @State private var code = ""
 
+    private var name: String { WorkerScreen.name(worker) }
+
+    private var steps: [String] {
+        switch worker.agent {
+        case .codex:
+            return [
+                "Your browser opens OpenAI's sign-in page.", "Sign in with the ChatGPT account that has your plan, and approve Codex.",
+                "Come back here. Forge checks by itself and moves on.",
+            ]
+        default:
+            return [
+                "Your browser opens \(name)'s sign-in page.", "Sign in with the account that has your plan, and approve.",
+                "If the page shows a code, paste it below. Forge checks by itself and moves on.",
+            ]
+        }
+    }
+
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea().onTapGesture(perform: close)
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
+            Theme.bg.opacity(0.72).ignoresSafeArea().onTapGesture(perform: close)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Sign in to \(name)").font(Theme.display(22)).foregroundStyle(Theme.text)
+                        Text("Sign in to \(name)").font(Theme.display(24)).foregroundStyle(Theme.text)
                         Text("Do this once on this Mac. Forge waits for you.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
                     }
                     Spacer()
                     Button(action: close) {
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.textSec)
-                            .frame(width: 24, height: 24).background(Circle().fill(Theme.surfaceHover))
+                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSec)
+                            .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut(.cancelAction)
                 }
-                VStack(alignment: .leading, spacing: 10) {
-                    step(1, "Your browser opens \(name)'s sign-in page.")
-                    step(2, "Sign in with the account that has your plan, and approve.")
-                    step(3, "Come back here. Forge checks by itself and moves on.")
+                .padding(.horizontal, 24).padding(.vertical, 20)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(Array(steps.enumerated()), id: \.offset) { i, s in step(i + 1, s) }
+                    status
                 }
-                status
+                .padding(24)
             }
-            .padding(24)
-            .frame(width: 480)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.surface))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.border.opacity(0.6)))
-            .shadow(color: .black.opacity(0.5), radius: 30, y: 12)
+            .frame(width: 520)
+            .background(RoundedRectangle(cornerRadius: Theme.rXl).fill(Theme.surface))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.rXl))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rXl).stroke(Theme.border))
+            .shadow(color: .black.opacity(0.4), radius: 16, y: 4)
         }
     }
 
     private func step(_ n: Int, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("\(n)").font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 20, height: 20)
-                .background(Circle().fill(Color.white.opacity(0.08)))
-            Text(text).font(Theme.sans(14)).foregroundStyle(Theme.text)
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(n)").font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 24, height: 24)
+                .overlay(Circle().stroke(Theme.borderHover))
+            Text(text).font(Theme.sans(13)).foregroundStyle(Theme.text).padding(.top, 4).fixedSize(horizontal: false, vertical: true)
         }
     }
 
     @ViewBuilder private var status: some View {
         switch signIn.stage {
         case .idle, .waiting:
-            HStack(spacing: 10) {
-                ProgressView().controlSize(.small)
-                Text("Waiting for you to finish in the browser…").font(Theme.sans(13)).foregroundStyle(Theme.text)
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .frame(height: 42)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.heat.opacity(0.12)))
             if signIn.acceptsCode {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("If the page shows a code, paste it here").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                    HStack(spacing: 8) {
-                        TextField("", text: $code).forgeField(mono: true, hint: "Paste the code", empty: code.isEmpty)
-                        Button("Send") {
-                            signIn.send(code: code)
-                            code = ""
-                        }
-                        .buttonStyle(ForgeButton(kind: .primary, large: true))
-                        .keyboardShortcut(.defaultAction)
-                        .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+                HStack(spacing: 8) {
+                    TextField("", text: $code).forgeField(mono: true, hint: "Paste the code", empty: code.isEmpty)
+                    Button("Send") {
+                        signIn.send(code: code)
+                        code = ""
                     }
+                    .buttonStyle(ForgeButton(kind: .primary, large: true))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(.leading, 36)
+            }
+            HStack(spacing: 8) {
+                Spinner(heat: true)
+                Text("Waiting for you to sign in…").font(Theme.sans(13)).foregroundStyle(Theme.text)
+                Spacer()
+                if signIn.link != nil {
+                    Button("Open the page again") { signIn.openLink() }.buttonStyle(ForgeButton(kind: .plain))
                 }
             }
-            if signIn.link != nil {
-                Button("Open the page again") { signIn.openLink() }
-                    .buttonStyle(ForgeButton(kind: .plain, icon: "arrow.up.right.square"))
-            }
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+            .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.heatWash))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.heatBorder))
         case .done:
             GoodLine(text: "Signed in. Checking…")
         case .failed(let why):

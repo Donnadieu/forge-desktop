@@ -5,7 +5,11 @@ import Foundation
 struct EngineState: Decodable, Sendable, Equatable {
     /// "running", "stopping" or "stopped".
     var status: String
+    /// When Start was last pressed (ISO 8601), while running.
+    var started_at: String?
     var running: [RunningCard]
+    /// Cards waiting to try again.
+    var retrying: [Retry]?
     var poll: Poll?
     var board: Board?
     var usage: Usage?
@@ -19,6 +23,23 @@ struct EngineState: Decodable, Sendable, Equatable {
         var last_message: String?
         var activity: String?
         var turn_count: Int?
+        var state: String?
+        var started_at: String?
+        var attempt: Int?
+        var helpers: [Helper]?
+        var recent: [Line]?
+        var tokens: Tokens?
+    }
+
+    struct Tokens: Decodable, Sendable, Equatable {
+        var total_tokens: Int?
+    }
+
+    struct Retry: Decodable, Sendable, Equatable {
+        var issue_identifier: String
+        var attempt: Int?
+        var due_at: String?
+        var error: String?
     }
 
     struct Poll: Decodable, Sendable, Equatable {

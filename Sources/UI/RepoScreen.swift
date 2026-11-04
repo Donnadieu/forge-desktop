@@ -32,7 +32,7 @@ struct RepoScreen: View {
                 VStack(spacing: 0) {
                     ForEach(Array(shown.enumerated()), id: \.element.fullName) { i, r in
                         let on = selected == r.fullName
-                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) }
                         HStack(spacing: 10) {
                             Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(on ? Theme.heatBright : Theme.textMuted)
                             Text(r.fullName).font(Theme.mono(13)).foregroundStyle(on ? Theme.text : Theme.textSec)

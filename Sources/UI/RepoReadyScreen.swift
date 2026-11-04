@@ -10,6 +10,7 @@ struct RepoReadyScreen: View {
     @State private var reading = false
     @State private var started: Date?
     @State private var problem: String?
+    @State private var readTask: Task<Void, Never>?
 
     private var repo: String { model.choices.repo ?? "your repo" }
 
@@ -30,18 +31,19 @@ struct RepoReadyScreen: View {
             if reading, let started {
                 TimelineView(.periodic(from: started, by: 1)) { ctx in
                     let s = Int(ctx.date.timeIntervalSince(started))
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 10) {
-                            ProgressView().controlSize(.small)
-                            Text("Reading \(repo)…").font(Theme.mono(13)).foregroundStyle(Theme.text)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 12) {
+                            Spinner(heat: true)
+                            Text("Reading \(repo)…").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
                             Spacer()
-                            Text("\(s / 60) min \(s % 60) s").font(Theme.mono(12)).foregroundStyle(Theme.heatBright)
+                            Button("Cancel", action: cancelRead).buttonStyle(ForgeButton(kind: .ghost))
                         }
-                        Text("This can take several minutes.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                        Text("Usually a few minutes · \(s / 60):\(String(format: "%02d", s % 60)) so far")
+                            .font(Theme.mono(11)).foregroundStyle(Theme.textMuted).padding(.leading, 24)
                     }
-                    .padding(16)
+                    .padding(20)
                     .frame(maxWidth: 640)
-                    .panel()
+                    .panel(live: true)
                 }
             } else if report == nil {
                 VStack(alignment: .leading, spacing: 10) {
@@ -86,7 +88,7 @@ struct RepoReadyScreen: View {
         reading = true
         started = Date()
         problem = nil
-        Task {
+        readTask = Task {
             defer {
                 busy = false
                 reading = false
@@ -95,8 +97,21 @@ struct RepoReadyScreen: View {
                 use(model.sample.report)
                 return
             }
-            do { use(try await RepoReader.read(model.choices)) } catch { problem = "\(error)" }
+            do {
+                let r = try await RepoReader.read(model.choices)
+                if !Task.isCancelled { use(r) }
+            } catch {
+                if !Task.isCancelled { problem = "\(error)" }
+            }
         }
+    }
+
+    /// Stops the read: the agent is stopped and nothing is saved.
+    private func cancelRead() {
+        readTask?.cancel()
+        readTask = nil
+        busy = false
+        reading = false
     }
 
     private func makeCard() {
@@ -138,7 +153,7 @@ struct ReportView: View {
     @Binding var chosen: Set<String>
 
     var body: some View {
-        ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(report.summary, id: \.self) { line in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -149,14 +164,14 @@ struct ReportView: View {
                 if let m = report.missing, !m.isEmpty {
                     HStack(spacing: 6) {
                         Text("Missing").font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.trailing, 4)
-                        ForEach(m, id: \.self) { Chip(text: $0, tone: .heat) }
+                        ForEach(m, id: \.self) { Chip(text: $0, tone: .warn) }
                     }
                     .padding(.top, 6)
                 }
                 SectionLabel(text: "Guardrails").padding(.top, 18)
                 VStack(spacing: 0) {
                     ForEach(Array(report.guardrails.enumerated()), id: \.element.id) { i, g in
-                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) }
                         CheckRow(on: binding(g.id)) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(g.title).font(Theme.sans(14, .medium)).foregroundStyle(Theme.text)
@@ -171,7 +186,6 @@ struct ReportView: View {
             }
             .frame(maxWidth: 680, alignment: .leading)
         }
-        .frame(maxHeight: .infinity)
     }
 
     private func binding(_ id: String) -> Binding<Bool> {

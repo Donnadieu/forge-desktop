@@ -12,7 +12,7 @@ struct CardDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            Rectangle().fill(Theme.hairline).frame(height: 1)
+            Rectangle().fill(Theme.border).frame(height: 1)
             HStack(alignment: .top, spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -38,11 +38,12 @@ struct CardDetail: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(width: 360)
-                .background(Color.black.opacity(0.12))
+                .background(Theme.wash1)
+                .overlay(alignment: .leading) { Rectangle().fill(Theme.border).frame(width: 1) }
             }
         }
         .frame(width: 880, height: 640)
-        .background(Theme.panel)
+        .background(Theme.surface)
         .foregroundStyle(Theme.text)
         .tint(Theme.heat)
         .preferredColorScheme(.dark)
@@ -55,12 +56,15 @@ struct CardDetail: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 10) {
-                Chip(text: "\(card.identifier) · \(card.state)", tone: card.agent != nil ? .heat : .quiet, dot: card.agent != nil)
-                Text(card.title).font(Theme.display(26)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Text(card.identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    Pill(text: card.state, stage: card.state, dot: card.agent != nil ? Theme.stage(card.state).dot : nil, pulsing: card.agent != nil)
+                }
+                Text(card.title).font(Theme.display(24)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 24)
             Button("Done", action: close)
-                .buttonStyle(ForgeButton(kind: .secondary, hint: "esc"))
+                .buttonStyle(ForgeButton(kind: .ghost, hint: "esc"))
                 .keyboardShortcut(.cancelAction)
         }
         .padding(24)
@@ -71,7 +75,7 @@ struct CardDetail: View {
             SectionLabel(text: "Agent now")
             if let agent = card.agent {
                 HStack(alignment: .top, spacing: 12) {
-                    AgentGlyph(size: 30)
+                    Spinner(heat: true).padding(.top, 4)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(card.activity ?? "Working").font(Theme.sans(15)).foregroundStyle(Theme.text)
                         Text("Turn \(agent.turn) · attempt \(agent.attempt)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
@@ -86,10 +90,10 @@ struct CardDetail: View {
                 SectionLabel(text: "Helpers")
                 VStack(spacing: 0) {
                     ForEach(Array(card.helpers.enumerated()), id: \.element.id) { i, h in
-                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) }
                         HStack(spacing: 10) {
                             if h.running {
-                                ProgressView().controlSize(.mini)
+                                Spinner(heat: true)
                             } else {
                                 Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.good)
                             }
@@ -101,7 +105,7 @@ struct CardDetail: View {
                         .frame(minHeight: 40)
                     }
                 }
-                .panel(Theme.surface.opacity(0.6))
+                .panel(Theme.wash1)
             }
         }
         if let recent = card.recent, !recent.isEmpty {

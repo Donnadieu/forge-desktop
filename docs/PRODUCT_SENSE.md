@@ -12,13 +12,22 @@ explaining, it's wrong.
 3. Sign in to GitHub and choose who authors and signs: you with a key Forge makes and registers,
    your own GPG key, or unsigned with a warning.
 4. Pick the repo; Forge checks you can push.
-5. Choose who does the work: Claude Code, Codex, Kimi, or an API key, checked with one real call.
-6. The board: live columns, what the agent is doing now, usage, Start and Stop.
+5. Choose who does the work (Claude Code, Codex or Kimi) and how it signs in (the browser or an
+   API key), checked with one real call.
+6. Ready: the agent reads the repo and suggests guardrails; Forge makes one card for them.
 
-A **Workflow** button on the board always leads back to setup. No Workflow Studio.
+Then the **Orchestrator** (the main screen): what's in flight, four stats (Running, Retrying,
+Tokens today, Runtime), Running sessions with each agent's live lines, Your turn, Up next, Later.
+Start and Stop. No number appears twice on it.
+
+**Workflow** turns optional stages off (Triage, AI Review, QA, Human Review, Merging) and sets how
+many agents work at once. Nothing else: no per-stage agents, models or colours yet.
+**Settings** shows what Forge connects to (Linear, project, GitHub, repo, signing, agent); each
+Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 
 ## Words on screen
-Card, column, agent, repo, board, workflow, key. Never: orchestrator, workspace, MCP, harness,
+Card, column, agent, repo, board, workflow, key, and "Orchestrator" as the main screen's name.
+Never: orchestrator as an engine word, workspace, MCP, harness,
 sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
 
 ## Never

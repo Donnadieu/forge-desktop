@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The main window: setup one question at a time, then the board. Dark, in the Forge look, with the
-/// content running under a hidden title bar.
+/// The main window: setup one question at a time, then the Orchestrator, its Workflow screen and Settings.
+/// Dark, in the Forge look, with the content running under a hidden title bar.
 struct RootView: View {
     @ObservedObject var model: AppModel
 
@@ -14,10 +14,12 @@ struct RootView: View {
             case 3: RepoScreen(model: model)
             case 4: WorkerScreen(model: model)
             case 5: RepoReadyScreen(model: model)
-            default: BoardScreen(model: model)
+            case AppModel.workflowScreen: WorkflowScreen(model: model)
+            case AppModel.settingsScreen: SettingsScreen(model: model)
+            default: OrchestratorScreen(model: model)
             }
         }
-        .frame(minWidth: 960, minHeight: 640)
+        .frame(minWidth: 1100, minHeight: 680)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .topLeading) {
             if model.preview { TrafficLights() }

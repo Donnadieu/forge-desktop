@@ -15,15 +15,30 @@ enum Tools {
         _ command: String, _ args: [String], input: String? = nil, cwd: URL? = nil, env: [String: String] = [:], timeout: TimeInterval = 60
     ) async -> Result {
         let path = await ToolPath.shared.value()
-        return await withCheckedContinuation { cont in
-            DispatchQueue.global().async {
-                cont.resume(returning: runSync(command, args, input: input, cwd: cwd, env: env, path: path, timeout: timeout))
+        let stop = StopFlag()
+        // Cancelling the calling task stops the program (the repo read's Cancel button).
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { cont in
+                DispatchQueue.global().async {
+                    cont.resume(returning: runSync(command, args, input: input, cwd: cwd, env: env, path: path, timeout: timeout, stop: stop))
+                }
             }
+        } onCancel: {
+            stop.set()
         }
     }
 
+    /// Set once from any thread to stop a running program.
+    final class StopFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var on = false
+        func set() { lock.withLock { on = true } }
+        var isSet: Bool { lock.withLock { on } }
+    }
+
     private static func runSync(
-        _ command: String, _ args: [String], input: String?, cwd: URL?, env: [String: String], path: String, timeout: TimeInterval
+        _ command: String, _ args: [String], input: String?, cwd: URL?, env: [String: String], path: String, timeout: TimeInterval,
+        stop: StopFlag
     ) -> Result {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -58,7 +73,7 @@ enum Tools {
         if let input { inp.fileHandleForWriting.write(Data(input.utf8)) }
         try? inp.fileHandleForWriting.close()
         let deadline = Date().addingTimeInterval(timeout)
-        while p.isRunning && Date() < deadline { usleep(20_000) }
+        while p.isRunning && Date() < deadline && !stop.isSet { usleep(20_000) }
         if p.isRunning {
             p.terminate()
             p.waitUntilExit()

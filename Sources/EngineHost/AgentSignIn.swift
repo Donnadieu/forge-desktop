@@ -25,7 +25,7 @@ final class AgentSignIn: ObservableObject {
         switch worker {
         case .claude: return ["claude", "auth", "login", "--claudeai"]
         case .codex: return ["codex", "login"]
-        case .kimi, .apiKey: return nil
+        case .kimi, .apiKey, .codexKey: return nil
         }
     }
 
@@ -111,10 +111,10 @@ final class AgentSignIn: ObservableObject {
     }
 
     /// Render mode: show the guide as it looks while waiting, without running anything.
-    func preview(link: URL?) {
+    func preview(link: URL?, code: Bool = true) {
         stage = .waiting
         self.link = link
-        acceptsCode = true
+        acceptsCode = code
     }
 
     func cancel() {

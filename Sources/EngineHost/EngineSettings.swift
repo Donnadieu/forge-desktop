@@ -32,7 +32,7 @@ enum EngineSettings {
         let kind: String =
             switch c.worker ?? .claude {
             case .claude, .apiKey: "claude"
-            case .codex: "codex"
+            case .codex, .codexKey: "codex"
             case .kimi: "kimi"
             }
         var lines = [
@@ -40,7 +40,7 @@ enum EngineSettings {
             "tracker:",
             "  kind: linear",
             "  project_slug: \(quoted(c.projectSlug ?? ""))",
-            "  active_states: [\(Pipeline.agentColumns.map(quoted).joined(separator: ", "))]",
+            "  active_states: [\(Pipeline.activeColumns(off: c.stagesOff ?? []).map(quoted).joined(separator: ", "))]",
             "  terminal_states: [\"Done\", \"Closed\", \"Cancelled\", \"Canceled\", \"Duplicate\"]",
             "board:",
             "  columns: [\(Pipeline.names.map(quoted).joined(separator: ", "))]",
@@ -73,8 +73,8 @@ enum EngineSettings {
         ]
         if let m = c.model { lines.append("  model: \(quoted(m))") }
         lines += [
-            // One lead agent at a time; it sends its own helpers.
-            "  max_concurrent_agents: 1",
+            // One lead agent per card, each sending its own helpers; the Workflow screen sets how many at once.
+            "  max_concurrent_agents: \(max(1, c.agentsAtOnce ?? 1))",
             "  max_turns: 20",
             "  approval_policy: bypassPermissions",
             "  turn_timeout_ms: 3600000",
@@ -96,7 +96,8 @@ enum EngineSettings {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         try FileManager.default.createDirectory(at: Paths.cards, withIntermediateDirectories: true)
-        let text = frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + lead
+        let text =
+            frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
         try text.write(to: Paths.workflow, atomically: true, encoding: .utf8)
     }
 
@@ -131,6 +132,9 @@ enum EngineSettings {
         case .apiKey:
             env["ANTHROPIC_API_KEY"] = Keychain.get(.anthropicKey) ?? ""
             env["CLAUDE_CODE_OAUTH_TOKEN"] = ""
+        case .codexKey:
+            env["OPENAI_API_KEY"] = Keychain.get(.openaiKey) ?? ""
+            env["CODEX_API_KEY"] = env["OPENAI_API_KEY"]
         case .kimi:
             env["KIMI_API_KEY"] = Keychain.get(.kimiKey) ?? ""
         case .claude, .codex:

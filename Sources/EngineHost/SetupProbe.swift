@@ -58,7 +58,7 @@ enum SetupProbe {
     /// `Forge --worker-check <claude|codex|kimi|apiKey> [model]`: setup 5's real call, from the command line.
     static func worker(_ name: String, model: String?) -> Int32 {
         guard let w = SetupChoices.Worker(rawValue: name) else {
-            print("✗ unknown worker \(name); use claude, codex, kimi or apiKey")
+            print("✗ unknown worker \(name); use claude, codex, kimi, apiKey or codexKey")
             return 2
         }
         let done = DispatchSemaphore(value: 0)
@@ -67,6 +67,7 @@ enum SetupProbe {
             let key: String? =
                 switch w {
                 case .apiKey: Keychain.get(.anthropicKey)
+                case .codexKey: Keychain.get(.openaiKey)
                 case .kimi: Keychain.get(.kimiKey)
                 case .claude, .codex: nil
                 }

@@ -36,6 +36,60 @@ enum Pipeline {
     static let agentColumns = ["Triage", "Todo", "In Progress", "AI Review", "QA", "Rework", "Merging"]
     static let doneColumns = ["Done"]
 
+    /// Columns the Workflow screen can turn off. The rest are always on.
+    static let optionalColumns = ["Triage", "AI Review", "QA", "Human Review", "Merging"]
+
+    /// Who works a column: an agent, you, or nobody (the end).
+    static func who(_ name: String) -> String {
+        switch name {
+        case "Backlog", "Human Review": return "you"
+        case "Done": return "end"
+        default: return "agent"
+        }
+    }
+
+    /// The columns agents pick cards from, without the ones turned off, in pipeline order.
+    static func activeColumns(off: [String]) -> [String] { agentColumns.filter { !off.contains($0) } }
+
+    /// Where a card goes instead of a column that's off: the next column on after it.
+    static func skipTarget(_ name: String, off: [String]) -> String {
+        let forward = ["In Progress", "AI Review", "QA", "Human Review", "Merging", "Done"]
+        guard let i = forward.firstIndex(of: name) else { return "Done" }
+        return forward[(i + 1)...].first { !off.contains($0) } ?? "Done"
+    }
+
+    /// One plain line saying what happens to cards while a column is off.
+    static func skipLine(_ name: String, off: [String]) -> String {
+        switch name {
+        case "Triage": return "Agents leave cards in Triage alone."
+        case "Merging": return "You merge the pull request yourself, then move the card to Done."
+        default:
+            let order = ["In Progress", "AI Review", "QA", "Human Review"]
+            let from = order.firstIndex(of: name).flatMap { i in order[..<i].last { !off.contains($0) } } ?? "In Progress"
+            return "Cards skip \(name): \(from) → \(skipTarget(name, off: off))."
+        }
+    }
+
+    /// The lines put in front of the lead's instructions when columns are off, so it routes around them.
+    static func routingNote(off: [String]) -> String? {
+        let skipped = optionalColumns.filter { off.contains($0) }
+        guard !skipped.isEmpty else { return nil }
+        var lines = [
+            "## This board's stages", "", "These stages are turned off on this board: " + skipped.map { "`\($0)`" }.joined(separator: ", ") + ".",
+        ]
+        for s in skipped {
+            switch s {
+            case "Triage": lines.append("- Leave tickets in `Triage` alone; never work them.")
+            case "Merging":
+                lines.append(
+                    "- Never move a ticket to `Merging` and never merge a pull request: the person merges it and moves the ticket to `Done`.")
+            default:
+                lines.append("- Wherever these instructions say to move a ticket to `\(s)`, move it to `\(skipTarget(s, off: off))` instead.")
+            }
+        }
+        return lines.joined(separator: "\n") + "\n\n"
+    }
+
     /// Columns the team doesn't have yet, by name (case and spacing don't matter).
     static func missing(existing: [String]) -> [Column] {
         let have = Set(existing.map(normalized))

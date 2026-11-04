@@ -32,7 +32,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`) |
 | src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name) |
 | src/agent/codex-sandbox.ts | 05deefb0a43a | src/agent/codex-sandbox.ts | unchanged |
-| src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name) |
+| src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name); no OPENAI_API_KEY required (Codex can use its own sign-in) |
 | src/agent/compat.ts | 05deefb0a43a | src/agent/compat.ts | unchanged |
 | src/agent/index.ts | 05deefb0a43a | src/agent/index.ts | dropped the hermes runner and the container privilege drop |
 | src/agent/kimi-tree.ts | 05deefb0a43a | src/agent/kimi-tree.ts | unchanged |

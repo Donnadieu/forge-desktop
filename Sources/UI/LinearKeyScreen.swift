@@ -29,22 +29,33 @@ struct LinearKeyScreen: View {
                         Text(model.choices.linearOrg ?? "Linear").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
                     }
                     Spacer()
-                    Chip(text: "Connected", tone: .good, dot: true)
+                    Pill(text: "Connected", tone: .green, dot: Theme.good)
                 }
-                .padding(14)
-                .frame(maxWidth: 460)
+                .padding(20)
+                .frame(maxWidth: 640)
                 .panel()
                 Button("Use a different key") { changing = true }
                     .buttonStyle(ForgeButton(kind: .plain))
                     .padding(.top, 12)
             } else {
-                Text("Linear personal key").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).padding(.bottom, 8)
-                SecureField("", text: $key)
-                    .forgeField(mono: true, hint: "Paste your key here", empty: key.isEmpty)
-                    .frame(maxWidth: 460)
-                Button("Where do I find it?") { model.openLink("https://linear.app/settings/account/security") }
-                    .buttonStyle(ForgeButton(kind: .plain, icon: "arrow.up.right.square"))
-                    .padding(.top, 12)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Linear personal key").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                        Spacer()
+                        Button("Where do I find it?") { model.openLink("https://linear.app/settings/account/security") }
+                            .buttonStyle(ForgeButton(kind: .plain))
+                    }
+                    SecureField("", text: $key)
+                        .forgeField(mono: true, hint: "Paste your key here", empty: key.isEmpty, icon: "lock")
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock").font(.system(size: 10))
+                        Text("Paste it once. It's kept in your Mac's Keychain and nowhere else.")
+                    }
+                    .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).padding(.top, 4)
+                }
+                .padding(20)
+                .frame(maxWidth: 640)
+                .panel()
                 ProblemLine(text: problem)
             }
         }
@@ -64,6 +75,7 @@ struct LinearKeyScreen: View {
                 }
                 model.choices.linearUser = viewer.name
                 model.choices.linearOrg = viewer.organization.name
+                model.choices.linearURLKey = viewer.organization.urlKey
                 changing = false
                 key = ""
                 model.next()

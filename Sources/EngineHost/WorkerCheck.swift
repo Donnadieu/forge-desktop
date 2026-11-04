@@ -15,8 +15,19 @@ enum WorkerCheck {
         guard let key, !key.isEmpty else { return [:] }
         switch worker {
         case .apiKey: return ["ANTHROPIC_API_KEY": key]
+        case .codexKey: return ["OPENAI_API_KEY": key, "CODEX_API_KEY": key]
         case .kimi: return ["KIMI_API_KEY": key]
         case .claude, .codex: return [:]
+        }
+    }
+
+    /// The Keychain item that holds this worker's key, if it signs in with one.
+    static func keyItem(_ worker: SetupChoices.Worker) -> Keychain.Item? {
+        switch worker {
+        case .apiKey: return .anthropicKey
+        case .codexKey: return .openaiKey
+        case .kimi: return .kimiKey
+        case .claude, .codex: return nil
         }
     }
 
@@ -33,10 +44,10 @@ enum WorkerCheck {
             if worker == .apiKey { env["CLAUDE_CODE_OAUTH_TOKEN"] = "" }
             let r = await Tools.run("claude", args, cwd: dir, env: env, timeout: 120)
             return claudeOutcome(r)
-        case .codex:
+        case .codex, .codexKey:
             var args = ["exec", "--skip-git-repo-check", "--json", prompt]
             if let model { args += ["--model", model] }
-            let r = await Tools.run("codex", args, cwd: dir, timeout: 180)
+            let r = await Tools.run("codex", args, cwd: dir, env: Self.env(worker, key: key), timeout: 180)
             return codexOutcome(r)
         case .kimi:
             return await kimiOutcome(key: key)

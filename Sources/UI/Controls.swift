@@ -1,15 +1,18 @@
 import SwiftUI
 
-/// Buttons, chips, pills and fields in the Forge look. Screens use these instead of the stock styles.
+/// Buttons, keys, pills, chips, dots and fields from the design system's kit (`.btn`, `.kbd`, `.pill`,
+/// `.chip`, `.dot`, `.input`). Screens use these instead of the stock styles.
 struct ForgeButton: ButtonStyle {
     enum Kind {
-        /// The one amber button that moves you forward.
+        /// `.btn.primary`: the one amber button that moves you forward (and the one fix under a problem).
         case primary
-        /// A quiet surface button (Back, Workflow, Stop).
+        /// `.btn`: a surface button with a border (Back, Stop, Change).
         case secondary
-        /// The one fix under a problem line: amber words on an amber wash.
+        /// `.btn.ghost`: words on nothing until hovered (Workflow, Settings, Back to Orchestrator).
+        case ghost
+        /// The one fix under a problem line; drawn as the primary button.
         case fix
-        /// Words only (Skip for now, links).
+        /// A text link (`a`): quiet words with a hairline under them.
         case plain
     }
 
@@ -17,44 +20,67 @@ struct ForgeButton: ButtonStyle {
     /// The keyboard shortcut drawn inside the button ("↵", "⌘[").
     var hint: String?
     var icon: String?
+    /// `.btn` (36 high) when true, `.btn.sm` (28 high) when false.
     var large = false
     @Environment(\.isEnabled) private var enabled
+    @State private var hover = false
+
+    private var amber: Bool { kind == .primary || kind == .fix }
 
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(systemName: icon).font(.system(size: 11, weight: .semibold)) }
-            configuration.label.font(Theme.sans(large ? 14 : 13, .medium))
-            if let hint { KeyHint(text: hint, onAmber: kind == .primary && enabled) }
+            if let icon { Image(systemName: icon).font(.system(size: large ? 12 : 11, weight: .medium)) }
+            configuration.label.font(Theme.sans(kind == .plain ? 11 : (large ? 12 : 11), amber ? .semibold : .medium))
+            if let hint { KeyHint(text: hint, onAmber: amber) }
         }
+        .lineLimit(1)
+        .fixedSize()
         .foregroundStyle(foreground)
-        .padding(.leading, kind == .plain ? 0 : 12)
-        .padding(.trailing, kind == .plain ? 0 : (hint == nil ? 12 : 6))
-        .frame(height: kind == .plain ? nil : (large ? 32 : 28))
-        .background(RoundedRectangle(cornerRadius: 6).fill(background(pressed: configuration.isPressed)))
+        .padding(.horizontal, kind == .plain ? 0 : (large ? 16 : 12))
+        .frame(height: kind == .plain ? nil : (large ? 36 : 28))
+        .background(shape.fill(background(pressed: configuration.isPressed)))
+        .overlay(shape.stroke(edge, lineWidth: 1))
+        .overlay(alignment: .bottom) {
+            if kind == .plain { Rectangle().fill(hover ? Theme.borderHover : Theme.border).frame(height: 1).offset(y: 2) }
+        }
+        .shadow(color: amber && enabled ? Theme.heatGlow : .clear, radius: 12)
+        .opacity(enabled ? 1 : 0.4)
         .contentShape(Rectangle())
-        .opacity(configuration.isPressed && kind == .plain ? 0.7 : 1)
+        .onHover { hover = $0 }
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: large ? (amber ? Theme.rLg : Theme.rMd) : Theme.rSm)
     }
 
     private var foreground: Color {
-        guard enabled else { return Theme.textMuted }
         switch kind {
-        case .primary: return Theme.bg
+        case .primary, .fix: return Theme.bg
         case .secondary: return Theme.text
-        case .fix, .plain: return Theme.heatBright
+        case .ghost: return hover ? Theme.text : Theme.textSec
+        case .plain: return hover ? Theme.text : Theme.textSec
+        }
+    }
+
+    private var edge: Color {
+        switch kind {
+        case .primary, .fix: return Theme.heatBorder
+        case .secondary: return hover ? Theme.borderHover : Theme.border
+        case .ghost, .plain: return .clear
         }
     }
 
     private func background(pressed: Bool) -> Color {
         switch kind {
-        case .primary: return enabled ? (pressed ? Theme.heatDeep : Theme.heat) : Theme.surface
-        case .secondary: return pressed ? Theme.surfaceHover : Theme.surface
-        case .fix: return Theme.heat.opacity(pressed ? 0.28 : 0.18)
+        case .primary, .fix: return pressed ? Theme.heatDeep : (hover && enabled ? Theme.heatBright : Theme.heat)
+        case .secondary: return hover || pressed ? Theme.surfaceHover : Theme.surface
+        case .ghost: return hover ? Theme.surface : .clear
         case .plain: return .clear
         }
     }
 }
 
-/// A keyboard shortcut drawn as a small key.
+/// `.kbd`: a keyboard shortcut drawn as a small key.
 struct KeyHint: View {
     let text: String
     var onAmber = false
@@ -62,85 +88,113 @@ struct KeyHint: View {
     var body: some View {
         Text(text)
             .font(Theme.mono(10))
-            .foregroundStyle(onAmber ? Theme.bg.opacity(0.8) : Theme.textMuted)
+            .foregroundStyle(onAmber ? Theme.bg : Theme.textSec)
             .padding(.horizontal, 4)
             .frame(minWidth: 18, minHeight: 18)
-            .background(RoundedRectangle(cornerRadius: 4).fill(onAmber ? Color.black.opacity(0.14) : Color.white.opacity(0.06)))
+            .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(onAmber ? .clear : Theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(onAmber ? Theme.heatDeep : Theme.border))
     }
 }
 
-/// Small uppercase mono tag on a card or a row ("UP NEXT", "IN LINEAR", "RUNNING").
-struct Chip: View {
-    enum Tone { case quiet, heat, strong, good }
+/// `.pill`: a rounded status pill, 22 high (heat, green, amber, info, ghost, or a column's colour).
+struct Pill: View {
+    enum Tone { case neutral, heat, green, amber, info, ghost }
     let text: String
-    var tone: Tone = .quiet
-    var dot = false
+    var tone: Tone = .neutral
+    /// A column's colour instead of a tone.
+    var stage: String?
+    var dot: Color?
+    var pulsing = false
+    var spinning = false
 
     var body: some View {
-        HStack(spacing: 5) {
-            if dot { Circle().fill(color).frame(width: 5, height: 5) }
-            Text(text.uppercased()).font(Theme.mono(10, .medium)).tracking(0.8)
+        HStack(spacing: 8) {
+            if spinning { Spinner(heat: tone == .heat || tone == .amber) }
+            if let dot { PulseDot(color: dot, pulsing: pulsing) }
+            Text(text).font(Theme.sans(10, .semibold)).tracking(0.4)
         }
-        .foregroundStyle(color)
-        .padding(.horizontal, 7)
-        .frame(height: 19)
-        .background(Capsule().fill(fill))
+        .foregroundStyle(colors.word)
+        .padding(.horizontal, 12)
+        .frame(height: 22)
+        .background(Capsule().fill(colors.fill))
+        .overlay(Capsule().stroke(colors.edge))
+        .fixedSize()
     }
 
-    private var color: Color {
+    private var colors: (fill: Color, edge: Color, word: Color) {
+        if let stage {
+            let s = Theme.stage(stage)
+            return (s.fill, s.edge, s.word)
+        }
+        switch tone {
+        case .neutral: return (Theme.surface, Theme.border, Theme.textSec)
+        case .heat: return (Theme.heatWash, Theme.heatBorder, Theme.heatBright)
+        case .green: return (Theme.goodWash, Theme.goodBorder, Theme.good)
+        case .amber: return (Theme.warnWash, Theme.warnBorder, Theme.heat)
+        case .info: return (Theme.infoWash, Theme.infoBorder, Theme.info)
+        case .ghost: return (.clear, Theme.border, Theme.textSec)
+        }
+    }
+}
+
+/// `.chip`: a small mono tag (on: Todo, Missing, agent).
+struct Chip: View {
+    enum Tone { case quiet, heat, dim, warn, good }
+    let text: String
+    var tone: Tone = .quiet
+
+    var body: some View {
+        Text(text)
+            .font(Theme.mono(10.5))
+            .foregroundStyle(word)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
+            .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(fill))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(edge))
+            .fixedSize()
+    }
+
+    private var word: Color {
         switch tone {
         case .quiet: return Theme.textSec
         case .heat: return Theme.heatBright
-        case .strong: return Theme.text
+        case .dim: return Theme.textMuted
+        case .warn: return Theme.heat
         case .good: return Theme.good
         }
     }
-
     private var fill: Color {
         switch tone {
-        case .quiet: return Color.white.opacity(0.06)
-        case .heat: return Theme.heat.opacity(0.16)
-        case .strong: return Color.white.opacity(0.12)
-        case .good: return Theme.good.opacity(0.14)
+        case .quiet: return Theme.wash1
+        case .heat: return Theme.heatWash
+        case .dim: return .clear
+        case .warn: return Theme.warnWash
+        case .good: return Theme.goodWash
+        }
+    }
+    private var edge: Color {
+        switch tone {
+        case .heat: return Theme.heatBorder
+        case .warn: return Theme.warnBorder
+        case .good: return Theme.goodBorder
+        default: return Theme.border
         }
     }
 }
 
-/// A rounded status pill with a dot: the board's "1 agent working", "Reading your board…".
-struct StatusPill: View {
-    let text: String
-    var live = false
-    var busy = false
-    var dot = Theme.textMuted
-
-    var body: some View {
-        HStack(spacing: 7) {
-            if busy {
-                ProgressView().controlSize(.mini)
-            } else {
-                PulseDot(color: live ? Theme.heatBright : dot, pulsing: live)
-            }
-            Text(text).font(Theme.sans(12, .medium)).foregroundStyle(live ? Theme.heatBright : Theme.textSec)
-        }
-        .padding(.horizontal, 10)
-        .frame(height: 24)
-        .background(Capsule().fill(live ? Theme.heat.opacity(0.14) : Color.white.opacity(0.06)))
-    }
-}
-
-/// A dot that breathes while something is live.
+/// `.dot`: a status dot that breathes while something is live (`.dot.amber`).
 struct PulseDot: View {
     let color: Color
     var pulsing = false
-    var size: CGFloat = 6
+    var size: CGFloat = 8
     @State private var on = false
 
     var body: some View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .shadow(color: pulsing ? color.opacity(0.8) : .clear, radius: 4)
-            .opacity(pulsing ? (on ? 1 : 0.45) : 1)
+            .shadow(color: pulsing ? Theme.heatGlow : .clear, radius: 4)
+            .opacity(pulsing ? (on ? 1 : 0.5) : 1)
             .onAppear {
                 guard pulsing else { return }
                 withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { on = true }
@@ -148,65 +202,102 @@ struct PulseDot: View {
     }
 }
 
-/// Mono uppercase section label.
-struct SectionLabel: View {
-    let text: String
+/// `.sdot`: a column's colour dot (hollow for Backlog).
+struct StageDot: View {
+    let stage: String
     var body: some View {
-        Text(text.uppercased()).font(Theme.mono(11)).tracking(Theme.labelTracking).foregroundStyle(Theme.textMuted)
+        let s = Theme.stage(stage)
+        Circle().fill(s.hollow ? .clear : s.dot).overlay(Circle().stroke(s.hollow ? s.dot : .clear)).frame(width: 8, height: 8)
     }
 }
 
-/// Initials in a small circle (the person, at Human Review).
+/// `.spinner`: 12px ring, its top in cream (or heat).
+struct Spinner: View {
+    var heat = false
+    @State private var turn = false
+
+    var body: some View {
+        Circle()
+            .stroke(Theme.wash2, lineWidth: 1.5)
+            .overlay(Circle().trim(from: 0, to: 0.25).stroke(heat ? Theme.heat : Theme.textSec, lineWidth: 1.5))
+            .frame(width: 12, height: 12)
+            .rotationEffect(.degrees(turn ? 360 : 0))
+            .onAppear { withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { turn = true } }
+    }
+}
+
+/// `.eyebrow`: mono uppercase label, 10px, tracking 0.14em.
+struct SectionLabel: View {
+    let text: String
+    var color = Theme.textMuted
+    var body: some View {
+        Text(text.uppercased()).font(Theme.mono(10, .medium)).tracking(Theme.labelTracking).foregroundStyle(color)
+    }
+}
+
+/// `.av`: initials in a small round well.
 struct Initials: View {
     let name: String
-    var size: CGFloat = 20
+    var size: CGFloat = 32
 
     var body: some View {
         let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         Text(letters.isEmpty ? "?" : letters)
-            .font(Theme.sans(size * 0.42, .semibold))
-            .foregroundStyle(Theme.textSec)
+            .font(Theme.sans(11, .semibold))
+            .foregroundStyle(Theme.text)
             .frame(width: size, height: size)
-            .background(Circle().fill(Theme.surfaceHover))
+            .background(Circle().fill(Theme.surfaceRaised))
+            .overlay(Circle().stroke(Theme.border))
     }
 }
 
-/// The agent's mark on a card: the anvil in a small round well.
-struct AgentGlyph: View {
-    var size: CGFloat = 20
-    var live = true
+/// `.tg`: the amber switch.
+struct ForgeToggle: View {
+    @Binding var on: Bool
 
     var body: some View {
-        AnvilMark().sized(size * 0.5, live ? Theme.heatBright : Theme.textMuted)
-            .frame(width: size, height: size)
-            .background(Circle().fill(live ? Theme.heat.opacity(0.16) : Color.white.opacity(0.06)))
+        ZStack(alignment: on ? .trailing : .leading) {
+            Capsule().fill(on ? Theme.heatWash : Theme.wash1).overlay(Capsule().stroke(on ? Theme.heatBorder : Theme.border))
+            Circle().fill(on ? Theme.heat : Theme.textMuted).frame(width: 13, height: 13).padding(2)
+                .shadow(color: on ? Theme.heatGlow : .clear, radius: 6)
+        }
+        .frame(width: 34, height: 19)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { on.toggle() } }
+        .accessibilityAddTraits(.isButton)
     }
 }
 
-/// A grouped panel: surface tone and a soft edge instead of a hard outline.
+/// `.panel`: a surface with a border, radius 8 (and `.panel.live`: heat edge and glow).
 struct Panel: ViewModifier {
-    var fill = Theme.panel
+    var fill = Theme.surface
+    var live = false
     func body(content: Content) -> some View {
         content
-            .background(RoundedRectangle(cornerRadius: 8).fill(fill))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.hairline))
+            .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(fill))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(live ? Theme.heatBorder : Theme.border))
+            .shadow(color: live ? Theme.heatGlow : .clear, radius: 12)
     }
 }
 
 extension View {
-    func panel(_ fill: Color = Theme.panel) -> some View { modifier(Panel(fill: fill)) }
+    func panel(_ fill: Color = Theme.surface, live: Bool = false) -> some View { modifier(Panel(fill: fill, live: live)) }
 
-    /// A text field in the Forge look (dark well, cream text), with its hint drawn while it's empty.
-    func forgeField(mono: Bool = false, hint: String = "", empty: Bool = false) -> some View {
-        textFieldStyle(.plain)
-            .background(alignment: .leading) {
-                if empty { Text(hint).font(mono ? Theme.mono(13) : Theme.sans(14)).foregroundStyle(Theme.textMuted).allowsHitTesting(false) }
-            }
-            .font(mono ? Theme.mono(13) : Theme.sans(14))
-            .foregroundStyle(Theme.text)
-            .padding(.horizontal, 12)
-            .frame(height: 34)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.22)))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border.opacity(0.7)))
+    /// `.input`: a field 40 high on the canvas colour, radius 8, its hint drawn while it's empty, and an
+    /// optional icon on the left inside the box (the lock on a key).
+    func forgeField(mono: Bool = false, hint: String = "", empty: Bool = false, icon: String? = nil) -> some View {
+        HStack(spacing: 8) {
+            if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textMuted) }
+            textFieldStyle(.plain)
+                .background(alignment: .leading) {
+                    if empty { Text(hint).font(mono ? Theme.mono(13) : Theme.sans(13)).foregroundStyle(Theme.textMuted).allowsHitTesting(false) }
+                }
+                .font(mono ? Theme.mono(13) : Theme.sans(13))
+                .foregroundStyle(Theme.text)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 40)
+        .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.border))
     }
 }

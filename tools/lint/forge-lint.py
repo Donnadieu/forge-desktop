@@ -66,7 +66,9 @@ def r_ui_jargon(path, lines, ctx):
         if not UI_CALL.search(l): continue
         for s in strings(l):
             for word in JARGON:
-                if re.search(r'(?<![\w/.-])' + re.escape(word) + r'(?![\w/.-])', s, re.I):
+                # "Orchestrator" with a capital is the main screen's name; the engine word stays out.
+                flags = 0 if word == "orchestrator" else re.I
+                if re.search(r'(?<![\w/.-])' + re.escape(word) + r'(?![\w/.-])', s, flags):
                     yield i, f'"{word}" in UI text: "{s[:50]}"'
 
 PROCESS_OK = ("Sources/EngineHost/",)

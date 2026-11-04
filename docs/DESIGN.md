@@ -3,7 +3,7 @@
 - A native Mac window titled **Forge**, built in SwiftUI. Standard Mac behavior first: the menu bar,
   keyboard shortcuts, sheets. The title bar is hidden so the content runs under it; the window keeps
   its own buttons.
-- One main screen: the board. Setup is a short sequence of single questions, not a form, with the
+- One main screen: the Orchestrator. Setup is a short sequence of single questions, not a form, with the
   steps listed down a sidebar.
 - Each card says in one plain line what's happening ("Writing tests for the login page").
 - A failed check shows its problem line and, right under it, the one button that fixes the cause.
@@ -29,9 +29,17 @@ Every colour, font and control comes from `Sources/UI/Theme.swift` and `Sources/
   16 and 32 px). The SVGs and their PNG exports live in `Resources/AppIcon`; `build.sh` turns the
   `AppIcon.iconset` into `AppIcon.icns` with `iconutil`, and the selftest checks macOS draws the anvil
   for the built bundle. To change it, change the SVGs in Claude Design and export every size again.
-- **Shape:** square-ish corners (4 to 8), surfaces and spacing instead of outlines, one soft shadow,
-  an amber glow only on work that's running.
-- **Board:** columns with cards share the width; empty columns fold into thin strips so all ten fit.
-  Each card has one status word: Working, Your turn, Up next, Later or Done.
+- **Shape:** radii 2 / 4 / 8 / 14 / pill, spacing in 4 px steps, one soft shadow, an amber glow only
+  on work that's running.
+- **Sizes:** where the design system's UI kit sets a size (Orchestrator headline 38, stat numbers 40,
+  page titles 40, eyebrows 10), use the kit's value, not the nearest token.
+- **Top bar** (`TopBar` in `Shell.swift`): the anvil and "Forge" clear of the traffic lights, the
+  screen's name in mono, then that screen's buttons on the right. Usage (a plan's windows) only here.
+- **Orchestrator:** the headline says what's in flight; four stats; then tables, never Linear
+  columns. When the board has no cards, one block fills the page: the anvil, "Nothing on the anvil
+  yet", and the one button that helps. Stage colours show as pills and dots, never as a legend.
+- **Workflow:** one list of the ten stages, a toggle on the optional ones, and agents at once.
 
-The source design lives in Claude Design (project "Forge Desktop", using the "Forge Design System").
+The source design lives in Claude Design: project "Forge Desktop redesign"
+(claude.ai/design/p/bd04aa5f-2682-4d6e-9091-f4031813f2b5), made with the "Forge Design System"
+(claude.ai/design/p/019e0898-6eb6-7126-8766-9d465da3ad23). `forge-kit.css` there is the build spec.

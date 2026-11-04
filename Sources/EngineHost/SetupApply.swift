@@ -131,8 +131,7 @@ enum SetupApply {
             let r = await WorkerCheck.run(a.worker, model: a.model, key: agentKey)
             throw Stop(description: "the agent didn't answer: \(r)")
         }
-        if let agentKey, a.worker == .apiKey { _ = Keychain.set(agentKey, for: .anthropicKey) }
-        if let agentKey, a.worker == .kimi { _ = Keychain.set(agentKey, for: .kimiKey) }
+        if let agentKey, let item = WorkerCheck.keyItem(a.worker) { _ = Keychain.set(agentKey, for: item) }
         c.worker = a.worker
         c.model = a.model
         c.workerChecked = true

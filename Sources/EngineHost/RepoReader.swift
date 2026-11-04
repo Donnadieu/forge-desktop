@@ -72,10 +72,11 @@ enum RepoReader {
                 throw Problem(description: "Claude Code didn't finish reading the repo.")
             }
             text = result
-        case .codex:
+        case .codex, .codexKey:
             var args = ["exec", "--skip-git-repo-check", "--sandbox", "read-only", "--json", prompt]
             if let m = c.model { args += ["--model", m] }
-            let r = await Tools.run("codex", args, cwd: dir, timeout: 1800)
+            let env = WorkerCheck.env(worker, key: WorkerCheck.keyItem(worker).flatMap { Keychain.get($0) })
+            let r = await Tools.run("codex", args, cwd: dir, env: env, timeout: 1800)
             guard let reply = codexReply(r.out) else { throw Problem(description: "Codex didn't finish reading the repo.") }
             text = reply
         case .kimi:

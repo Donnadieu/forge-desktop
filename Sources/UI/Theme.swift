@@ -2,53 +2,89 @@ import AppKit
 import CoreText
 import SwiftUI
 
-/// The Forjado AI design system (the "Forge Design System" in Claude Design, and the tokens in Forge's own
-/// web app): warm near-black, cream text, amber heat as the only saturated accent, Playfair Display for
-/// headings, DM Sans for words, DM Mono for labels. Every view takes its colours and type from here.
+/// The Forge Design System (Claude Design, `colors_and_type.css` and its UI kits): warm near-black,
+/// cream text, amber heat as the only saturated accent, Playfair Display 900 for the wordmark and titles,
+/// DM Sans for words, DM Mono for labels. Every view takes its colours, type and radii from here.
 enum Theme {
-    // Surfaces, darkest to lightest.
+    // Surfaces (--bg, --surface, --surface-hover, --surface-raised).
     static let bg = Color(hex: 0x1C1A17)
-    static let sidebar = Color(hex: 0x201E1B)
-    static let panel = Color(hex: 0x24221F)
     static let surface = Color(hex: 0x2E2B27)
     static let surfaceHover = Color(hex: 0x38342F)
+    static let surfaceRaised = Color(hex: 0x4A4640)
+    // Borders (--border, --border-hover).
     static let border = Color(hex: 0x4A4640)
-    static let hairline = Color.white.opacity(0.06)
+    static let borderHover = Color(hex: 0x7A7470)
 
-    // Text.
+    // The cream ramp (--silver-bright, --silver, --silver-mid, --silver-dim, --silver-faint) = text (--fg, --fg-2, --fg-3).
     static let text = Color(hex: 0xF7F5F1)
+    static let silver = Color(hex: 0xEDE9E3)
     static let textSec = Color(hex: 0xB0A99F)
     static let textMuted = Color(hex: 0x7A7470)
+    static let faint = Color(hex: 0x4A4640)
 
-    // Heat: the one accent. Amber, not orange.
+    // Soft washes (--silver-wash-1/2/3): cream at 4, 8 and 14 percent.
+    static let wash1 = text.opacity(0.04)
+    static let wash2 = text.opacity(0.08)
+    static let wash3 = text.opacity(0.14)
+
+    // Heat, the one accent (--heat-warm, --heat-strong, --heat-deep, --heat-bg, --heat-border, --heat-glow).
     static let heat = Color(hex: 0xC47F2A)
     static let heatBright = Color(hex: 0xE59B47)
     static let heatDeep = Color(hex: 0x8A5519)
-    static let heatWash = Color(hex: 0xC47F2A).opacity(0.12)
+    static let heatWash = heat.opacity(0.10)
+    static let heatBorder = heat.opacity(0.34)
+    static let heatGlow = heat.opacity(0.18)
 
-    // Status.
-    static let good = Color(hex: 0x6FA34A)
-    static let bad = Color(hex: 0xF87171)
+    // Semantic (--success, --warn, --danger, --info) with their -bg and -border washes.
+    static let good = Color(hex: 0x5C8A3A)
+    static let goodWash = good.opacity(0.12)
+    static let goodBorder = good.opacity(0.40)
+    static let warnWash = heat.opacity(0.10)
+    static let warnBorder = heat.opacity(0.40)
+    static let bad = Color(hex: 0x9B2B2B)
+    static let badWash = bad.opacity(0.10)
+    static let badBorder = bad.opacity(0.40)
+    static let info = textSec
+    static let infoWash = textSec.opacity(0.08)
+    static let infoBorder = textSec.opacity(0.30)
 
-    /// Each column's dot on the board and the Project screen: greys for waiting, amber while agents
-    /// work, a ring for your turn, green once it's merging or done.
-    static func columnDot(_ name: String) -> (color: Color, ring: Bool) {
+    // Radii (--r-sm, --r-md, --r-lg, --r-xl).
+    static let rSm: CGFloat = 2
+    static let rMd: CGFloat = 4
+    static let rLg: CGFloat = 8
+    static let rXl: CGFloat = 14
+
+    /// The top bar's height (the kit's TopNav). The window's own buttons sit in it.
+    static let barHeight: CGFloat = 56
+
+    /// A column's colour on the Orchestrator and the Workflow screen, built from the system's tokens only.
+    struct StageTone {
+        let dot: Color
+        let fill: Color
+        let edge: Color
+        let word: Color
+        /// Backlog draws a hollow dot.
+        var hollow = false
+    }
+
+    static func stage(_ name: String) -> StageTone {
         switch name {
-        case "Backlog": return (textMuted, false)
-        case "Triage": return (textSec, false)
-        case "Todo": return (text, false)
-        case "In Progress": return (heat, false)
-        case "AI Review", "QA": return (heatBright, false)
-        case "Human Review": return (heatBright, true)
-        case "Rework": return (heatDeep, false)
-        case "Merging", "Done": return (good, false)
-        default: return (textMuted, false)
+        case "Backlog": return StageTone(dot: textMuted, fill: .clear, edge: border, word: textSec, hollow: true)
+        case "Triage": return StageTone(dot: textMuted, fill: wash1, edge: border, word: textSec)
+        case "Todo": return StageTone(dot: silver, fill: wash1, edge: borderHover, word: text)
+        case "In Progress": return StageTone(dot: heatBright, fill: heatWash, edge: heatBorder, word: heatBright)
+        case "AI Review": return StageTone(dot: info, fill: infoWash, edge: infoBorder, word: text)
+        case "QA": return StageTone(dot: good, fill: goodWash, edge: goodBorder, word: text)
+        case "Human Review": return StageTone(dot: text, fill: wash2, edge: borderHover, word: text)
+        case "Rework": return StageTone(dot: bad, fill: badWash, edge: badBorder, word: text)
+        case "Merging": return StageTone(dot: heatDeep, fill: .clear, edge: heatBorder, word: text)
+        default: return StageTone(dot: faint, fill: .clear, edge: border, word: textSec)
         }
     }
 
-    // Type.
-    static func display(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-ExtraBold", size: size) }
-    static func serif(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Bold", size: size) }
+    // Type. Sizes are the system's (--text-xs 11, -sm 13, -md 15, -lg 18, -xl 24, -2xl 32) or a kit's own.
+    static func display(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Black", size: size) }
+    static func serifItalic(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Italic", size: size) }
     static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         switch weight {
         case .medium: return .custom("DMSans-Medium", size: size)
@@ -61,7 +97,7 @@ enum Theme {
         .custom(weight == .regular ? "DMMono-Regular" : "DMMono-Medium", size: size)
     }
 
-    /// Small uppercase mono label ("SETUP", "GUARDRAILS", "AGENT NOW").
+    /// The eyebrow's tracking (--tr-mark, 0.14em) at its 10px size.
     static let labelTracking: CGFloat = 1.4
 
     /// The fonts ship inside the app (Resources/Fonts); register them before the first window draws.
@@ -87,7 +123,7 @@ enum Theme {
     /// True when every face the screens use is available by name.
     static var fontsLoaded: Bool {
         [
-            "PlayfairDisplay-ExtraBold", "PlayfairDisplay-Bold", "DMSans-Regular", "DMSans-Medium", "DMSans-SemiBold", "DMSans-Bold",
+            "PlayfairDisplay-Black", "PlayfairDisplay-Italic", "DMSans-Regular", "DMSans-Medium", "DMSans-SemiBold", "DMSans-Bold",
             "DMMono-Regular", "DMMono-Medium",
         ].allSatisfy { NSFont(name: $0, size: 12) != nil }
     }
@@ -101,7 +137,7 @@ extension Color {
     }
 }
 
-/// The Forjado AI anvil, from the brand's SVG (viewBox 8 8 100 56).
+/// The Forge anvil, from the design system's SVG (viewBox 8 8 100 56).
 struct AnvilMark: Shape {
     func path(in rect: CGRect) -> Path {
         let sx = rect.width / 100

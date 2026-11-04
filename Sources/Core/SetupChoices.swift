@@ -34,11 +34,13 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var repoReady: Bool?
     /// The Linear card that gets the repo ready, when one was made.
     var repoReadyCard: String?
-    // The Workflow screen (optional: added after 0.2.4).
+    // The Workflow Studio screen (optional: added after 0.2.4).
     /// Optional columns turned off; cards skip them.
     var stagesOff: [String]?
     /// How many agents work at once (each takes one card).
     var agentsAtOnce: Int?
+    // Harness engineering, per repo (optional: added after 0.2.5). See Harness.swift.
+    var harness: [String: HarnessRecord]?
 
     enum Signing: String, Codable, CaseIterable, Sendable {
         /// A key Forge makes, kept in the Keychain and registered on the person's GitHub.

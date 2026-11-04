@@ -73,7 +73,7 @@ enum EngineSettings {
         ]
         if let m = c.model { lines.append("  model: \(quoted(m))") }
         lines += [
-            // One lead agent per card, each sending its own helpers; the Workflow screen sets how many at once.
+            // One lead agent per card, each sending its own helpers; the Workflow Studio screen sets how many at once.
             "  max_concurrent_agents: \(max(1, c.agentsAtOnce ?? 1))",
             "  max_turns: 20",
             "  approval_policy: bypassPermissions",

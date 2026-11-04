@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Workflow screen: which columns cards go through (optional ones turn off) and how many agents work at
+/// The Workflow Studio screen: which columns cards go through (optional ones turn off) and how many agents work at
 /// once. Saving rewrites the workflow file and restarts the engine.
 struct WorkflowScreen: View {
     @ObservedObject var model: AppModel
@@ -15,7 +15,7 @@ struct WorkflowScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TopBar(suffix: "Workflow") {
+            TopBar(suffix: "Workflow Studio") {
                 Button("Settings") { model.go(AppModel.settingsScreen) }
                     .buttonStyle(ForgeButton(kind: .ghost, hint: "⌘,", icon: "gearshape"))
                     .keyboardShortcut(",", modifiers: .command)
@@ -23,7 +23,8 @@ struct WorkflowScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     PageHeader(
-                        eyebrow: "Forge · Workflow", title: "Workflow", lead: "Which stages your cards go through. Turn off the ones you don't need.")
+                        eyebrow: "Forge · Workflow Studio", title: "Workflow Studio",
+                        lead: "Which stages your cards go through. Turn off the ones you don't need.")
                     HStack(alignment: .top, spacing: 40) {
                         stageList.frame(maxWidth: .infinity)
                         sidePanel.frame(width: 320)

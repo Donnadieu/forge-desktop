@@ -85,8 +85,19 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   and the guardrails worth adding. It's saved in `repo-report.json`, so closing Forge doesn't lose it.
 - The person ticks guardrails; Forge makes one Linear card in Todo whose description lists them and
   names the `harness-engineering` skill. The pipeline does the rest: a pull request that lands in Human
-  Review. "Skip for now" moves on; the Workflow button brings the screen back.
+  Review. "Skip for now" moves on; Settings' Harness engineering tile brings the screen back.
 - Kimi can't do the read yet (it says so on the screen).
+- Forge keeps a small record per repo in `setup.json` (`SetupChoices.harness`, `Core/Harness.swift`): read or
+  not, the guardrails proposed, the ones in the latest card, the ones landed, the card, its pull request and
+  whether it merged. Status: not started, partly done, done (every recommended guardrail landed).
+  `EngineHost/HarnessCheck.swift` refreshes it from GitHub when Settings or the step opens: the card's pull
+  request is found by the card's identifier in its branch or title; with no record, a merged pull request
+  titled "… ready for agents" means done, and an AGENTS.md or a pre-commit hook in the repo's top folder
+  means partly done.
+- Opened from Settings, setup is in its changing mode: the step list drops the Orchestrator, every step is a
+  button with its own mark (check, half circle for partly done, empty red circle), and the screens say
+  Settings, not Setup. Changing the repo there offers harness engineering for the new repo; a partly done
+  repo shows its landed guardrails ticked off and lets the person pick only what's left.
 
 ## The board
 

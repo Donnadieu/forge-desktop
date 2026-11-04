@@ -11,6 +11,8 @@ enum ScreenRender {
         var choices = SetupChoices()
         var engine: EngineState?
         var scene: String?
+        /// Opened from Settings: the setup timeline in its changing mode.
+        var changing = false
     }
 
     static func shots() -> [Shot] {
@@ -34,6 +36,8 @@ enum ScreenRender {
             let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
             model.engine = shot.engine
             model.sample.scene = shot.scene
+            if shot.changing { model.returnTo = AppModel.settingsScreen }
+            if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
             let ok = render(RootView(model: model), size: NSSize(width: 1200, height: 800), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }

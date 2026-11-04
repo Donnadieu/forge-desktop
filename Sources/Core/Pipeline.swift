@@ -36,7 +36,7 @@ enum Pipeline {
     static let agentColumns = ["Triage", "Todo", "In Progress", "AI Review", "QA", "Rework", "Merging"]
     static let doneColumns = ["Done"]
 
-    /// Columns the Workflow screen can turn off. The rest are always on.
+    /// Columns the Workflow Studio screen can turn off. The rest are always on.
     static let optionalColumns = ["Triage", "AI Review", "QA", "Human Review", "Merging"]
 
     /// Who works a column: an agent, you, or nobody (the end).

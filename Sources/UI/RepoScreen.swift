@@ -93,9 +93,14 @@ struct RepoScreen: View {
 
     private func finish() {
         guard let s = selected, let r = repos.first(where: { $0.fullName == s }) else { return }
+        let old = model.choices.repo
         model.choices.repo = r.fullName
         model.choices.defaultBranch = r.defaultBranch
         model.choices.repoChecked = true
-        model.next()
+        guard let step = AppModel.afterRepo(changing: model.changing, old: old, new: r.fullName) else { return model.next() }
+        // A new repo, changed from Settings: offer to get it ready for agents before going back.
+        model.save()
+        model.go(step)
+        model.harnessOffer = r.fullName
     }
 }

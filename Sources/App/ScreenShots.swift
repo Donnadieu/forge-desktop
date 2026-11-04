@@ -12,6 +12,7 @@ extension ScreenRender {
         project.columnsReady = true
         var github = project
         github.githubLogin = "samrivera"
+        (github.authorName, github.authorEmail) = ("Sam Rivera", "1234567+samrivera@users.noreply.github.com")
         github.signing = .forgeKey
         var repo = github
         repo.repo = "acme/ai-trading-bot"
@@ -49,6 +50,50 @@ extension ScreenRender {
             Shot(name: "10-workflow-qa-off", screen: AppModel.workflowScreen, choices: ready, scene: "qa-off"),
             Shot(name: "10-workflow-restarting", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state, scene: "restarting"),
             Shot(name: "11-settings", screen: AppModel.settingsScreen, choices: ready),
+        ] + changeShots(ready)
+    }
+
+    /// Settings with each harness state, and the setup timeline opened from Settings at every step.
+    static func changeShots(_ ready: SetupChoices) -> [Shot] {
+        let repo = ready.repo ?? ""
+        func with(_ r: HarnessRecord) -> SetupChoices {
+            var c = ready
+            c.setHarness(r, for: repo)
+            return c
+        }
+        let proposed = AppModel.Sample().report.guardrails
+        let firstTwo = ["agents-md", "formatter-linter"]
+        let partly = with(
+            HarnessRecord(
+                assessed: true, proposed: proposed, picked: firstTwo, applied: firstTwo, card: "ENG-42", cardURL: "https://linear.app", pr: 14,
+                merged: true))
+        let inCard = with(
+            HarnessRecord(
+                assessed: true, proposed: proposed, picked: ["file-length", "no-secrets"], applied: firstTwo, card: "ENG-57",
+                cardURL: "https://linear.app", pr: 19, merged: false))
+        let done = with(
+            HarnessRecord(
+                assessed: true, proposed: proposed, picked: ["file-length", "no-secrets"],
+                applied: firstTwo + ["file-length", "no-secrets"], card: "ENG-57", cardURL: "https://linear.app", pr: 19, merged: true))
+        let found = with(HarnessRecord(found: ["an agent guide (AGENTS.md)"]))
+        var moved = ready
+        moved.repo = "acme/website"
+        let h = AppModel.harnessScreen
+        return [
+            Shot(name: "11-settings-partly", screen: AppModel.settingsScreen, choices: inCard),
+            Shot(name: "11-settings-done", screen: AppModel.settingsScreen, choices: done),
+            Shot(name: "12-change-1-linear", screen: 0, choices: partly, changing: true),
+            Shot(name: "12-change-2-project", screen: 1, choices: partly, changing: true),
+            Shot(name: "12-change-3-github", screen: 2, choices: partly, changing: true),
+            Shot(name: "12-change-4-repo", screen: 3, choices: partly, changing: true),
+            Shot(name: "12-change-5-agent", screen: 4, choices: partly, changing: true),
+            Shot(name: "12-change-6-harness-not-done", screen: h, choices: ready, changing: true),
+            Shot(name: "12-change-6-harness-found", screen: h, choices: found, changing: true),
+            Shot(name: "12-change-6-harness-partly", screen: h, choices: partly, changing: true),
+            Shot(name: "12-change-6-harness-in-card", screen: h, choices: inCard, changing: true),
+            Shot(name: "12-change-6-harness-done", screen: h, choices: done, changing: true),
+            Shot(name: "12-change-6-harness-reading", screen: h, choices: ready, scene: "reading", changing: true),
+            Shot(name: "12-change-6-repo-changed-offer", screen: h, choices: moved, scene: "repo-offer", changing: true),
         ]
     }
 }

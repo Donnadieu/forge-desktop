@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The frame every setup screen shares (the Setup shell): the top bar, the steps down the left as a
 /// stage spine, the page header, one question's content, and the sticky bottom bar with Back and the
-/// one main button.
+/// one main button. Opened from Settings (changing), it reads as Settings, not as a first run.
 struct SetupFrame<Content: View>: View {
     @ObservedObject var model: AppModel
     let question: String
@@ -18,13 +18,13 @@ struct SetupFrame<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TopBar(suffix: "Setup")
+            TopBar(suffix: model.changing ? "Settings" : "Setup")
             HStack(spacing: 0) {
                 SetupSidebar(model: model, updater: updater)
                 VStack(spacing: 0) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
-                            PageHeader(eyebrow: "Setup · Step \(model.screen + 1) of 6", title: question, lead: detail)
+                            PageHeader(eyebrow: eyebrow, title: question, lead: detail)
                             content()
                         }
                         .padding(.horizontal, 40)
@@ -39,6 +39,11 @@ struct SetupFrame<Content: View>: View {
         .background(Atmosphere())
     }
 
+    private var eyebrow: String {
+        let title = AppModel.screenTitles[min(model.screen, AppModel.screenTitles.count - 1)]
+        return model.changing ? "Settings · \(title)" : "Setup · Step \(model.screen + 1) of 6"
+    }
+
     private var footer: some View {
         BottomBar {
             if busy {
@@ -46,7 +51,9 @@ struct SetupFrame<Content: View>: View {
                     Spinner(heat: true)
                     Text("Working…")
                 }
-            } else if model.returnTo != nil {
+            } else if model.changing && model.screen == AppModel.harnessScreen {
+                Text("Nothing here restarts the engine.")
+            } else if model.changing {
                 Text("Continue saves your answers and restarts the engine.")
             } else {
                 Text("Continue saves your answers.")
@@ -74,20 +81,33 @@ struct SetupFrame<Content: View>: View {
 }
 
 /// The steps down the left, drawn as the stage spine: done (dim node), here (cream node with a ring,
-/// the row raised), to come (hollow node).
+/// the row raised), to come (hollow node). Changing from Settings, every step is a button and carries its
+/// own mark: a check when done, a half-filled circle when harness engineering is partly done, an empty
+/// red circle when not done.
 struct SetupSidebar: View {
     @ObservedObject var model: AppModel
     @ObservedObject var updater: Updater
 
     var body: some View {
+        let changing = model.changing
+        let steps = AppModel.listedSteps(changing: changing)
         VStack(alignment: .leading, spacing: 16) {
-            SectionLabel(text: "Steps").padding(.horizontal, 8)
+            SectionLabel(text: changing ? "Your setup" : "Steps").padding(.horizontal, 8)
             VStack(spacing: 0) {
-                ForEach(Array(AppModel.screenTitles.enumerated()), id: \.offset) { i, title in
-                    StepRow(
-                        number: i + 1, title: title, goal: i == AppModel.boardScreen,
-                        state: i < model.screen ? .done : (i == model.screen ? .here : .later),
-                        first: i == 0, last: i == AppModel.screenTitles.count - 1)
+                ForEach(steps, id: \.self) { i in
+                    let row = StepRow(
+                        number: i + 1, title: AppModel.screenTitles[i], goal: !changing && i == AppModel.boardScreen,
+                        state: state(i, changing: changing), badge: badge(i, changing: changing),
+                        first: i == steps.first, last: i == steps.last, clickable: changing && i != model.screen)
+                    if changing {
+                        Button {
+                            model.change(i)
+                        } label: {
+                            row
+                        }.buttonStyle(.plain)
+                    } else {
+                        row
+                    }
                 }
             }
             Spacer()
@@ -98,8 +118,9 @@ struct SetupSidebar: View {
                     .disabled(updater.installing)
             }
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lock").font(.system(size: 10, weight: .medium))
-                Text("Continue saves your answers on this Mac.").fixedSize(horizontal: false, vertical: true)
+                Image(systemName: changing ? "hand.point.up.left" : "lock").font(.system(size: 10, weight: .medium))
+                Text(changing ? "Pick any step to change it. Continue saves it on this Mac." : "Continue saves your answers on this Mac.")
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.sans(11))
             .foregroundStyle(Theme.textMuted)
@@ -107,21 +128,43 @@ struct SetupSidebar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 24)
-        .frame(width: 248, alignment: .topLeading)
+        .frame(width: 288, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.wash1)
         .overlay(alignment: .trailing) { Rectangle().fill(Theme.border).frame(width: 1) }
+    }
+
+    private func state(_ i: Int, changing: Bool) -> StepRow.Mark {
+        if i == model.screen { return .here }
+        if changing { return model.choices.stepDone(i) ? .done : .later }
+        return i < model.screen ? .done : .later
+    }
+
+    private func badge(_ i: Int, changing: Bool) -> StepRow.Badge {
+        guard changing else { return i < model.screen && i != AppModel.boardScreen ? .tick : .none }
+        return StepRow.badge(step: i, choices: model.choices)
     }
 }
 
 struct StepRow: View {
     enum Mark { case done, here, later }
+    /// The mark at the end of the row.
+    enum Badge: Equatable { case none, tick, check, half, notDone }
     let number: Int
     let title: String
     var goal = false
     let state: Mark
+    var badge: Badge = .none
     var first = false
     var last = false
+    var clickable = false
+    @State private var hover = false
+
+    /// Changing from Settings: a check for each done step; harness engineering shows how far along it is.
+    static func badge(step: Int, choices: SetupChoices) -> Badge {
+        guard step == AppModel.harnessScreen else { return choices.stepDone(step) ? .check : .notDone }
+        return HarnessMark.of(choices.harnessHere.status)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -132,25 +175,28 @@ struct StepRow: View {
                 node
             }
             .frame(width: 24)
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 if goal {
                     Text("→ \(title.uppercased())").font(Theme.mono(11)).tracking(1.5).foregroundStyle(Theme.textMuted)
                 } else {
                     Text(String(format: "%02d", number)).font(Theme.mono(11)).foregroundStyle(state == .here ? Theme.textSec : Theme.textMuted)
                     Text(title)
                         .font(Theme.sans(13, state == .here ? .semibold : .regular))
-                        .foregroundStyle(state == .here ? Theme.text : (state == .done ? Theme.textSec : Theme.textMuted))
+                        .foregroundStyle(state == .here || hover ? Theme.text : (state == .done ? Theme.textSec : Theme.textMuted))
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if state == .done && !goal {
-                    Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.textMuted)
-                }
+                HarnessMark(badge: badge)
             }
             .padding(.horizontal, 12)
             .frame(height: 40)
-            .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(state == .here ? Theme.surface : .clear))
+            .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(state == .here ? Theme.surface : (hover ? Theme.wash2 : .clear)))
             .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(state == .here ? Theme.border : .clear))
         }
+        // A fixed height keeps the steps together; the spine line inside would otherwise stretch each row.
+        .frame(height: 44)
+        .contentShape(Rectangle())
+        .onHover { hover = clickable && $0 }
     }
 
     @ViewBuilder private var node: some View {

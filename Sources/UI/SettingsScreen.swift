@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Settings: what Forge connects to on this Mac. Each Change opens that setup step and comes back here; the
-/// engine restarts with the new answers when you go back to the Orchestrator.
+/// Settings: what Forge connects to on this Mac, as equal tiles in two columns. Each Change opens that step of
+/// the setup timeline in its changing mode (every step clickable) and comes back here; the engine restarts with
+/// the new answers when you go back to the Orchestrator.
 struct SettingsScreen: View {
     @ObservedObject var model: AppModel
 
@@ -13,7 +14,7 @@ struct SettingsScreen: View {
                 Button("Back to Orchestrator") { model.go(AppModel.boardScreen) }
                     .buttonStyle(ForgeButton(kind: .ghost, hint: "esc", icon: "chevron.left"))
                     .keyboardShortcut(.cancelAction)
-                Button("Workflow") { model.go(AppModel.workflowScreen) }
+                Button("Workflow Studio") { model.go(AppModel.workflowScreen) }
                     .buttonStyle(ForgeButton(kind: .ghost, icon: "point.topleft.down.to.point.bottomright.curvepath"))
             }
             ScrollView {
@@ -29,20 +30,30 @@ struct SettingsScreen: View {
                     }
                     .font(Theme.sans(11))
                     .foregroundStyle(model.settingsChanged ? Theme.heatBright : Theme.textMuted)
-                    HStack(alignment: .top, spacing: 16) {
-                        VStack(spacing: 16) {
+                    Grid(horizontalSpacing: 16, verticalSpacing: 16) {
+                        GridRow {
                             tracker
                             code
-                            signing
                         }
-                        agents
+                        GridRow {
+                            signing
+                            agents
+                        }
+                        GridRow {
+                            harness
+                            Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                        }
                     }
                 }
                 .padding(.horizontal, 40).padding(.top, 32).padding(.bottom, 40)
             }
         }
         .background(Atmosphere())
+        .task { await model.refreshHarness() }
     }
+
+    /// Every tile is this tall, so the grid reads as equal tiles whatever each one holds.
+    static let tileHeight: CGFloat = 176
 
     private var tracker: some View {
         group("Tracker") {
@@ -87,6 +98,45 @@ struct SettingsScreen: View {
             } action: {
                 change("Change", step: 2)
             }
+            row {
+                field("Commits as", c.authorName.map { n in c.authorEmail.map { "\(n) <\($0)>" } ?? n } ?? "—", mono: true)
+            } action: {
+                EmptyView()
+            }
+        }
+    }
+
+    private var harness: some View {
+        let h = c.harnessHere
+        return group("Harness engineering") {
+            row {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Get your repo ready for agents").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                    HStack(spacing: 8) {
+                        HarnessMark(badge: HarnessMark.of(h.status))
+                        Text(h.status.rawValue).font(Theme.sans(11, .medium)).foregroundStyle(Theme.textSec)
+                        Text(h.line).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                    }
+                }
+            } action: {
+                change(SettingsScreen.harnessAction(h.status), step: AppModel.harnessScreen)
+            }
+            row {
+                field("Pull request", h.pr.map { "#\($0) \(h.merged == true ? "merged" : "open")" } ?? "None yet", mono: true)
+            } action: {
+                if let url = h.cardURL, let card = h.card {
+                    Button("Open \(card)") { model.openLink(url) }.buttonStyle(ForgeButton(kind: .ghost))
+                }
+            }
+        }
+    }
+
+    /// The Harness engineering tile's button: Start when nothing's done, Run again when partly done, Change when done.
+    static func harnessAction(_ s: HarnessRecord.Status) -> String {
+        switch s {
+        case .notStarted: return "Start"
+        case .partly: return "Run again"
+        case .done: return "Change"
         }
     }
 
@@ -101,10 +151,14 @@ struct SettingsScreen: View {
                         Text(w.usesKey ? "API key set · in Keychain" : "Signed in with your browser").font(Theme.sans(11)).foregroundStyle(
                             Theme.textSec)
                     }
-                    if let m = c.model { Text(m).font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
                 }
             } action: {
                 change("Change", step: 4)
+            }
+            row {
+                field("Model", c.model ?? "The agent's default", mono: c.model != nil)
+            } action: {
+                EmptyView()
             }
         }
     }
@@ -125,7 +179,7 @@ struct SettingsScreen: View {
             VStack(spacing: 0) { rows() }
         }
         .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: Self.tileHeight, maxHeight: .infinity, alignment: .topLeading)
         .panel()
     }
 

@@ -65,6 +65,8 @@ def r_ui_jargon(path, lines, ctx):
     for i, l in enumerate(lines, 1):
         if not UI_CALL.search(l): continue
         for s in strings(l):
+            # "Harness engineering" is the name of the Settings tile and setup step Omar asked for.
+            s = s.replace("Harness engineering", "")
             for word in JARGON:
                 # "Orchestrator" with a capital is the main screen's name; the engine word stays out.
                 flags = 0 if word == "orchestrator" else re.I

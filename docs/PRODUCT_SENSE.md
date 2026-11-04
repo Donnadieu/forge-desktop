@@ -26,8 +26,9 @@ many agents work at once. Nothing else: no per-stage agents, models or colours y
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 
 ## Words on screen
-Card, column, agent, repo, board, workflow, key, and "Orchestrator" as the main screen's name.
-Never: orchestrator as an engine word, workspace, MCP, harness,
+Card, column, agent, repo, board, workflow, key, "Orchestrator" as the main screen's name, and
+"Harness engineering" as the name of getting a repo ready for agents (its Settings tile and setup step).
+Never: orchestrator as an engine word, workspace, MCP, harness on its own,
 sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
 
 ## Never

@@ -12,12 +12,7 @@ enum RepoReader {
         var guardrails: [Guardrail]
     }
 
-    struct Guardrail: Codable, Equatable, Hashable, Identifiable, Sendable {
-        var id: String
-        var title: String
-        var why: String
-        var recommended: Bool?
-    }
+    typealias Guardrail = HarnessGuardrail
 
     struct Problem: Error, CustomStringConvertible {
         let description: String

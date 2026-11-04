@@ -71,26 +71,55 @@ final class AppModel: ObservableObject {
         if !preview { GitHub.account = c.githubLogin }
     }
 
-    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Ready", "Orchestrator"]
+    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Harness engineering", "Orchestrator"]
 
     /// The Orchestrator's screen number (the end of setup).
     static let boardScreen = 6
-    /// The Workflow screen (stages on and off, agents at once).
+    /// Setup 6: harness engineering (getting the repo ready for agents).
+    static let harnessScreen = 5
+    /// The Workflow Studio screen (stages on and off, agents at once).
     static let workflowScreen = 7
     /// Settings: what Forge connects to; each Change opens that setup step.
     static let settingsScreen = 8
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
+    /// The repo just changed from Settings: the harness step offers to get this repo ready for agents.
+    @Published var harnessOffer: String?
 
-    func save() {
+    /// Setup has two modes. The first run walks the steps in order; opened from Settings (changing), every
+    /// step is listed, done or not, and any of them opens with a click.
+    var changing: Bool { returnTo != nil }
+
+    /// The steps the left-hand list shows: the first run ends on the Orchestrator; changing lists only
+    /// what can be changed.
+    static func listedSteps(changing: Bool) -> [Int] { changing ? Array(0..<boardScreen) : Array(0...boardScreen) }
+
+    /// Where Continue on the repo step goes when changing: a new repo goes to harness engineering to offer
+    /// getting it ready for agents; anything else goes back to Settings (nil = the usual next).
+    static func afterRepo(changing: Bool, old: String?, new: String) -> Int? {
+        changing && old != new ? harnessScreen : nil
+    }
+
+    /// `restarts: false` for answers the engine doesn't read (harness engineering), so it isn't restarted.
+    func save(restarts: Bool = true) {
         if !preview { choices.save() }
-        if screen < Self.boardScreen || screen == Self.workflowScreen { settingsChanged = true }
+        if restarts, screen < Self.boardScreen || screen == Self.workflowScreen { settingsChanged = true }
+    }
+
+    /// Brings the current repo's harness record up to date from GitHub (not in screen renders).
+    func refreshHarness() async {
+        guard !preview, let repo = choices.repo else { return }
+        let before = choices.harness?[repo]
+        guard let r = await HarnessCheck.refresh(repo: repo, record: before), r != before, choices.repo == repo else { return }
+        choices.setHarness(r, for: repo)
+        choices.save()
     }
 
     func go(_ s: Int) {
         screen = max(0, min(Self.settingsScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
+        if screen != Self.harnessScreen { harnessOffer = nil }
     }
 
     /// Opens one setup step from Settings.
@@ -99,8 +128,8 @@ final class AppModel: ObservableObject {
         returnTo = Self.settingsScreen
     }
 
-    func next() {
-        save()
+    func next(restarts: Bool = true) {
+        save(restarts: restarts)
         go(returnTo ?? screen + 1)
     }
 

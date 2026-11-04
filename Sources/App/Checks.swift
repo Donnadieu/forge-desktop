@@ -119,6 +119,7 @@ enum Checks {
         check(
             "a failed Codex turn fails the check",
             WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
+        harnessChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

@@ -57,7 +57,7 @@ enum Theme {
     /// The top bar's height (the kit's TopNav). The window's own buttons sit in it.
     static let barHeight: CGFloat = 56
 
-    /// A column's colour on the Orchestrator and the Workflow screen, built from the system's tokens only.
+    /// A column's colour on the Orchestrator and the Workflow Studio screen, built from the system's tokens only.
     struct StageTone {
         let dot: Color
         let fill: Color

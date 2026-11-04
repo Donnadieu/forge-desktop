@@ -66,7 +66,7 @@ struct OrchestratorScreen: View {
                     .disabled(updater.installing)
                     .help(updater.problem ?? "Agents finish what they're doing, then Forge restarts on the new version.")
             }
-            Button("Workflow") { model.go(AppModel.workflowScreen) }
+            Button("Workflow Studio") { model.go(AppModel.workflowScreen) }
                 .buttonStyle(ForgeButton(kind: .ghost, icon: "point.topleft.down.to.point.bottomright.curvepath"))
             Button("Settings") { model.go(AppModel.settingsScreen) }
                 .buttonStyle(ForgeButton(kind: .ghost, hint: "⌘,", icon: "gearshape"))

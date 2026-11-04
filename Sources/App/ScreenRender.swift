@@ -38,6 +38,7 @@ enum ScreenRender {
             model.sample.scene = shot.scene
             if shot.changing { model.returnTo = AppModel.settingsScreen }
             if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
+            if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
             let ok = render(RootView(model: model), size: NSSize(width: 1200, height: 800), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }

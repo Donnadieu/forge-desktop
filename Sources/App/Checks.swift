@@ -57,6 +57,18 @@ enum Checks {
         check("the main window's view draws", size.width == 1200 && size.height == 800)
         check("a Linear key problem offers the key screen", OrchestratorScreen.fix(for: "Linear didn't accept this key.")?.isLink == false)
         check("an unknown problem offers no button that can't fix it", OrchestratorScreen.fix(for: "Linear answered 502.") == nil)
+        check("a Stop the engine took counts even when its answer was slow", BoardLink.landed(.stop, in: SampleBoard.stopping))
+        check("a Stop that never reached the engine is noticed", !BoardLink.landed(.stop, in: SampleBoard.state))
+        let notSent = BoardLink.didNotLand(.stop)
+        check("a Stop that didn't go through says what to press, in plain words", notSent.contains("Press Stop again") && !notSent.contains("Error"))
+        let timedOut = BoardLink.plain(URLError(.timedOut))
+        check("the engine's raw network error never reaches the screen", !timedOut.contains("NSURLErrorDomain") && !timedOut.contains("-1001"))
+        check(
+            "a problem the app hit doesn't claim Forge retries it",
+            OrchestratorScreen.noticeDetail(notSent, signedOutLine: nil, appProblem: notSent) == nil)
+        check(
+            "the engine's own problems still say Forge tries again",
+            OrchestratorScreen.noticeDetail("Linear answered 502.", signedOutLine: nil, appProblem: nil) != nil)
         check("Linear's usage limit offers the Linear plan page", OrchestratorScreen.fix(for: "Linear said: usage limit exceeded")?.isLink == true)
         check("with QA off, cards go from AI Review to Human Review", Pipeline.skipTarget("QA", off: ["QA"]) == "Human Review")
         check("with QA and Human Review off, AI Review hands to Merging", Pipeline.skipTarget("QA", off: ["QA", "Human Review"]) == "Merging")

@@ -5,7 +5,7 @@
  *
  *   GET  /api/v1/state   the whole board state (same shape as each live frame)
  *   POST /api/v1/start   start taking cards
- *   POST /api/v1/stop    stop taking cards (running agents finish first)
+ *   POST /api/v1/stop    stop taking cards; answers at once, running agents finish in the background
  *   POST /api/v1/refresh look at the board now instead of at the next poll
  *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
  *   WS   /api/v1/live    pushes the state whenever it changes

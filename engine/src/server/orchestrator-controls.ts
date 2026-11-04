@@ -67,21 +67,26 @@ export function createOrchestratorControls(params: {
     return { started: true };
   };
 
+  // Stop answers at once: no new cards from now on, and the running agents
+  // drain in the background (status "stopping" until they're done). Waiting
+  // for the drain here made the app's request time out while a card ran.
   const stop = async (userId: string | null): Promise<{ stopped: boolean }> => {
     if (!running) return { stopped: false };
     running = false;
     params.logger.info({ userId }, "Orchestrator stop requested");
-    stoppingPromise = params.orchestrator.stop().catch((err) => {
-      params.logger.error({ err, userId }, "Orchestrator drain failed");
-      throw err;
-    });
-    try {
-      await stoppingPromise;
-    } finally {
-      stoppingPromise = null;
-      startedAt = null;
-    }
-    params.logger.info({ userId }, "Orchestrator stopped");
+    const drain = params.orchestrator
+      .stop()
+      .then(
+        () => params.logger.info({ userId }, "Orchestrator stopped"),
+        (err) => params.logger.error({ err, userId }, "Orchestrator drain failed"),
+      )
+      .finally(() => {
+        if (stoppingPromise === drain) stoppingPromise = null;
+        startedAt = null;
+      });
+    stoppingPromise = drain;
+    // The person's intent is "stopped" from the moment they pressed Stop, so a
+    // quit mid-drain doesn't come back running.
     await writeIntent("stopped", userId);
     return { stopped: true };
   };

@@ -44,6 +44,8 @@ extension ScreenRender {
             Shot(name: "7-orchestrator-few", screen: board, choices: ready, engine: SampleBoard.few),
             Shot(name: "7-orchestrator-reading", screen: board, choices: ready),
             Shot(name: "7-orchestrator-stopping", screen: board, choices: ready, engine: SampleBoard.stopping),
+            Shot(name: "7-orchestrator-stopped", screen: board, choices: ready, engine: SampleBoard.stopped),
+            Shot(name: "9-orchestrator-stop-not-sent", screen: board, choices: ready, engine: SampleBoard.state, scene: "stop-not-sent"),
             Shot(name: "9-orchestrator-signed-out", screen: board, choices: ready, engine: SampleBoard.signedOut),
             Shot(name: "9-orchestrator-linear-limit", screen: board, choices: ready, engine: SampleBoard.problem),
             Shot(name: "10-workflow", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state),

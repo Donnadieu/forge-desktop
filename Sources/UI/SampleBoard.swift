@@ -92,6 +92,14 @@ enum SampleBoard {
         return s
     }
 
+    /// Stopped with cards waiting: Start comes back.
+    static var stopped: EngineState {
+        var s = state
+        s.status = "stopped"
+        s.running = []
+        return s
+    }
+
     /// Linear refuses to answer.
     static var problem: EngineState {
         var s = state

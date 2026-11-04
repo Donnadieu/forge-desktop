@@ -144,7 +144,7 @@ struct OrchestratorScreen: View {
     }
 
     @ViewBuilder private var metaPill: some View {
-        if problem != nil {
+        if problem != nil, problem != model.engineProblem {
             Pill(text: "Paused", tone: .amber, dot: Theme.heat)
         } else if state?.isRunning == true {
             Pill(text: "Live", tone: .heat, dot: Theme.heat, pulsing: true)
@@ -168,8 +168,7 @@ struct OrchestratorScreen: View {
     private func notice(_ text: String) -> some View {
         Notice(
             title: text,
-            detail: text == signedOutLine
-                ? "Forge opened the sign-in for you. Cards start again once you approve it." : "Forge tries again by itself."
+            detail: Self.noticeDetail(text, signedOutLine: signedOutLine, appProblem: model.engineProblem)
         ) {
             if text == signedOutLine, AgentSignIn.command(for: agent) != nil {
                 Button("Sign in to \(WorkerScreen.name(agent))") { openGuide() }
@@ -181,6 +180,13 @@ struct OrchestratorScreen: View {
                     .padding(.leading, 26)
             }
         }
+    }
+
+    /// The line under a problem. Only the engine's own problems (Linear, sign-in) clear by themselves on its next try;
+    /// a problem the app hit talking to the engine says what to press in its own line, so nothing goes under it.
+    static func noticeDetail(_ text: String, signedOutLine: String?, appProblem: String?) -> String? {
+        if text == signedOutLine { return "Forge opened the sign-in for you. Cards start again once you approve it." }
+        return text == appProblem ? nil : "Forge tries again by itself."
     }
 
     /// The one fix for the problems Forge recognizes; nil when there's nothing to press.

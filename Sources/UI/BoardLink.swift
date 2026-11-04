@@ -26,7 +26,7 @@ final class BoardLink {
             follow(client)
         } catch {
             let why = await EngineHost.shared.lastFailure
-            model.engineProblem = "\(error)" + (why.map { " (\($0))" } ?? "")
+            model.engineProblem = Self.plain(error) + (why.map { " (\($0))" } ?? "")
         }
     }
 
@@ -43,17 +43,58 @@ final class BoardLink {
             })
     }
 
-    func start() async { await send { try await $0.start() } }
-    func stop() async { await send { try await $0.stop() } }
-    func refresh() async { await send { try await $0.refresh() } }
+    func start() async { await send(.start) { try await $0.start() } }
+    func stop() async { await send(.stop) { try await $0.stop() } }
+    func refresh() async { await send(.refresh) { try await $0.refresh() } }
 
     func workpad(card: String) async -> EngineClient.Workpad? {
         guard let client else { return nil }
         return try? await client.workpad(card: card)
     }
 
-    private func send(_ f: (EngineClient) async throws -> Void) async {
+    enum Action: String {
+        case start = "Start"
+        case stop = "Stop"
+        case refresh = "Refresh"
+    }
+
+    private func send(_ action: Action, _ f: (EngineClient) async throws -> Void) async {
         guard let client else { return }
-        do { try await f(client) } catch { model?.engineProblem = "Forge's engine didn't answer: \(error)" }
+        do {
+            try await f(client)
+            model?.engineProblem = nil
+        } catch {
+            // The engine may have taken the request and only been slow to say so: believe its state.
+            if let s = try? await client.state() {
+                model?.engine = s
+                if Self.landed(action, in: s) {
+                    model?.engineProblem = nil
+                    return
+                }
+            }
+            model?.engineProblem = Self.didNotLand(action)
+        }
+    }
+
+    /// The state already shows what the button asked for.
+    nonisolated static func landed(_ action: Action, in s: EngineState) -> Bool {
+        switch action {
+        case .start: return s.isRunning
+        case .stop: return !s.isRunning
+        case .refresh: return true
+        }
+    }
+
+    /// One plain line when a button's request didn't reach the engine: what happened and what to press.
+    nonisolated static func didNotLand(_ action: Action) -> String {
+        action == .refresh
+            ? plain(URLError(.timedOut)) : "Forge's engine didn't answer, so \(action.rawValue) didn't go through. Press \(action.rawValue) again."
+    }
+
+    /// An error in plain words. Never the raw system error: that's for the logs, not the screen.
+    nonisolated static func plain(_ error: Error) -> String {
+        if error is URLError { return "Forge's engine didn't answer." }
+        if case EngineClient.Failure.status(let code) = error { return "Forge's engine refused the request (\(code))." }
+        return "\(error)"
     }
 }

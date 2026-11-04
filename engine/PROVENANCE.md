@@ -91,7 +91,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/process/run-tree.ts | 05deefb0a43a | src/process/run-tree.ts | unchanged |
 | src/server/http-utils.ts | 05deefb0a43a | src/server/http-utils.ts | unchanged |
 | src/server/index.ts | 05deefb0a43a | src/server/index.ts | exports the local pieces only (the hosted router stays in Forge) |
-| src/server/orchestrator-controls.ts | 05deefb0a43a | src/server/orchestrator-controls.ts | IntendedStateRepo from ./types (local store, no database) |
+| src/server/orchestrator-controls.ts | 05deefb0a43a | src/server/orchestrator-controls.ts | IntendedStateRepo from ./types (local store, no database); Stop answers at once and drains in the background, intent saved as stopped right away |
 | src/server/state-json.ts | 05deefb0a43a | src/server/state-json.ts | dropped the hosted analytics transformer; activity, helpers, recent lines |
 | src/server/types.ts | 05deefb0a43a | src/server/types.ts | kept only the status types; IntendedStateRepo defined here (local store, no database) |
 | src/telemetry/infer-issue-type.ts | 05deefb0a43a | src/telemetry/infer-issue-type.ts | unchanged |
@@ -120,7 +120,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
 | src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad |
-| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad` |
+| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/stop` answers at once |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |

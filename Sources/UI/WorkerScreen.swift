@@ -49,34 +49,32 @@ struct WorkerScreen: View {
             busy: busy,
             action: works ? finish : check
         ) {
-            Picker("", selection: $worker) {
-                ForEach(Self.options, id: \.worker) { Text($0.title).tag($0.worker) }
-            }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
+            Segmented(options: Self.options.map { ($0.worker, $0.title) }, selection: $worker)
             Text(option.line)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+                .font(Theme.sans(13))
+                .foregroundStyle(Theme.textSec)
                 .padding(.top, 10)
             HStack(spacing: 16) {
                 Picker("Model", selection: $agentModel) {
                     ForEach(option.models, id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
                 }
-                .frame(maxWidth: 260)
+                .fixedSize()
+                .font(Theme.sans(13))
+                .foregroundStyle(Theme.textSec)
                 if let label = option.keyLabel {
-                    SecureField(hasSavedKey ? "\(label) (saved)" : label, text: $key)
-                        .textFieldStyle(.roundedBorder)
+                    SecureField("", text: $key)
+                        .forgeField(mono: true, hint: hasSavedKey ? "\(label) (saved)" : label, empty: key.isEmpty)
                         .frame(maxWidth: 300)
                 }
             }
-            .padding(.top, 14)
-            if works { GoodLine(text: "\(option.title) answered.").padding(.top, 12) }
+            .padding(.top, 18)
+            if works { GoodLine(text: "\(option.title) answered. It's ready to work.").padding(.top, 14) }
             ProblemLine(text: problem)
             if signedOut {
                 Button("Sign in to \(option.title)") { openGuide() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.top, 12)
+                    .buttonStyle(ForgeButton(kind: .fix, large: true))
+                    .padding(.top, 10)
+                    .padding(.leading, 20)
             }
         }
         .overlay {

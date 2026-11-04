@@ -34,14 +34,14 @@ enum ScreenRender {
             let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
             model.engine = shot.engine
             model.sample.scene = shot.scene
-            let ok = render(RootView(model: model), size: NSSize(width: 960, height: 680), to: dir.appendingPathComponent("\(shot.name).png"))
+            let ok = render(RootView(model: model), size: NSSize(width: 1200, height: 800), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }
         }
         let detailModel = AppModel(preview: true, screen: AppModel.boardScreen)
         let held = SampleBoard.state.cards.first { $0.agent != nil }!
         let ok = render(
-            CardDetail(model: detailModel, card: held) {}, size: NSSize(width: 620, height: 560),
+            CardDetail(model: detailModel, card: held) {}, size: NSSize(width: 880, height: 640),
             to: dir.appendingPathComponent("8-card-detail.png"))
         print("\(ok ? "✓" : "✗") 8-card-detail")
         if !ok { failed += 1 }
@@ -51,6 +51,7 @@ enum ScreenRender {
     static func render<V: View>(_ view: V, size: NSSize, to url: URL) -> Bool {
         let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
         host.frame = NSRect(origin: .zero, size: size)
+        host.appearance = NSAppearance(named: .darkAqua)
         let window = NSWindow(
             contentRect: NSRect(x: -20000, y: -20000, width: size.width, height: size.height),
             styleMask: [.borderless], backing: .buffered, defer: false)

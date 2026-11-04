@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// A card's detail: what its agent is doing, its helpers, recent activity, the branch and pull request,
-/// and the workpad (the agent's one running note on the card).
+/// A card's detail: what its agent is doing, its helpers, recent activity, the branch and pull request
+/// on the left; the workpad (the agent's one running note on the card) on the right.
 struct CardDetail: View {
     @ObservedObject var model: AppModel
     let card: EngineState.Card
@@ -11,82 +11,136 @@ struct CardDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(card.identifier) · \(card.state)").font(.system(size: 12)).foregroundStyle(.secondary)
-                    Text(card.title).font(.system(size: 18, weight: .semibold))
+            header
+            Rectangle().fill(Theme.hairline).frame(height: 1)
+            HStack(alignment: .top, spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        agentSection
+                        codeSection
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer()
-                Button("Done", action: close).keyboardShortcut(.cancelAction)
-            }
-            .padding(.bottom, 14)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    agentSection
-                    linksSection
-                    section("Workpad") {
-                        if let workpad,
-                            let text = try? AttributedString(markdown: workpad, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
-                        {
-                            Text(text).font(.system(size: 12)).textSelection(.enabled)
+                .frame(maxWidth: .infinity)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionLabel(text: "Workpad")
+                        Text("The agent's one running note on this card.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                            .padding(.bottom, 10)
+                        if let workpad, !workpad.isEmpty {
+                            WorkpadView(text: workpad)
                         } else {
-                            Text(loaded ? "No workpad on this card yet." : "Reading…").font(.system(size: 12)).foregroundStyle(.secondary)
+                            Text(loaded ? "No workpad on this card yet." : "Reading…").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
                         }
                     }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 360)
+                .background(Color.black.opacity(0.12))
             }
         }
-        .padding(24)
-        .frame(width: 620, height: 560)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: 880, height: 640)
+        .background(Theme.panel)
+        .foregroundStyle(Theme.text)
+        .tint(Theme.heat)
+        .preferredColorScheme(.dark)
         .task {
             workpad = model.preview ? model.sample.workpad : await model.link.workpad(card: card.id)?.workpad
             loaded = true
         }
     }
 
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 10) {
+                Chip(text: "\(card.identifier) · \(card.state)", tone: card.agent != nil ? .heat : .quiet, dot: card.agent != nil)
+                Text(card.title).font(Theme.display(26)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 24)
+            Button("Done", action: close)
+                .buttonStyle(ForgeButton(kind: .secondary, hint: "esc"))
+                .keyboardShortcut(.cancelAction)
+        }
+        .padding(24)
+    }
+
     @ViewBuilder private var agentSection: some View {
-        if let agent = card.agent {
-            section("Agent") {
-                Text(card.activity ?? "Working").font(.system(size: 13))
-                Text("Turn \(agent.turn) · attempt \(agent.attempt)").font(.system(size: 12)).foregroundStyle(.secondary)
-                ForEach(card.helpers) { h in
-                    Label(h.description, systemImage: h.running ? "circle.dotted" : "checkmark.circle")
-                        .font(.system(size: 12))
-                        .foregroundStyle(h.running ? .primary : .secondary)
-                }
-                if let recent = card.recent, !recent.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(recent.suffix(12).reversed(), id: \.self) { l in
-                            Text("\(Self.time(l.at))  \(l.line)").font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                        }
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: "Agent now")
+            if let agent = card.agent {
+                HStack(alignment: .top, spacing: 12) {
+                    AgentGlyph(size: 30)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(card.activity ?? "Working").font(Theme.sans(15)).foregroundStyle(Theme.text)
+                        Text("Turn \(agent.turn) · attempt \(agent.attempt)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
                     }
-                    .padding(.top, 4)
+                }
+            } else {
+                Text("No agent has this card right now.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            }
+        }
+        if !card.helpers.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "Helpers")
+                VStack(spacing: 0) {
+                    ForEach(Array(card.helpers.enumerated()), id: \.element.id) { i, h in
+                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        HStack(spacing: 10) {
+                            if h.running {
+                                ProgressView().controlSize(.mini)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.good)
+                            }
+                            Text(h.description).font(Theme.sans(13)).foregroundStyle(h.running ? Theme.text : Theme.textSec)
+                            Spacer()
+                            Chip(text: h.running ? "Running" : "Done", tone: h.running ? .heat : .quiet)
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 40)
+                    }
+                }
+                .panel(Theme.surface.opacity(0.6))
+            }
+        }
+        if let recent = card.recent, !recent.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel(text: "Recent activity")
+                ForEach(Array(recent.suffix(12).reversed().enumerated()), id: \.offset) { i, l in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(Self.time(l.at)).foregroundStyle(Theme.textMuted)
+                        Text(l.line).foregroundStyle(i == 0 ? Theme.text : Theme.textSec)
+                    }
+                    .font(Theme.mono(12))
                 }
             }
-        } else {
-            section("Agent") {
-                Text("No agent has this card right now.").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
         }
     }
 
-    private var linksSection: some View {
-        section("Code") {
-            if let b = card.branchName { Text("Branch \(b)").font(.system(size: 12, design: .monospaced)) }
-            HStack(spacing: 14) {
-                if let pr = card.prUrl { Button("Open the pull request") { model.openLink(pr) }.buttonStyle(.link) }
-                if let u = card.url { Button("Open in Linear") { model.openLink(u) }.buttonStyle(.link) }
+    private var codeSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel(text: "Code")
+            if let b = card.branchName {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.branch").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+                    Text("Branch").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text(b).font(Theme.mono(12)).foregroundStyle(Theme.text).textSelection(.enabled)
+                        .padding(.horizontal, 8).frame(height: 22)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.black.opacity(0.25)))
+                }
             }
-            .font(.system(size: 12))
-        }
-    }
-
-    private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-            content()
+            HStack(spacing: 8) {
+                if let pr = card.prUrl {
+                    let number = pr.split(separator: "/").last.map { " #\($0)" } ?? ""
+                    Button("Open pull request\(number)") { model.openLink(pr) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.triangle.pull"))
+                }
+                if let u = card.url {
+                    Button("Open in Linear") { model.openLink(u) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.right.square"))
+                }
+            }
         }
     }
 
@@ -95,6 +149,46 @@ struct CardDetail: View {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
         return f.string(from: d)
+    }
+}
+
+/// The workpad's Markdown, drawn the simple way agents write it: headings, checkboxes, bullets, lines.
+struct WorkpadView: View {
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, raw in
+                line(raw.trimmingCharacters(in: .whitespaces))
+            }
+        }
+        .textSelection(.enabled)
+    }
+
+    @ViewBuilder private func line(_ l: String) -> some View {
+        if l.hasPrefix("### ") {
+            Text(String(l.dropFirst(4))).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.textSec).padding(.top, 6)
+        } else if l.hasPrefix("## ") || l.hasPrefix("# ") {
+            Text(String(l.drop { $0 == "#" }.dropFirst())).font(Theme.sans(16, .semibold)).foregroundStyle(Theme.text)
+        } else if l.hasPrefix("- [x] ") || l.hasPrefix("- [X] ") || l.hasPrefix("- [ ] ") {
+            let done = !l.hasPrefix("- [ ] ")
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: done ? "checkmark.square.fill" : "square").font(.system(size: 12))
+                    .foregroundStyle(done ? Theme.textSec : Theme.textMuted)
+                Text(inline(String(l.dropFirst(6)))).font(Theme.sans(13)).foregroundStyle(done ? Theme.textSec : Theme.text)
+            }
+        } else if l.hasPrefix("- ") || l.hasPrefix("* ") {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("•").foregroundStyle(Theme.textMuted)
+                Text(inline(String(l.dropFirst(2)))).font(Theme.sans(13)).foregroundStyle(Theme.text)
+            }
+        } else if !l.isEmpty {
+            Text(inline(l)).font(Theme.sans(13)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func inline(_ s: String) -> AttributedString {
+        (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(s)
     }
 }
 

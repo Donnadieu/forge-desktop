@@ -6,6 +6,7 @@ import SwiftUI
 enum Entry {
     static func main() {
         let args = CommandLine.arguments
+        Theme.registerFonts()
         if let code = Checks.run(args) {
             exit(code)
         }
@@ -21,6 +22,8 @@ struct ForgeApp: App {
         Window(AppInfo.name, id: "main") {
             RootView(model: model)
         }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1200, height: 800)
     }
 }
 

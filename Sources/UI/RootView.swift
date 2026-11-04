@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The main window: setup one question at a time, then the board.
+/// The main window: setup one question at a time, then the board. Dark, in the Forge look, with the
+/// content running under a hidden title bar.
 struct RootView: View {
     @ObservedObject var model: AppModel
 
@@ -16,8 +17,16 @@ struct RootView: View {
             default: BoardScreen(model: model)
             }
         }
-        .frame(minWidth: 720, minHeight: 560)
+        .frame(minWidth: 960, minHeight: 640)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .topLeading) {
+            if model.preview { TrafficLights() }
+        }
+        .background(Theme.bg)
+        .foregroundStyle(Theme.text)
+        .font(Theme.sans(13))
+        .tint(Theme.heat)
+        .preferredColorScheme(.dark)
+        .ignoresSafeArea()
     }
 }

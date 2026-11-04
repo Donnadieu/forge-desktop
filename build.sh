@@ -40,6 +40,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 cp LICENSE NOTICE "$APP/Contents/Resources/"
+cp -R Resources/Fonts "$APP/Contents/Resources/Fonts"
 tools/bundle-engine.sh "$APP/Contents/Resources/engine"
 tools/sign-app.sh "$APP"
 echo "built $APP ($VERSION)"

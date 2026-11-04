@@ -35,7 +35,13 @@ struct GitHubScreen: View {
                 .padding(.bottom, 10)
             }
             if let user {
-                GoodLine(text: "Signed in to GitHub as @\(user.login).").padding(.bottom, 18)
+                HStack(spacing: 10) {
+                    Initials(name: user.name.isEmpty ? user.login : user.name, size: 24)
+                    Text("Signed in to GitHub as").font(Theme.sans(14)).foregroundStyle(Theme.text)
+                    Text("@\(user.login)").font(Theme.mono(13)).foregroundStyle(Theme.text)
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.good)
+                }
+                .padding(.bottom, 20)
                 choices
             } else if loaded {
                 SignInBox(code: code, busy: busy, action: signIn, open: { model.openLink(GitHubSignIn.devicePage) })
@@ -66,36 +72,50 @@ struct GitHubScreen: View {
     }
 
     @ViewBuilder private var choices: some View {
-        Picker("", selection: $signing) {
-            Text("Me, with a key Forge makes (recommended)").tag(SetupChoices.Signing.forgeKey)
-            Text("Me, with my own GPG key").tag(SetupChoices.Signing.ownGPG)
-            Text("Nobody: unsigned commits").tag(SetupChoices.Signing.unsigned)
-        }
-        .pickerStyle(.radioGroup)
-        .labelsHidden()
-        Group {
-            switch signing {
-            case .forgeKey:
-                Text("Forge makes a key, keeps it in your Keychain, and adds it to your GitHub account as a signing key. It asks before it adds it.")
-            case .ownGPG:
-                if keys.isEmpty {
-                    Text("No GPG key on this Mac can sign. Pick another option.")
-                } else {
-                    Picker("Key", selection: $gpgKey) {
-                        if gpgKey.isEmpty { Text("Choose…").tag("") }
-                        ForEach(keys) { Text("\($0.name) <\($0.email)>").tag($0.id) }
+        OptionList(
+            options: [
+                (SetupChoices.Signing.forgeKey, "Me, with a key Forge makes (recommended)"),
+                (SetupChoices.Signing.ownGPG, "Me, with my own GPG key"),
+                (SetupChoices.Signing.unsigned, "Nobody: unsigned commits"),
+            ], selection: $signing
+        ) { _ in
+            Group {
+                switch signing {
+                case .forgeKey:
+                    Text(
+                        "Forge makes a key, keeps it in your Keychain, and adds it to your GitHub account as a signing key. It asks before it adds it."
+                    )
+                case .ownGPG:
+                    if keys.isEmpty {
+                        Text("No GPG key on this Mac can sign. Pick another option.")
+                    } else {
+                        Picker("Key", selection: $gpgKey) {
+                            if gpgKey.isEmpty { Text("Choose…").tag("") }
+                            ForEach(keys) { Text("\($0.name) <\($0.email)>").tag($0.id) }
+                        }
+                        .fixedSize()
+                        Text("Your key must already be on your GitHub account for commits to show as Verified.")
                     }
-                    .frame(maxWidth: 420)
-                    Text("Your key must already be on your GitHub account for commits to show as Verified.")
+                case .unsigned:
+                    Toggle("I understand GitHub will show these commits as Unverified.", isOn: $understood)
                 }
-            case .unsigned:
-                Toggle("I understand GitHub will show these commits as Unverified.", isOn: $understood)
             }
+            .font(Theme.sans(13))
+            .foregroundStyle(Theme.textSec)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.system(size: 13))
-        .foregroundStyle(.secondary)
-        .padding(.top, 12)
-        .padding(.leading, 20)
+        .frame(maxWidth: 640)
+        if signing == .forgeKey {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "info.circle").font(.system(size: 11))
+                Text("This changes your GitHub account: it adds one SSH signing key named \"Forge\". You can remove it in GitHub's settings.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(Theme.sans(12))
+            .foregroundStyle(Theme.textMuted)
+            .frame(maxWidth: 620, alignment: .leading)
+            .padding(.top, 14)
+        }
     }
 
     private func load() async {
@@ -202,10 +222,13 @@ struct SignInBox: View {
     let open: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Forge uses your GitHub sign-in on this Mac. You're not signed in yet.")
-                .font(.system(size: 13))
-            Button("Sign in to GitHub", action: action).disabled(busy)
+                .font(Theme.sans(14))
+                .foregroundStyle(Theme.textSec)
+            Button("Sign in to GitHub", action: action)
+                .buttonStyle(ForgeButton(kind: .fix, large: true))
+                .disabled(busy)
             DeviceCodeLine(code: code, open: open)
         }
     }
@@ -218,10 +241,12 @@ struct DeviceCodeLine: View {
 
     var body: some View {
         if let code {
-            HStack(spacing: 12) {
-                Text(code).font(.system(size: 22, weight: .semibold, design: .monospaced)).textSelection(.enabled)
-                Button("Open GitHub", action: open)
-                Text("Type this code there, then come back.").font(.system(size: 12)).foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                Text(code).font(Theme.mono(22, .medium)).foregroundStyle(Theme.text).textSelection(.enabled)
+                    .padding(.horizontal, 12).frame(height: 40)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.25)))
+                Button("Open GitHub", action: open).buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.right.square"))
+                Text("Type this code there, then come back.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
             }
             .padding(.top, 14)
         }

@@ -21,6 +21,13 @@ enum SampleBoard {
                 ])
     }
 
+    /// The same board while Linear refuses to answer.
+    static var problem: EngineState {
+        var s = state
+        s.board?.problem = "Linear said: usage limit exceeded"
+        return s
+    }
+
     static var state: EngineState {
         let held = card(
             3, "Reject an empty password on the login page", "In Progress", activity: "Editing the README while helpers work", pr: true,

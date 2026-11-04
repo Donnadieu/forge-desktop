@@ -33,7 +33,10 @@ extension ScreenRender {
             Shot(name: "5-agent-sign-in", screen: 4, choices: repo, scene: "signed-out-guide"),
             Shot(name: "6-ready", screen: 5, choices: done),
             Shot(name: "6-ready-report", screen: 5, choices: report),
+            Shot(name: "6-ready-reading", screen: 5, choices: done, scene: "reading"),
             Shot(name: "7-board", screen: AppModel.boardScreen, choices: ready, engine: SampleBoard.state),
+            Shot(name: "7-board-problem", screen: AppModel.boardScreen, choices: ready, engine: SampleBoard.problem),
+            Shot(name: "7-board-reading", screen: AppModel.boardScreen, choices: ready),
         ]
     }
 }

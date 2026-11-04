@@ -48,10 +48,13 @@ enum Checks {
         }
         check("the app is called Forge", AppInfo.name == "Forge")
         check("the version comes from the bundle", AppInfo.version != "dev")
-        let renderer = ImageRenderer(content: RootView(model: AppModel(preview: true)).frame(width: 720, height: 560))
+        check("the Forge fonts ship inside the app and load", Theme.fontsLoaded)
+        let renderer = ImageRenderer(content: RootView(model: AppModel(preview: true)).frame(width: 1200, height: 800))
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
-        check("the main window's view draws", size.width == 720 && size.height == 560)
+        check("the main window's view draws", size.width == 1200 && size.height == 800)
+        check("a Linear key problem offers the key screen", ProblemBanner.fix(for: "Linear didn't accept this key.")?.isLink == false)
+        check("an unknown problem offers no button that can't fix it", ProblemBanner.fix(for: "Linear answered 502.") == nil)
         check("every pipeline column is missing from an empty team", Pipeline.missing(existing: []).count == 10)
         check(
             "a new Linear team misses six columns (Triage, AI Review, QA, Human Review, Rework, Merging)",

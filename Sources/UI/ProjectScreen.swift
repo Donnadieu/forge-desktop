@@ -27,28 +27,32 @@ struct ProjectScreen: View {
             busy: busy,
             action: finish
         ) {
-            HStack(spacing: 16) {
+            HStack(spacing: 24) {
                 Picker("Team", selection: $teamID) {
                     if teamID.isEmpty { Text("Choose…").tag("") }
                     ForEach(teams) { Text($0.name).tag($0.id) }
                 }
-                .frame(maxWidth: 240)
+                .fixedSize()
                 Picker("Project", selection: $projectID) {
                     if projectID.isEmpty { Text("Choose…").tag("") }
                     ForEach(projects) { Text($0.name).tag($0.id) }
                 }
-                .frame(maxWidth: 280)
+                .fixedSize()
                 .disabled(teamID.isEmpty)
             }
-            .padding(.bottom, 16)
+            .font(Theme.sans(13))
+            .foregroundStyle(Theme.textSec)
+            .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: !teamID.isEmpty)
             if !teamID.isEmpty && !missing.isEmpty && !existing.isEmpty {
-                HStack {
+                HStack(spacing: 12) {
                     Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from this team.")
-                        .font(.system(size: 13))
+                        .font(Theme.sans(13))
+                        .foregroundStyle(Theme.heatBright)
                     Button("Add them to Linear…") { asking = true }
+                        .buttonStyle(ForgeButton(kind: .fix))
                 }
-                .padding(.top, 12)
+                .padding(.top, 14)
             }
             ForEach(notes, id: \.self) { GoodLine(text: $0).padding(.top, 6) }
             ProblemLine(text: problem)
@@ -133,30 +137,36 @@ struct ProjectScreen: View {
     }
 }
 
-/// The ten columns with one plain line each; a check for the ones the team has.
+/// The ten columns with one plain line each, and whether the team has each one.
 struct ColumnList: View {
     let existing: [String]
     let showMarks: Bool
 
     var body: some View {
         let have = Set(existing.map(Pipeline.normalized))
-        VStack(alignment: .leading, spacing: 7) {
-            ForEach(Pipeline.columns, id: \.name) { c in
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    if showMarks {
-                        Image(systemName: have.contains(Pipeline.normalized(c.name)) ? "checkmark.circle.fill" : "plus.circle")
-                            .foregroundStyle(have.contains(Pipeline.normalized(c.name)) ? .green : .orange)
-                            .frame(width: 16)
-                    }
+        VStack(spacing: 0) {
+            ForEach(Array(Pipeline.columns.enumerated()), id: \.element.name) { i, c in
+                if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    ColumnDot(name: c.name).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
                     Text(c.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(width: 104, alignment: .leading)
+                        .font(Theme.sans(13, .semibold))
+                        .foregroundStyle(Theme.text)
+                        .frame(width: 108, alignment: .leading)
                     Text(c.line)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .font(Theme.sans(13))
+                        .foregroundStyle(Theme.textSec)
                         .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    if showMarks {
+                        let ok = have.contains(Pipeline.normalized(c.name))
+                        Chip(text: ok ? "In Linear" : "Missing", tone: ok ? .quiet : .heat)
+                    }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
             }
         }
+        .panel()
     }
 }

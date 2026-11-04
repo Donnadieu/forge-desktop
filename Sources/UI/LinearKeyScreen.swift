@@ -22,18 +22,29 @@ struct LinearKeyScreen: View {
             action: connected ? { model.next() } : check
         ) {
             if connected {
-                GoodLine(text: "Connected as \(model.choices.linearUser ?? "") in \(model.choices.linearOrg ?? "Linear").")
+                HStack(spacing: 12) {
+                    Initials(name: model.choices.linearUser ?? "", size: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(model.choices.linearUser ?? "").font(Theme.sans(14, .medium)).foregroundStyle(Theme.text)
+                        Text(model.choices.linearOrg ?? "Linear").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                    }
+                    Spacer()
+                    Chip(text: "Connected", tone: .good, dot: true)
+                }
+                .padding(14)
+                .frame(maxWidth: 460)
+                .panel()
                 Button("Use a different key") { changing = true }
-                    .buttonStyle(.link)
-                    .padding(.top, 8)
+                    .buttonStyle(ForgeButton(kind: .plain))
+                    .padding(.top, 12)
             } else {
-                SecureField("Linear key", text: $key)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 14, design: .monospaced))
+                Text("Linear personal key").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).padding(.bottom, 8)
+                SecureField("", text: $key)
+                    .forgeField(mono: true, hint: "Paste your key here", empty: key.isEmpty)
                     .frame(maxWidth: 460)
                 Button("Where do I find it?") { model.openLink("https://linear.app/settings/account/security") }
-                    .buttonStyle(.link)
-                    .padding(.top, 8)
+                    .buttonStyle(ForgeButton(kind: .plain, icon: "arrow.up.right.square"))
+                    .padding(.top, 12)
                 ProblemLine(text: problem)
             }
         }

@@ -24,19 +24,33 @@ struct RepoScreen: View {
             busy: busy,
             action: finish
         ) {
-            TextField("Search your repos", text: $filter)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 420)
-                .padding(.bottom, 8)
-            List(shown, selection: $selected) { r in
-                HStack {
-                    Text(r.fullName).font(.system(size: 13))
-                    Spacer()
-                    if !r.canPush { Text("read only").font(.system(size: 11)).foregroundStyle(.secondary) }
+            TextField("", text: $filter)
+                .forgeField(hint: "Search your repos", empty: filter.isEmpty)
+                .frame(maxWidth: 520)
+                .padding(.bottom, 10)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(Array(shown.enumerated()), id: \.element.fullName) { i, r in
+                        let on = selected == r.fullName
+                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        HStack(spacing: 10) {
+                            Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(on ? Theme.heatBright : Theme.textMuted)
+                            Text(r.fullName).font(Theme.mono(13)).foregroundStyle(on ? Theme.text : Theme.textSec)
+                            Spacer()
+                            if !r.canPush { Chip(text: "Read only") }
+                            if on { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.heatBright) }
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 38)
+                        .background(on ? Theme.heat.opacity(0.10) : .clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selected = r.fullName }
+                    }
                 }
-                .tag(r.fullName)
             }
-            .frame(maxWidth: 520, minHeight: 180, maxHeight: 240)
+            .frame(maxWidth: 520, minHeight: 120, maxHeight: 240)
+            .fixedSize(horizontal: false, vertical: true)
+            .panel()
             if let s = selected, let ok = pushOK {
                 Group {
                     if ok {

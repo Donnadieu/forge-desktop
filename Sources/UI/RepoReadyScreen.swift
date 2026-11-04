@@ -29,12 +29,34 @@ struct RepoReadyScreen: View {
         ) {
             if reading, let started {
                 TimelineView(.periodic(from: started, by: 1)) { ctx in
-                    Text(
-                        "Reading \(repo)… \(Int(ctx.date.timeIntervalSince(started)) / 60) min \(Int(ctx.date.timeIntervalSince(started)) % 60) s. This can take several minutes."
-                    )
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    let s = Int(ctx.date.timeIntervalSince(started))
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            ProgressView().controlSize(.small)
+                            Text("Reading \(repo)…").font(Theme.mono(13)).foregroundStyle(Theme.text)
+                            Spacer()
+                            Text("\(s / 60) min \(s % 60) s").font(Theme.mono(12)).foregroundStyle(Theme.heatBright)
+                        }
+                        Text("This can take several minutes.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: 640)
+                    .panel()
                 }
+            } else if report == nil {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionLabel(text: "Your agent reads")
+                    ForEach(["How to build, test and run it", "Which checks and agent docs it already has", "The risky areas"], id: \.self) {
+                        line in
+                        HStack(spacing: 10) {
+                            Circle().fill(Theme.heat).frame(width: 5, height: 5)
+                            Text(line).font(Theme.sans(14)).foregroundStyle(Theme.textSec)
+                        }
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: 640, alignment: .leading)
+                .panel()
             }
             if let r = report { ReportView(report: r, chosen: $chosen) }
             ProblemLine(text: problem)
@@ -45,6 +67,10 @@ struct RepoReadyScreen: View {
     private func restore() {
         if model.preview {
             if model.choices.repoReadyCard == "show-report" { use(model.sample.report) }
+            if model.sample.scene == "reading" {
+                reading = true
+                started = Date().addingTimeInterval(-72)
+            }
             return
         }
         if let r = RepoReader.saved(for: repo) { use(r) }
@@ -113,25 +139,39 @@ struct ReportView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(report.summary, id: \.self) { Text($0).font(.system(size: 13)) }
-                if let m = report.missing, !m.isEmpty {
-                    Text("Missing: " + m.joined(separator: " · ")).font(.system(size: 12)).foregroundStyle(.secondary).padding(.top, 4)
-                }
-                Text("Guardrails").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).padding(.top, 12)
-                ForEach(report.guardrails) { g in
-                    Toggle(isOn: binding(g.id)) {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(g.title).font(.system(size: 13, weight: .medium))
-                            Text(g.why).font(.system(size: 12)).foregroundStyle(.secondary)
-                        }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(report.summary, id: \.self) { line in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Circle().fill(Theme.textMuted).frame(width: 4, height: 4).alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
+                        Text(line).font(Theme.sans(14)).foregroundStyle(Theme.text)
                     }
-                    .toggleStyle(.checkbox)
                 }
+                if let m = report.missing, !m.isEmpty {
+                    HStack(spacing: 6) {
+                        Text("Missing").font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.trailing, 4)
+                        ForEach(m, id: \.self) { Chip(text: $0, tone: .heat) }
+                    }
+                    .padding(.top, 6)
+                }
+                SectionLabel(text: "Guardrails").padding(.top, 18)
+                VStack(spacing: 0) {
+                    ForEach(Array(report.guardrails.enumerated()), id: \.element.id) { i, g in
+                        if i > 0 { Rectangle().fill(Theme.hairline).frame(height: 1) }
+                        CheckRow(on: binding(g.id)) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(g.title).font(Theme.sans(14, .medium)).foregroundStyle(Theme.text)
+                                Text(g.why).font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                    }
+                }
+                .panel()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 680, alignment: .leading)
         }
-        .frame(maxHeight: 400)
+        .frame(maxHeight: .infinity)
     }
 
     private func binding(_ id: String) -> Binding<Bool> {

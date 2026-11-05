@@ -1,14 +1,14 @@
 # Product sense
 
-**Who:** a developer with a Linear or Basecamp board and a GitHub repo who wants agents to drive cards to merged
+**Who:** a developer with a Linear, Basecamp or GitHub Issues board and a GitHub repo who wants agents to drive cards to merged
 pull requests, from a Mac app instead of a terminal.
 **North star:** simplicity. One workflow, one lead agent, the standard pipeline. If a screen needs
 explaining, it's wrong.
 
 ## Setup (six screens, one question each)
-1. Where the cards live: Linear (paste the key once) or Basecamp (approve a short code in the browser,
-   Basecamp's device sign-in). The sign-in goes into the Keychain.
-2. Pick the project (on Basecamp, its card table). Forge explains the pipeline and offers to create
+1. Where the cards live: Linear (paste the key once), Basecamp or GitHub Issues (approve a short code in
+   the browser, each one's device sign-in). The sign-in goes into the Keychain.
+2. Pick the project (on Basecamp, its card table; on GitHub, the project and the repo new issues go to). Forge explains the pipeline and offers to create
    missing statuses or columns:
    Backlog, Triage, Todo, In Progress, AI Review, QA, Human Review, Rework, Merging, Done.
 3. Sign in to GitHub and choose who authors and signs: you with a key Forge makes and registers,
@@ -26,7 +26,7 @@ Start and Stop. No number appears twice on it.
 many agents work at once, and has two switches for Forge to move cards out of Backlog itself: new
 unassigned cards to Triage (two at a time) and cards marked ready to Todo. Both start off. Nothing
 else: no per-stage agents, models or colours yet.
-**Settings** shows what Forge connects to (Linear or Basecamp, project, GitHub, repo, signing, agent); each
+**Settings** shows what Forge connects to (Linear, Basecamp or GitHub Issues, project, GitHub, repo, signing, agent); each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 
 ## Words on screen
@@ -37,7 +37,7 @@ sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
 
 ## Never
 - A browser page or web view. Forge is a native Mac window.
-- Change someone's Linear, Basecamp or GitHub without asking first (creating statuses or columns, registering a key).
+- Change someone's Linear, Basecamp or GitHub without asking first (creating statuses, columns or Status options, registering a key).
 - Keep a secret anywhere but the Keychain.
 - Hardcode a name, email or key ID.
 - Start a card whose commits would go out under the wrong name or unsigned without that being chosen.

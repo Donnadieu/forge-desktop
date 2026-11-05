@@ -141,7 +141,7 @@ struct CardDetail: View {
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.triangle.pull"))
                 }
                 if let u = card.url {
-                    Button("Open in \(model.choices.board.name)") { model.openLink(u) }
+                    Button("Open in \(model.choices.board.site)") { model.openLink(u) }
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.right.square"))
                 }
             }

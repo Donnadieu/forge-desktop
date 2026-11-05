@@ -66,6 +66,8 @@ export interface RefreshingBasecampTokenProviderOptions {
   onRefreshFailed?: (message: string) => void;
   now?: () => number;
   refreshSkewMs?: number;
+  /** Whose sign-in this is, for the message when it lapses (default Basecamp; Forge Desktop also uses GitHub). */
+  service?: string;
 }
 
 /**
@@ -122,7 +124,7 @@ export class RefreshingBasecampTokenProvider implements BasecampTokenProvider {
       return snapshot.accessToken;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      const message = `Basecamp sign-in needed: refresh failed (${detail})`;
+      const message = `${this.opts.service ?? "Basecamp"} sign-in needed: refresh failed (${detail})`;
       this.lastErrorMessage = message;
       this.opts.onRefreshFailed?.(message);
       throw new BasecampAuthRequiredError(message);

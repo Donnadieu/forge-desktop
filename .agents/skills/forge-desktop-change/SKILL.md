@@ -99,7 +99,7 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   Sign-in tokens are 108 characters: another length means the parser glued or cut text (check the
   length, never the value).
 
-### Trackers (Linear, Basecamp)
+### Trackers (Linear, Basecamp, GitHub Issues)
 - A new tracker touches every place that says Linear: `SetupChoices.board`, setup 1 and 2, `EngineSettings`
   (tracker block, environment, the note in front of lead.md), `AppModel.makeCard`/`projectURL`, the Orchestrator's
   words and fixes, `SetupApply`. `grep -rn Linear Sources` before calling it done.
@@ -119,3 +119,12 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - The engine's env check must accept every way a tracker can get its secret (Basecamp: the token command);
   run the real engine once (`node dist/index.js` with a scratch `FORGE_HOME`, never press Start) and read
   `/api/v1/state` before calling a tracker done. Unit tests didn't catch the refusal to start.
+- GitHub Issues: a project's built-in workflows set Status on their own ("Item added to project" to Todo, "Pull
+  request linked to issue" to In Progress) and fight the pipeline: in the live test a card went from Human Review
+  back to In Progress seconds after Forge moved it. Setup refuses to finish while they're on. Read them with
+  `ProjectV2.workflows { name enabled }`; there is no API to switch one off, only `deleteProjectV2Workflow`.
+- Adding Status options goes through `updateProjectV2Field(singleSelectOptions:)`, which replaces the whole list:
+  send every existing option with its `id` (or every card in it loses its column). Order is the list order.
+- Testing the GitHub sign-in from a sandbox: a scratch app copy and keychain (as for Basecamp), a stand-in device
+  server proves the save path (`FORGE_GITHUB_AUTH`), then one real approval; record live GraphQL answers by
+  wrapping `fetch` in the test script and keep them in `engine/test/fixtures/github/`.

@@ -44,7 +44,9 @@ struct HarnessStatusPanel: View {
                     HStack(spacing: 12) {
                         if let pr = record.prLine { Text(pr).font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
                         if let url = record.cardURL, let card = record.card, let openCard {
-                            Button("Open \(card) in \(url.contains("basecamp") ? "Basecamp" : "Linear")") { openCard(url) }.buttonStyle(
+                            Button("Open \(card) in \(url.contains("basecamp") ? "Basecamp" : url.contains("github.com") ? "GitHub" : "Linear")") {
+                                openCard(url)
+                            }.buttonStyle(
                                 ForgeButton(kind: .plain))
                         }
                     }

@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Setup 1: where the cards live (Linear or Basecamp), and signing in to it. Linear takes a personal key,
-/// checked with one real call; Basecamp signs in through the browser with a short code. Either way the
-/// secret goes only into the Keychain.
+/// Setup 1: where the cards live (Linear, Basecamp or GitHub Issues), and signing in to it. Linear takes a
+/// personal key, checked with one real call; Basecamp and GitHub sign in through the browser with a short
+/// code. Either way the secret goes only into the Keychain.
 struct TrackerScreen: View {
     @ObservedObject var model: AppModel
     @State private var picked: Tracker = .linear
@@ -11,6 +11,7 @@ struct TrackerScreen: View {
     @State private var problem: String?
     @State private var changing = false
     @StateObject private var basecamp = BasecampSignIn()
+    @StateObject private var github = GitHubBoardSignIn()
 
     /// The picked tracker is signed in and is the one setup saved.
     private var connected: Bool {
@@ -26,7 +27,7 @@ struct TrackerScreen: View {
                 + "the sign-in is kept in your Mac's Keychain and nowhere else.",
             primary: primaryTitle,
             primaryEnabled: primaryEnabled,
-            busy: busy || basecamp.waiting,
+            busy: busy || basecamp.waiting || github.waiting,
             action: primaryAction
         ) {
             Segmented(options: Tracker.allCases.map { ($0, $0.name) }, selection: $picked)
@@ -39,15 +40,20 @@ struct TrackerScreen: View {
                     .padding(.top, 12)
             } else if picked == .linear {
                 linearPanel
+            } else if picked == .github {
+                GitHubBoardSignInPanel(signIn: github, openLink: model.openLink)
             } else {
                 BasecampSignInPanel(signIn: basecamp, openLink: model.openLink)
             }
-            ProblemLine(text: problem ?? (picked == .basecamp ? basecamp.problem : nil))
+            ProblemLine(text: problem ?? (picked == .basecamp ? basecamp.problem : picked == .github ? github.problem : nil))
         }
         .onAppear {
             picked = model.sample.tracker ?? model.choices.board
             if model.preview && model.sample.scene == "basecamp-code" {
                 basecamp.start(preview: true, openLink: { _ in }) { _ in }
+            }
+            if model.preview && model.sample.scene == "github-code" {
+                github.start(preview: true, openLink: { _ in }) { _ in }
             }
         }
         .onChange(of: picked) { _, _ in problem = nil }
@@ -60,12 +66,24 @@ struct TrackerScreen: View {
 
     private var primaryEnabled: Bool {
         if connected { return true }
-        return picked == .linear ? !key.trimmingCharacters(in: .whitespaces).isEmpty : !basecamp.waiting
+        switch picked {
+        case .linear: return !key.trimmingCharacters(in: .whitespaces).isEmpty
+        case .basecamp: return !basecamp.waiting
+        case .github: return !github.waiting
+        }
     }
 
     private func primaryAction() {
         if connected { return model.next() }
         if picked == .linear { return checkLinear() }
+        if picked == .github {
+            return github.start(preview: model.preview, openLink: model.openLink) { board in
+                switchTo(.github)
+                model.choices.githubBoard = board
+                changing = false
+                model.next()
+            }
+        }
         basecamp.start(preview: model.preview, openLink: model.openLink) { board in
             switchTo(.basecamp)
             model.choices.basecamp = board

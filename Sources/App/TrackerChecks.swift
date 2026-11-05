@@ -20,6 +20,20 @@ extension ScreenRender {
             Shot(name: "7-orchestrator-basecamp", screen: AppModel.boardScreen, choices: ready, engine: SampleBoard.state),
         ]
     }
+
+    /// Setup 1 and 2 on GitHub Issues.
+    static func githubShots() -> [Shot] {
+        var signed = SetupChoices()
+        signed.tracker = .github
+        signed.githubBoard = GitHubBoard(login: "samrivera", name: "Sam Rivera")
+        return [
+            Shot(name: "1-github-sign-in", screen: 0, scene: "github"),
+            Shot(name: "1-github-code", screen: 0, scene: "github-code"),
+            Shot(name: "1-github-connected", screen: 0, choices: signed),
+            Shot(name: "2-github-project", screen: 1, choices: signed),
+            Shot(name: "2-github-automations", screen: 1, choices: signed, scene: "github-movers", height: 1000),
+        ]
+    }
 }
 
 extension Checks {
@@ -76,9 +90,60 @@ extension Checks {
         check("the sign-in names its account", t.accountID == "6068025")
         let renewed = try? BasecampLogin.tokens(from: ["access_token": "b", "expires_in": 3600], keeping: t)
         check("a renewal that sends no new refresh token keeps the old one", renewed?.refreshToken == "r" && renewed?.resource == t.resource)
+        githubChecks(check)
         check(
             "a lapsed Basecamp sign-in offers the sign-in again",
             OrchestratorScreen.fix(for: "Forge couldn't read the board from Basecamp: Basecamp sign-in needed: refresh failed")?.title
                 == "Sign in to Basecamp again")
+    }
+}
+
+extension Checks {
+    /// Rules for a GitHub Issues board (a GitHub project's Status field gives the columns).
+    static func githubChecks(_ check: (String, Bool) -> Void) {
+        var c = SetupChoices()
+        c.tracker = .github
+        check("GitHub Issues chosen but not signed in stays on the first screen", c.nextScreen == 0)
+        c.githubBoard = GitHubBoard(login: "samrivera", name: "Sam Rivera")
+        check("signed in to GitHub moves on to the project", c.nextScreen == 1 && c.trackerUser == "Sam Rivera" && c.trackerOrg == "@samrivera")
+        c.githubBoard?.projectID = "PVT_9"
+        c.githubBoard?.statusFieldID = "PVTSSF_3"
+        c.githubBoard?.issueRepo = "acme/app"
+        c.githubBoard?.columns = Dictionary(uniqueKeysWithValues: Pipeline.names.enumerated().map { ($0.element, "o\($0.offset)") })
+        (c.projectSlug, c.columnsReady) = ("PVT_9", true)
+        let fm = EngineSettings.frontMatter(c, cardsFolder: "/c")
+        check(
+            "a GitHub board names its project, Status field and options",
+            fm.contains("  kind: github\n  project_slug: \"PVT_9\"\n  status_field_id: \"PVTSSF_3\"\n  columns:\n")
+                && fm.contains("    \"Backlog\": \"o0\"") && fm.contains("    \"Done\": \"o9\""))
+        let note = EngineSettings.boardNote(c, template: "p=@@PROJECT@@ f=@@FIELD@@ r=@@REPO@@\n@@COLUMNS@@")
+        check("the GitHub note gets this board's ids", note?.hasPrefix("p=PVT_9 f=PVTSSF_3 r=acme/app\n  - Backlog: `o0`") == true)
+        check("the GitHub token command is this app with --github-token", EngineSettings.githubTokenCommand.hasSuffix(",\"--github-token\"]"))
+        let options = [GitHubProjectsAPI.Option(id: "a", name: "todo"), .init(id: "b", name: "In  progress"), .init(id: "c", name: "Done")]
+        check(
+            "Status options match whatever their case and spacing",
+            GitHubProjectsAPI.columnMap(options) == ["Todo": "a", "In Progress": "b", "Done": "c"])
+        let kept = GitHubProjectsAPI.optionsWith(
+            [.init(id: "a", name: "Todo", color: "BLUE", description: "x"), .init(id: "z", name: "Someday")],
+            adding: Pipeline.columns.filter { ["Backlog", "Rework"].contains($0.name) })
+        check(
+            "adding Status options keeps every existing option by its id, in pipeline order",
+            kept.map { $0["name"] as? String ?? "" } == ["Backlog", "Todo", "Rework", "Someday"] && kept[1]["id"] as? String == "a"
+                && kept[1]["color"] as? String == "BLUE" && kept[0]["id"] == nil && kept[2]["color"] as? String == "RED"
+                && kept[3]["id"] as? String == "z")
+        check(
+            "GitHub automations that move cards are found when they're on",
+            GitHubProjectsAPI.movers([
+                ["name": "Item added to project", "enabled": true], ["name": "Item closed", "enabled": true],
+                ["name": "Pull request linked to issue", "enabled": false],
+            ]) == ["Item added to project"])
+        let scoped = GitHubLogin.Tokens(accessToken: "t", scope: "project,read:org,repo")
+        check("a sign-in with the project scope can use projects", scoped.canUseProjects)
+        check("a sign-in without it can't", !GitHubLogin.Tokens(accessToken: "t", scope: "repo,read:org").canUseProjects)
+        check(
+            "a lapsed GitHub board sign-in offers the sign-in again",
+            OrchestratorScreen.fix(for: "Forge couldn't read the board from GitHub: GitHub sign-in needed: refresh failed")?.title
+                == "Sign in to GitHub again")
+        check("a GitHub board opens cards on GitHub", Tracker.github.site == "GitHub" && Tracker.basecamp.site == "Basecamp")
     }
 }

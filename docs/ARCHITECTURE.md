@@ -38,8 +38,8 @@ Layer N may import only from lower layers. Enforced by `engine/test/architecture
 | 0 | `process/` | process tree start/kill, process table (Linux and macOS) | none |
 | 0 | `telemetry/` | per-card telemetry types | tracker |
 | 1 | `agent/` | Claude Code, Codex, Kimi runners | process, config |
-| 1 | `tracker/` | Linear, Basecamp (and an in-memory board for tests) | observability |
-| 1 | `mcp/` | Linear or Basecamp tools for agents | tracker, observability, config |
+| 1 | `tracker/` | Linear, Basecamp, GitHub Issues (and an in-memory board for tests) | observability |
+| 1 | `mcp/` | Linear, Basecamp or GitHub tools for agents | tracker, observability, config |
 | 1 | `workspace/` | one folder per card, hooks, skills copy, git identity | tracker, process |
 | 1 | `store/` | the engine's SQLite file: Start/Stop intent, finished runs and their tokens | none |
 | 2 | `worker/` | one card's agent run, turns, the lead waiting for its helpers (`helper-wait.ts`) | agent, tracker, workspace, telemetry |
@@ -72,6 +72,16 @@ The full import list (which Forge files come over) is in the plan,
   the token in the Keychain under a file lock and prints a short-lived one. On a Basecamp board the app puts
   `engine/workflow/basecamp.md` in front of the lead's instructions, with the board's ids filled in: it maps
   every Linear step to Basecamp (HTML comments, `Label:` lines for labels, the move endpoint).
+- GitHub Issues: the board is a GitHub project (v2). Its single-select Status field is the column (one option
+  per pipeline column, matched by name; setup adds the missing ones keeping every existing option's id), the
+  issues carry assignees, labels and comments, and the pull request that closes an issue is its pull request.
+  The sign-in is GitHub's device sign-in (`Core/GitHubLogin.swift`, the public client GitHub's own CLI uses,
+  scopes `repo read:org project`, since the Mac's `gh` sign-in usually lacks `project`); the token lives only in
+  the Keychain (`github-tracker-login`) and doesn't expire. The engine (`tracker/github.ts`) and the agents'
+  `github_graphql` tool run `Forge --github-token` (`FORGE_GITHUB_TOKEN_COMMAND`). The app puts
+  `engine/workflow/github.md` in front of the lead's instructions. GitHub's own project automations that set
+  Status ("Item added to project", "Pull request linked to issue"...) fight the pipeline, so setup asks the
+  person to turn them off.
 - The Linear tools for agents are configured with a `${LINEAR_API_KEY}` placeholder, filled from the agent's
   environment, so no key is ever written into a card's folder.
 
@@ -90,7 +100,7 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   once, read-only (Claude Code with only Read/Grep/Glob allowed; Codex with `--sandbox read-only`), with
   the bundled `repo-assessment` skill. The answer ends in a JSON block: summary, what's missing, risks,
   and the guardrails worth adding. It's saved in `repo-report.json`, so closing Forge doesn't lose it.
-- The person ticks guardrails; Forge makes one card in Todo (Linear or Basecamp) whose description lists them and
+- The person ticks guardrails; Forge makes one card in Todo (Linear, Basecamp or GitHub Issues) whose description lists them and
   names the `harness-engineering` skill. The pipeline does the rest: a pull request that lands in Human
   Review. "Skip for now" moves on; Settings' Harness engineering tile brings the screen back.
 - Kimi can't do the read yet (it says so on the screen).
@@ -108,7 +118,7 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 
 ## The board
 
-- The engine reads every card in the board's columns (`board.columns`) from Linear or Basecamp on start, on every
+- The engine reads every card in the board's columns (`board.columns`) from Linear, Basecamp or GitHub on start, on every
   poll interval and on Refresh, and merges in what each agent holding a card is doing:
   one plain line built from its events (`orchestrator/activity.ts`), its helpers, and its last lines.
 - The state reaches the app over the live WebSocket when it changes. The app never polls.

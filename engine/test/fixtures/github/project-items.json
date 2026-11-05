@@ -1,0 +1,298 @@
+{
+ "variables": {
+  "project": "PVT_kwHOAVs6k84BqVu3",
+  "after": null
+ },
+ "response": {
+  "data": {
+   "node": {
+    "items": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpKqMDAwMDAwMDAuMs4Rk0ji"
+     },
+     "nodes": [
+      {
+       "id": "PVTI_lAHOAVs6k84BqVu3zhGTMyw",
+       "content": {
+        "__typename": "Issue",
+        "id": "I_kwDOVkEq-M8AAAABcw9X1Q",
+        "number": 1,
+        "title": "Existing card: keeps its column when Forge adds columns",
+        "body": "Test card for Forge Desktop (safe to ignore).",
+        "url": "https://github.com/Donnadieu/forge-desktop-test/issues/1",
+        "state": "OPEN",
+        "createdAt": "2026-11-05T14:39:46Z",
+        "updatedAt": "2026-11-05T14:39:46Z",
+        "repository": {
+         "name": "forge-desktop-test",
+         "nameWithOwner": "Donnadieu/forge-desktop-test"
+        },
+        "assignees": {
+         "nodes": []
+        },
+        "labels": {
+         "nodes": []
+        },
+        "blockedBy": {
+         "nodes": []
+        },
+        "closedByPullRequestsReferences": {
+         "nodes": []
+        },
+        "projectItems": {
+         "nodes": [
+          {
+           "id": "PVTI_lAHOAVs6k84BqVu3zhGTMyw",
+           "project": {
+            "id": "PVT_kwHOAVs6k84BqVu3"
+           },
+           "fieldValues": {
+            "nodes": [
+             {},
+             {},
+             {
+              "optionId": "47fc9ee4",
+              "field": {
+               "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": "PVTI_lAHOAVs6k84BqVu3zhGTSGg",
+       "content": {
+        "__typename": "Issue",
+        "id": "I_kwDOVkEq-M8AAAABcw-jeg",
+        "number": 2,
+        "title": "Untriaged card",
+        "body": "Test card for Forge Desktop (safe to ignore).",
+        "url": "https://github.com/Donnadieu/forge-desktop-test/issues/2",
+        "state": "OPEN",
+        "createdAt": "2026-11-05T14:40:55Z",
+        "updatedAt": "2026-11-05T14:42:04Z",
+        "repository": {
+         "name": "forge-desktop-test",
+         "nameWithOwner": "Donnadieu/forge-desktop-test"
+        },
+        "assignees": {
+         "nodes": []
+        },
+        "labels": {
+         "nodes": []
+        },
+        "blockedBy": {
+         "nodes": []
+        },
+        "closedByPullRequestsReferences": {
+         "nodes": []
+        },
+        "projectItems": {
+         "nodes": [
+          {
+           "id": "PVTI_lAHOAVs6k84BqVu3zhGTSGg",
+           "project": {
+            "id": "PVT_kwHOAVs6k84BqVu3"
+           },
+           "fieldValues": {
+            "nodes": [
+             {},
+             {},
+             {
+              "optionId": "90228fc5",
+              "field": {
+               "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": "PVTI_lAHOAVs6k84BqVu3zhGTSJU",
+       "content": {
+        "__typename": "Issue",
+        "id": "I_kwDOVkEq-M8AAAABcw-klw",
+        "number": 3,
+        "title": "Triaged card",
+        "body": "Test card for Forge Desktop (safe to ignore).",
+        "url": "https://github.com/Donnadieu/forge-desktop-test/issues/3",
+        "state": "OPEN",
+        "createdAt": "2026-11-05T14:40:56Z",
+        "updatedAt": "2026-11-05T14:40:59Z",
+        "repository": {
+         "name": "forge-desktop-test",
+         "nameWithOwner": "Donnadieu/forge-desktop-test"
+        },
+        "assignees": {
+         "nodes": []
+        },
+        "labels": {
+         "nodes": [
+          {
+           "name": "ready-for-execution"
+          }
+         ]
+        },
+        "blockedBy": {
+         "nodes": []
+        },
+        "closedByPullRequestsReferences": {
+         "nodes": []
+        },
+        "projectItems": {
+         "nodes": [
+          {
+           "id": "PVTI_lAHOAVs6k84BqVu3zhGTSJU",
+           "project": {
+            "id": "PVT_kwHOAVs6k84BqVu3"
+           },
+           "fieldValues": {
+            "nodes": [
+             {},
+             {},
+             {},
+             {
+              "optionId": "90228fc5",
+              "field": {
+               "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": "PVTI_lAHOAVs6k84BqVu3zhGTSMA",
+       "content": {
+        "__typename": "Issue",
+        "id": "I_kwDOVkEq-M8AAAABcw-lmg",
+        "number": 4,
+        "title": "Card with a pull request",
+        "body": "Test card for Forge Desktop (safe to ignore).",
+        "url": "https://github.com/Donnadieu/forge-desktop-test/issues/4",
+        "state": "OPEN",
+        "createdAt": "2026-11-05T14:40:57Z",
+        "updatedAt": "2026-11-05T14:44:03Z",
+        "repository": {
+         "name": "forge-desktop-test",
+         "nameWithOwner": "Donnadieu/forge-desktop-test"
+        },
+        "assignees": {
+         "nodes": []
+        },
+        "labels": {
+         "nodes": []
+        },
+        "blockedBy": {
+         "nodes": []
+        },
+        "closedByPullRequestsReferences": {
+         "nodes": [
+          {
+           "url": "https://github.com/Donnadieu/forge-desktop-test/pull/6"
+          }
+         ]
+        },
+        "projectItems": {
+         "nodes": [
+          {
+           "id": "PVTI_lAHOAVs6k84BqVu3zhGTSMA",
+           "project": {
+            "id": "PVT_kwHOAVs6k84BqVu3"
+           },
+           "fieldValues": {
+            "nodes": [
+             {},
+             {},
+             {},
+             {
+              "optionId": "f99757e2",
+              "field": {
+               "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": "PVTI_lAHOAVs6k84BqVu3zhGTSOI",
+       "content": {
+        "__typename": "Issue",
+        "id": "I_kwDOVkEq-M8AAAABcw-mtQ",
+        "number": 5,
+        "title": "Blocked card",
+        "body": "Test card for Forge Desktop (safe to ignore).",
+        "url": "https://github.com/Donnadieu/forge-desktop-test/issues/5",
+        "state": "OPEN",
+        "createdAt": "2026-11-05T14:40:58Z",
+        "updatedAt": "2026-11-05T14:40:58Z",
+        "repository": {
+         "name": "forge-desktop-test",
+         "nameWithOwner": "Donnadieu/forge-desktop-test"
+        },
+        "assignees": {
+         "nodes": []
+        },
+        "labels": {
+         "nodes": []
+        },
+        "blockedBy": {
+         "nodes": [
+          {
+           "number": 2,
+           "state": "OPEN",
+           "repository": {
+            "name": "forge-desktop-test"
+           }
+          }
+         ]
+        },
+        "closedByPullRequestsReferences": {
+         "nodes": []
+        },
+        "projectItems": {
+         "nodes": [
+          {
+           "id": "PVTI_lAHOAVs6k84BqVu3zhGTSOI",
+           "project": {
+            "id": "PVT_kwHOAVs6k84BqVu3"
+           },
+           "fieldValues": {
+            "nodes": [
+             {},
+             {},
+             {
+              "optionId": "f75ad846",
+              "field": {
+               "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+              }
+             }
+            ]
+           }
+          }
+         ]
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

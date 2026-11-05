@@ -1,0 +1,68 @@
+{
+ "variables": {
+  "ids": [
+   "I_kwDOVkEq-M8AAAABcw-jeg"
+  ]
+ },
+ "response": {
+  "data": {
+   "nodes": [
+    {
+     "__typename": "Issue",
+     "id": "I_kwDOVkEq-M8AAAABcw-jeg",
+     "number": 2,
+     "title": "Untriaged card",
+     "body": "Test card for Forge Desktop (safe to ignore).",
+     "url": "https://github.com/Donnadieu/forge-desktop-test/issues/2",
+     "state": "OPEN",
+     "createdAt": "2026-11-05T14:40:55Z",
+     "updatedAt": "2026-11-05T14:44:36Z",
+     "repository": {
+      "name": "forge-desktop-test",
+      "nameWithOwner": "Donnadieu/forge-desktop-test"
+     },
+     "assignees": {
+      "nodes": [
+       {
+        "id": "MDQ6VXNlcjIyNzU1OTg3",
+        "login": "Donnadieu"
+       }
+      ]
+     },
+     "labels": {
+      "nodes": []
+     },
+     "blockedBy": {
+      "nodes": []
+     },
+     "closedByPullRequestsReferences": {
+      "nodes": []
+     },
+     "projectItems": {
+      "nodes": [
+       {
+        "id": "PVTI_lAHOAVs6k84BqVu3zhGTSGg",
+        "project": {
+         "id": "PVT_kwHOAVs6k84BqVu3"
+        },
+        "fieldValues": {
+         "nodes": [
+          {},
+          {},
+          {},
+          {
+           "optionId": "87daeb1a",
+           "field": {
+            "id": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw"
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

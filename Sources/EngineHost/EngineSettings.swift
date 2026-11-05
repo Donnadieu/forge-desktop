@@ -94,6 +94,15 @@ enum EngineSettings {
     /// Which board the engine reads: Linear names the project; Basecamp also names the account, the card
     /// table, the person Forge assigns cards to, and the column id of each pipeline column.
     static func trackerLines(_ c: SetupChoices) -> [String] {
+        if c.board == .github, let g = c.githubBoard {
+            let cols = g.columns ?? [:]
+            return [
+                "  kind: github",
+                "  project_slug: \(quoted(g.projectID ?? ""))",
+                "  status_field_id: \(quoted(g.statusFieldID ?? ""))",
+                "  columns:",
+            ] + Pipeline.names.compactMap { n in cols[n].map { "    \(quoted(n)): \(quoted($0))" } }
+        }
         guard c.board == .basecamp, let b = c.basecamp else {
             return ["  kind: linear", "  project_slug: \(quoted(c.projectSlug ?? ""))"]
         }
@@ -110,9 +119,19 @@ enum EngineSettings {
         return lines
     }
 
-    /// The Basecamp section put in front of the lead's instructions (engine/workflow/basecamp.md), with
-    /// this board's ids filled in. Nil for Linear.
+    /// The tracker's section put in front of the lead's instructions (engine/workflow/basecamp.md or
+    /// github.md), with this board's ids filled in. Nil for Linear.
     static func boardNote(_ c: SetupChoices, template: String?) -> String? {
+        if c.board == .github, let g = c.githubBoard, let template {
+            let cols = g.columns ?? [:]
+            let list = Pipeline.names.compactMap { n in cols[n].map { "  - \(n): `\($0)`" } }.joined(separator: "\n")
+            return
+                template
+                .replacingOccurrences(of: "@@PROJECT@@", with: g.projectID ?? "")
+                .replacingOccurrences(of: "@@FIELD@@", with: g.statusFieldID ?? "")
+                .replacingOccurrences(of: "@@REPO@@", with: g.issueRepo ?? "")
+                .replacingOccurrences(of: "@@COLUMNS@@", with: list)
+        }
         guard c.board == .basecamp, let b = c.basecamp, let template else { return nil }
         let cols = b.columns ?? [:]
         let list = Pipeline.names.compactMap { n in cols[n].map { "  - \(n): `\($0)`" } }.joined(separator: "\n")
@@ -125,9 +144,14 @@ enum EngineSettings {
     }
 
     /// The command the engine and the agents' Basecamp tool run for a fresh token: this app, `--basecamp-token`.
-    static var basecampTokenCommand: String {
+    static var basecampTokenCommand: String { selfCommand("--basecamp-token") }
+
+    /// The same for a GitHub Issues board: this app, `--github-token`.
+    static var githubTokenCommand: String { selfCommand("--github-token") }
+
+    private static func selfCommand(_ flag: String) -> String {
         let me = Bundle.main.executablePath ?? CommandLine.arguments[0]
-        let data = (try? JSONSerialization.data(withJSONObject: [me, "--basecamp-token"], options: [.withoutEscapingSlashes])) ?? Data()
+        let data = (try? JSONSerialization.data(withJSONObject: [me, flag], options: [.withoutEscapingSlashes])) ?? Data()
         return String(data: data, encoding: .utf8) ?? "[]"
     }
 
@@ -145,9 +169,9 @@ enum EngineSettings {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         try FileManager.default.createDirectory(at: Paths.cards, withIntermediateDirectories: true)
-        let note = boardNote(
-            c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent("workflow/basecamp.md"), encoding: .utf8) })
-        if c.board == .basecamp, note == nil { throw Problem(description: "The Basecamp instructions are missing from the app.") }
+        let file = c.board == .github ? "workflow/github.md" : "workflow/basecamp.md"
+        let note = boardNote(c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent(file), encoding: .utf8) })
+        if c.board != .linear, note == nil { throw Problem(description: "The \(c.board.name) instructions are missing from the app.") }
         let text =
             frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + (note ?? "")
             + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
@@ -166,6 +190,10 @@ enum EngineSettings {
             // No token here: the engine asks this app for one (`--basecamp-token`), which renews it in the Keychain.
             guard BasecampLogin.load() != nil else { throw Problem(description: "Forge isn't signed in to Basecamp. Run setup again.") }
             env["FORGE_BASECAMP_TOKEN_COMMAND"] = basecampTokenCommand
+        case .github:
+            // No token here either: the engine and the agents' tool ask this app (`--github-token`).
+            guard GitHubLogin.load() != nil else { throw Problem(description: "Forge isn't signed in to GitHub for the board. Run setup again.") }
+            env["FORGE_GITHUB_TOKEN_COMMAND"] = githubTokenCommand
         }
         // Agents run unattended: the commit skill commits without asking.
         env["COMMIT_AUTO_MODE"] = "true"

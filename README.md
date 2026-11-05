@@ -25,7 +25,8 @@ You need a Mac with Apple Silicon and macOS 14 or newer.
 2. Drag **Forge** into **Applications** and open it.
 3. Have these ready (setup checks each one and tells you what's missing):
    - somewhere for the tasks: a **Linear** project (and a personal API key from Linear's
-     settings) or a **Basecamp** project with a card table (you sign in through the browser),
+     settings), a **Basecamp** project with a card table, or **GitHub Issues** on a GitHub
+     project (for both, you sign in through the browser),
    - the **GitHub CLI** (`gh`) on this Mac; Forge runs GitHub's sign-in for you inside the app,
    - one coding agent: **Claude Code** (your Pro or Max plan, or an API key), **Codex**
      (browser sign-in or an OpenAI key), or **Kimi** (a Moonshot key).
@@ -39,9 +40,10 @@ signature, lets running agents wrap up, swaps the app and reopens it.
 
 **Setup in six screens, one question each**
 
-1. **Cards:** pick Linear or Basecamp. Linear: paste your key once. Basecamp: approve a short code
-   in your browser. Either way the sign-in goes into the Keychain.
-2. **Project:** pick the project (and, on Basecamp, its card table). Forge explains the pipeline
+1. **Cards:** pick Linear, Basecamp or GitHub Issues. Linear: paste your key once. Basecamp and
+   GitHub: approve a short code in your browser. Either way the sign-in goes into the Keychain.
+2. **Project:** pick the project (on Basecamp, its card table; on GitHub, the project whose Status
+   field holds the columns, and the repo new issues go to). Forge explains the pipeline
    and offers to add any missing statuses or columns (Backlog, Triage, Todo, In Progress, AI Review, QA, Human Review, Rework, Merging, Done).
 3. **GitHub:** sign in and choose who authors and signs the commits: you with a key Forge makes
    and registers, your own GPG key, or unsigned (with a warning).
@@ -69,7 +71,7 @@ signature, lets running agents wrap up, swaps the app and reopens it.
 ![Your turn: merge, ask for changes, or start the next cards](docs/screenshots/your-turn.png)
 
 **Card detail:** what the agent is doing now, the helpers it sent, recent activity, its running
-notes (the workpad), the branch, and links to the pull request and the card in Linear or Basecamp.
+notes (the workpad), the branch, and links to the pull request and the card in Linear, Basecamp or GitHub.
 
 ![A card in progress](docs/screenshots/card.png)
 
@@ -78,7 +80,7 @@ and set how many agents work at once. Saving restarts the engine; agents pick th
 
 ![Workflow Studio](docs/screenshots/workflow-studio.png)
 
-**Settings:** everything Forge connects to (Linear or Basecamp, project, GitHub, repo, signing, agent), each
+**Settings:** everything Forge connects to (Linear, Basecamp or GitHub Issues, project, GitHub, repo, signing, agent), each
 with Change to reopen that setup step.
 
 **Gets you unstuck by itself:** if an agent's sign-in runs out, Forge notices from the failure and
@@ -91,7 +93,7 @@ with its built-in sample board, so no real project data appears in them.
 
 Two parts in one app: the Mac window (Swift) and the board engine (TypeScript on a bundled Node),
 which runs beside it and is copied from Forge; see [engine/README.md](engine/README.md). The engine
-reads your Linear or Basecamp board, gives each card its own folder and branch, runs the agent there, and moves
+reads your Linear, Basecamp or GitHub Issues board, gives each card its own folder and branch, runs the agent there, and moves
 the card through the pipeline. The window shows the engine's state and sends your moves back.
 More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md).
 

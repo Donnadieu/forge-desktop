@@ -104,6 +104,9 @@ export const EnvSchema = z.object({
   //    as one JSON line (the app's own `--basecamp-token`, which keeps the
   //    sign-in in the Keychain). See src/tracker-factory.ts.
   FORGE_BASECAMP_TOKEN_COMMAND: optionalString,
+  // Forge Desktop, tracker: github. A JSON array naming a command that prints
+  // the GitHub tracker token as one JSON line (the app's `--github-token`).
+  FORGE_GITHUB_TOKEN_COMMAND: optionalString,
 
   // Commit identity for agent workspaces. When NAME and EMAIL are both set,
   // each workspace's LOCAL git config gets user.name/user.email, plus

@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// Secrets live here and nowhere else: the Linear key, the Basecamp sign-in, AI keys, the signing key Forge makes.
+/// Secrets live here and nowhere else: the Linear key, the Basecamp and GitHub board sign-ins, AI keys, the signing key Forge makes.
 /// One generic-password item per secret under Forge's own service name.
 enum Keychain {
     static let service = "ai.forjado.forge"
@@ -16,6 +16,8 @@ enum Keychain {
         case signingKey = "signing-key"
         /// The Basecamp sign-in (access and refresh tokens, as JSON). Only `BasecampLogin` reads it.
         case basecampLogin = "basecamp-login"
+        /// The GitHub sign-in for a GitHub Issues board (token and scopes, as JSON). Only `GitHubLogin` reads it.
+        case githubTrackerLogin = "github-tracker-login"
     }
 
     /// `FORGE_KEYCHAIN_SERVICE` gives checks their own service so they never touch the person's items.

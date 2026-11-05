@@ -59,7 +59,11 @@ export const PERSON_MOVES: Readonly<Record<string, readonly string[]>> = {
 
 /** The tracker's name as people say it. */
 export function trackerName(kind: string): string {
-  const names: Record<string, string> = { linear: "Linear", basecamp: "Basecamp" };
+  const names: Record<string, string> = {
+    linear: "Linear",
+    basecamp: "Basecamp",
+    github: "GitHub",
+  };
   return names[kind] ?? kind;
 }
 

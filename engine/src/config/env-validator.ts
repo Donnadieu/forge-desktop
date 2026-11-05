@@ -41,6 +41,15 @@ export function validateRequiredEnv(config: WorkflowConfig): void {
       missing.push("tracker.account_id (required in WORKFLOW.md for tracker: basecamp)");
     }
   }
+  if (config.tracker.kind === "github") {
+    // Forge Desktop: the app's token command; the project and its Status field from the workflow file.
+    if (!env.FORGE_GITHUB_TOKEN_COMMAND) {
+      missing.push("FORGE_GITHUB_TOKEN_COMMAND (required for tracker: github)");
+    }
+    if (!config.tracker.status_field_id) {
+      missing.push("tracker.status_field_id (required in WORKFLOW.md for tracker: github)");
+    }
+  }
 
   // Scan hook scripts for env var references
   const hooks = config.workspace.hooks;

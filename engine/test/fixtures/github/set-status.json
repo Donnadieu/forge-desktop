@@ -1,0 +1,17 @@
+{
+ "variables": {
+  "project": "PVT_kwHOAVs6k84BqVu3",
+  "item": "PVTI_lAHOAVs6k84BqVu3zhGTSGg",
+  "field": "PVTSSF_lAHOAVs6k84BqVu3zhotTTw",
+  "option": "90228fc5"
+ },
+ "response": {
+  "data": {
+   "updateProjectV2ItemFieldValue": {
+    "projectV2Item": {
+     "id": "PVTI_lAHOAVs6k84BqVu3zhGTSGg"
+    }
+   }
+  }
+ }
+}

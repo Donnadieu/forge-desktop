@@ -2,7 +2,7 @@ import Foundation
 
 /// `Forge --apply-setup <answers.json>`: the setup screens' answers without the window, through the same
 /// real checks (Linear's viewer call or Basecamp's, the push check, a signed test commit, the agent's real call).
-/// Basecamp needs a sign-in first (`Forge --basecamp-sign-in`).
+/// Basecamp and GitHub Issues need a sign-in first (`Forge --basecamp-sign-in`, `Forge --github-sign-in`).
 /// Keys come from the environment (FORGE_SETUP_LINEAR_KEY, FORGE_SETUP_AGENT_KEY), never the file;
 /// they go into the Keychain only after their check passes. Used for unattended end-to-end runs.
 enum SetupApply {
@@ -12,10 +12,12 @@ enum SetupApply {
         var tracker: Tracker?
         /// Linear only.
         var team: String?
-        /// The Linear project, or the Basecamp project.
+        /// The Linear project, the Basecamp project, or the GitHub project's title.
         var project: String
         /// Basecamp only, when the project has more than one card table.
         var cardTable: String?
+        /// GitHub Issues only: the repo new issues go to (default: `repo`).
+        var issueRepo: String?
         var createMissingColumns: Bool?
         var signing: SetupChoices.Signing
         var gpgKey: String?
@@ -56,6 +58,8 @@ enum SetupApply {
 
         if a.tracker == .basecamp {
             try await applyBasecamp(a, &c)
+        } else if a.tracker == .github {
+            try await applyGitHub(a, &c)
         } else {
             try await applyLinear(a, &c, key: env["FORGE_SETUP_LINEAR_KEY"])
         }
@@ -189,6 +193,62 @@ enum SetupApply {
         c.projectSlug = String(project.id)
         c.columnsReady = true
         print("✓ card table \(table.title) in \(project.name); all ten columns there")
+    }
+
+    static func applyGitHub(_ a: Answers, _ c: inout SetupChoices) async throws {
+        guard GitHubLogin.load() != nil else { throw Stop(description: "not signed in to GitHub for the board (run Forge --github-sign-in)") }
+        let api = GitHubProjectsAPI()
+        let me = try await api.viewer()
+        print("✓ GitHub board sign-in: \(me.login)")
+        guard let found = try await api.projects().first(where: { $0.title == a.project }) else {
+            throw Stop(description: "no GitHub project \(a.project)")
+        }
+        var project = try await api.project(found.id)
+        guard var status = project.status else { throw Stop(description: "\(found.title) has no Status field") }
+        var missing = Pipeline.missing(existing: status.options.map(\.name))
+        if !missing.isEmpty, a.createMissingColumns == true {
+            try await api.createMissing(field: status, missing)
+            project = try await api.project(found.id)
+            status = project.status ?? status
+            missing = Pipeline.missing(existing: status.options.map(\.name))
+        }
+        guard missing.isEmpty else { throw Stop(description: "the project's Status is missing \(missing.map(\.name).joined(separator: ", "))") }
+        guard project.movers.isEmpty else {
+            throw Stop(description: "turn off GitHub's \(project.movers.joined(separator: ", ")) workflows at \(found.url)/workflows")
+        }
+        let repo = a.issueRepo ?? a.repo
+        if !project.repos.contains(repo) {
+            try await api.link(project: found.id, repo: repo)
+            print("· linked \(repo) to \(found.title)")
+        }
+        c.tracker = .github
+        c.githubBoard = GitHubBoard(
+            login: me.login, name: me.name, projectID: found.id, projectTitle: found.title, projectURL: found.url, statusFieldID: status.id,
+            columns: GitHubProjectsAPI.columnMap(status.options), issueRepo: repo)
+        (c.projectID, c.projectName, c.projectSlug, c.columnsReady) = (found.id, found.title, found.id, true)
+        print("✓ project \(found.title); all ten columns in its Status")
+    }
+
+    /// `Forge --github-sign-in`: GitHub's device sign-in for the board without the window.
+    static func githubSignIn() -> Int32 {
+        let done = DispatchSemaphore(value: 0)
+        final class Box: @unchecked Sendable { var code: Int32 = 1 }
+        let box = Box()
+        Task.detached {
+            do {
+                let code = try await GitHubLogin.start()
+                print("Open \(code.verificationURL) and enter the code \(code.userCode)")
+                fflush(stdout)
+                let t = try await GitHubLogin.finish(code)
+                print(t.canUseProjects ? "✓ signed in to GitHub with the projects permission" : "✗ signed in, but without the projects permission")
+                box.code = t.canUseProjects ? 0 : 1
+            } catch {
+                print("✗ \(error)")
+            }
+            done.signal()
+        }
+        done.wait()
+        return box.code
     }
 
     /// `Forge --basecamp-sign-in`: prints the link and the code, waits for the approval, keeps the sign-in.

@@ -58,7 +58,7 @@ describe("validateRequiredEnv", () => {
     delete process.env.LINEAR_API_KEY;
     const config = makeConfig({
       tracker: {
-        kind: "github" as "linear",
+        kind: "jira" as "linear",
         project_slug: "test",
         active_states: ["Todo"],
         terminal_states: ["Done"],
@@ -82,6 +82,26 @@ describe("validateRequiredEnv", () => {
     expect(() => validateRequiredEnv(config)).not.toThrow();
     delete process.env.FORGE_BASECAMP_TOKEN_COMMAND;
     expect(() => validateRequiredEnv(config)).toThrow("FORGE_BASECAMP_TOKEN_COMMAND");
+  });
+
+  it("needs the app's GitHub token command and the project's Status field for a GitHub board", () => {
+    const config = makeConfig({
+      tracker: {
+        kind: "github",
+        project_slug: "PVT_1",
+        status_field_id: "PVTSSF_1",
+        active_states: ["Todo"],
+        terminal_states: ["Done"],
+      } as WorkflowConfig["tracker"],
+    });
+    process.env.FORGE_GITHUB_TOKEN_COMMAND = '["/x/Forge","--github-token"]';
+    expect(() => validateRequiredEnv(config)).not.toThrow();
+    delete process.env.FORGE_GITHUB_TOKEN_COMMAND;
+    expect(() => validateRequiredEnv(config)).toThrow("FORGE_GITHUB_TOKEN_COMMAND");
+    process.env.FORGE_GITHUB_TOKEN_COMMAND = '["/x/Forge","--github-token"]';
+    config.tracker.status_field_id = undefined;
+    expect(() => validateRequiredEnv(config)).toThrow("tracker.status_field_id");
+    delete process.env.FORGE_GITHUB_TOKEN_COMMAND;
   });
 
   it("throws when hook references a missing env var", () => {

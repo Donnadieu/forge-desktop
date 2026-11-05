@@ -1,0 +1,28 @@
+{
+ "variables": {
+  "issue": "I_kwDOVkEq-M8AAAABcw-jeg",
+  "users": [
+   "MDQ6VXNlcjIyNzU1OTg3"
+  ]
+ },
+ "response": {
+  "data": {
+   "addAssigneesToAssignable": {
+    "clientMutationId": null
+   }
+  },
+  "extensions": {
+   "warnings": [
+    {
+     "type": "DEPRECATION",
+     "message": "The id MDQ6VXNlcjIyNzU1OTg3 is deprecated. Update your cache to use the next_global_id from the data payload.",
+     "data": {
+      "legacy_global_id": "MDQ6VXNlcjIyNzU1OTg3",
+      "next_global_id": "U_kgDOAVs6kw"
+     },
+     "link": "https://docs.github.com"
+    }
+   ]
+  }
+ }
+}

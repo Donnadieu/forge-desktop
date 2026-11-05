@@ -277,7 +277,7 @@ struct OrchestratorTables: View {
 /// When the board has no cards: the anvil, one line of what to do next, and the one button for it.
 struct EmptyBoard: View {
     let project: String
-    /// Where the cards live: Linear or Basecamp.
+    /// Where the cards live: Linear, Basecamp or GitHub Issues.
     var tracker = "Linear"
     let openLinear: () -> Void
 

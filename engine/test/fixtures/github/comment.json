@@ -1,0 +1,17 @@
+{
+ "variables": {
+  "issue": "I_kwDOVkEq-M8AAAABcw-jeg",
+  "body": "## Forge Triage\n\nPlan: nothing, this is a test."
+ },
+ "response": {
+  "data": {
+   "addComment": {
+    "commentEdge": {
+     "node": {
+      "id": "IC_kwDOVkEq-M8AAAABjQUJPg"
+     }
+    }
+   }
+  }
+ }
+}

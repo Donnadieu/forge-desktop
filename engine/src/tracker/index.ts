@@ -1,4 +1,5 @@
 export { type BasecampAdapterOptions, BasecampTracker } from "./basecamp.js";
+export { type GitHubAdapterOptions, GitHubTracker } from "./github.js";
 export { LinearTracker } from "./linear.js";
 export { MemoryTracker } from "./memory.js";
 export type {

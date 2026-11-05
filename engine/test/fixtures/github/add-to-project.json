@@ -1,0 +1,15 @@
+{
+ "variables": {
+  "project": "PVT_kwHOAVs6k84BqVu3",
+  "content": "I_kwDOVkEq-M8AAAABcw-jeg"
+ },
+ "response": {
+  "data": {
+   "addProjectV2ItemById": {
+    "item": {
+     "id": "PVTI_lAHOAVs6k84BqVu3zhGTSGg"
+    }
+   }
+  }
+ }
+}

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
  * Build the MCP server configuration map for the orchestrator.
  *
  * @param trackerKind - The issue tracker kind (e.g. "linear")
- * @param board - Basecamp only: the board's account, read from the workflow file.
+ * @param board - Basecamp: the board's account; GitHub: its GraphQL endpoint. From the workflow file.
  */
 export function buildMcpServers(
   trackerKind: string,
@@ -47,6 +47,22 @@ export function buildMcpServers(
           BASECAMP_ACCOUNT_ID: board.accountId ?? "",
           BASECAMP_ENDPOINT: board.endpoint ?? "https://3.basecampapi.com",
           BASECAMP_TOKEN_COMMAND: process.env.FORGE_BASECAMP_TOKEN_COMMAND ?? "[]",
+        },
+      },
+    };
+  }
+
+  if (trackerKind === "github") {
+    mcpServers = {
+      "forge-github": {
+        command: process.execPath,
+        args: [
+          resolve(dirname(fileURLToPath(import.meta.url)), "..", "mcp", "github-graphql-server.js"),
+        ],
+        // No secret here: the server asks the app for the token (`--github-token`).
+        env: {
+          GITHUB_GRAPHQL_ENDPOINT: board.endpoint ?? "https://api.github.com/graphql",
+          GITHUB_TOKEN_COMMAND: process.env.FORGE_GITHUB_TOKEN_COMMAND ?? "[]",
         },
       },
     };

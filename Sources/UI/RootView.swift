@@ -10,7 +10,11 @@ struct RootView: View {
             switch model.screen {
             case 0: TrackerScreen(model: model)
             case 1:
-                if model.choices.board == .basecamp { BasecampProjectScreen(model: model) } else { ProjectScreen(model: model) }
+                switch model.choices.board {
+                case .basecamp: BasecampProjectScreen(model: model)
+                case .github: GitHubProjectScreen(model: model)
+                case .linear: ProjectScreen(model: model)
+                }
             case 2: GitHubScreen(model: model)
             case 3: RepoScreen(model: model)
             case 4: WorkerScreen(model: model)

@@ -1,17 +1,38 @@
 import Foundation
 
-/// Where the cards live: Linear or Basecamp. `SetupChoices.tracker` is nil for settings saved before
-/// Basecamp came, which means Linear.
+/// Where the cards live: Linear, Basecamp or GitHub Issues. `SetupChoices.tracker` is nil for settings saved
+/// before Basecamp came, which means Linear.
 enum Tracker: String, Codable, CaseIterable, Sendable {
-    case linear, basecamp
+    case linear, basecamp, github
 
     /// The name people know it by.
     var name: String {
         switch self {
         case .linear: return "Linear"
         case .basecamp: return "Basecamp"
+        case .github: return "GitHub Issues"
         }
     }
+
+    /// Where a card opens ("Open in GitHub").
+    var site: String { self == .github ? "GitHub" : name }
+}
+
+/// The GitHub Issues board setup picked: who signed in, the GitHub project (its Status field gives the
+/// columns), the repo new issues go to, and which Status option is each pipeline column. Never a secret.
+struct GitHubBoard: Codable, Equatable, Sendable {
+    var login: String
+    var name: String?
+    var projectID: String?
+    var projectTitle: String?
+    var projectURL: String?
+    var statusFieldID: String?
+    /// Pipeline column name -> Status option id.
+    var columns: [String: String]?
+    /// `owner/name`: where Forge files new issues (the repo-ready card, follow-ups).
+    var issueRepo: String?
+
+    var url: String { projectURL ?? "https://github.com/\(login)?tab=projects" }
 }
 
 /// The Basecamp board setup picked: the account, who Forge acts as, the project and its card table,
@@ -44,6 +65,7 @@ extension SetupChoices {
         switch board {
         case .linear: return linearUser
         case .basecamp: return basecamp?.personName
+        case .github: return githubBoard.map { $0.name ?? $0.login }
         }
     }
 
@@ -52,6 +74,7 @@ extension SetupChoices {
         switch board {
         case .linear: return linearOrg
         case .basecamp: return basecamp?.accountName
+        case .github: return githubBoard.map { "@\($0.login)" }
         }
     }
 }

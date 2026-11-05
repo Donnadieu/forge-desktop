@@ -20,6 +20,7 @@ import {
   RefreshingBasecampTokenProvider,
   StaticBasecampTokenProvider,
 } from "./tracker/basecamp-token-provider.js";
+import { GitHubTracker } from "./tracker/github.js";
 import { createTracker } from "./tracker/index.js";
 import type { TrackerAdapter } from "./tracker/types.js";
 
@@ -53,11 +54,34 @@ function basecampTokenProvider(env: NodeJS.ProcessEnv, logger?: Logger): Basecam
   return new StaticBasecampTokenProvider(env.FORGE_BASECAMP_API_KEY ?? "");
 }
 
+/**
+ * GitHub (Forge Desktop): the app prints the token the person signed in with
+ * (`Forge --github-token`, kept in the Keychain); the engine asks again each
+ * hour and after a 401.
+ */
+function githubTracker(config: WorkflowConfig, env: NodeJS.ProcessEnv, logger?: Logger) {
+  const command = tokenCommand(env.FORGE_GITHUB_TOKEN_COMMAND);
+  if (!command)
+    throw new Error("FORGE_GITHUB_TOKEN_COMMAND must be a JSON array (the app's --github-token)");
+  return new GitHubTracker({
+    endpoint: config.tracker.endpoint,
+    projectId: config.tracker.project_slug,
+    statusFieldId: config.tracker.status_field_id ?? "",
+    columns: config.tracker.columns,
+    tokenProvider: new RefreshingBasecampTokenProvider({
+      service: "GitHub",
+      refresh: createCommandTokenFn({ command }),
+      onRefreshFailed: (message) => logger?.warn({ message }, "github token not read"),
+    }),
+  });
+}
+
 export function createTrackerFromConfig(
   config: WorkflowConfig,
   env: NodeJS.ProcessEnv,
   logger?: Logger,
 ): TrackerAdapter {
+  if (config.tracker.kind === "github") return githubTracker(config, env, logger);
   if (config.tracker.kind === "basecamp") {
     return createTracker("basecamp", {
       tokenProvider: basecampTokenProvider(env, logger),

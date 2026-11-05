@@ -2,10 +2,12 @@ import Foundation
 
 /// What setup decided, kept in `setup.json` in Forge's folder. Never a secret: keys live in the Keychain.
 struct SetupChoices: Codable, Equatable, Sendable {
-    // 1. Where the cards live (optional: added in 0.3; nil = Linear). See Tracker.swift.
+    // 1. Where the cards live (optional: added in 0.2.15; nil = Linear). See Tracker.swift.
     var tracker: Tracker?
     /// The Basecamp account, person, project and columns, when the cards live in Basecamp.
     var basecamp: BasecampBoard?
+    /// The GitHub project, repo and columns, when the cards are GitHub issues (optional: added in 0.2.16).
+    var githubBoard: GitHubBoard?
     // Linear
     var linearUser: String?
     var linearOrg: String?

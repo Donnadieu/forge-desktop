@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// `Forge --render-screens <folder>`: draws every screen with sample data into PNGs, the way the real window
-/// shows them (real controls, not a snapshot of SwiftUI's drawing). Never touches Linear, Basecamp, GitHub or the Keychain.
+/// shows them (real controls, not a snapshot of SwiftUI's drawing). Never touches a tracker, GitHub or the Keychain.
 @MainActor
 enum ScreenRender {
     struct Shot {
@@ -25,7 +25,7 @@ enum ScreenRender {
             Shot(name: "1-linear-key", screen: 0),
             Shot(name: "1-linear-connected", screen: 0, choices: linked),
             Shot(name: "2-project", screen: 1, choices: linked),
-        ] + basecampShots() + extraShots(linked)
+        ] + basecampShots() + githubShots() + extraShots(linked)
     }
 
     static func run(into folder: String) -> Int32 {
@@ -39,6 +39,7 @@ enum ScreenRender {
             model.engine = shot.engine
             model.sample.scene = shot.scene
             if shot.scene?.hasPrefix("basecamp") == true || shot.choices.tracker == .basecamp { model.sample.tracker = .basecamp }
+            if shot.scene?.hasPrefix("github") == true || shot.choices.tracker == .github { model.sample.tracker = .github }
             if shot.changing { model.returnTo = AppModel.settingsScreen }
             if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
             if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }

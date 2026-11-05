@@ -9,6 +9,8 @@ import SwiftUI
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
 ///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it)
 ///   Forge --basecamp-sign-in    Basecamp's device sign-in without the window: prints the link and code, waits
+///   Forge --github-token        prints the GitHub board sign-in's token as one JSON line (for the engine)
+///   Forge --github-sign-in      GitHub's device sign-in for the board without the window
 @MainActor
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
@@ -35,6 +37,12 @@ enum Checks {
         }
         if args.contains("--basecamp-sign-in") {
             return SetupApply.basecampSignIn()
+        }
+        if args.contains("--github-token") {
+            return GitHubLogin.printToken()
+        }
+        if args.contains("--github-sign-in") {
+            return SetupApply.githubSignIn()
         }
         if let i = args.firstIndex(of: "--apply-setup"), i + 1 < args.count {
             return SetupApply.run(args[i + 1])

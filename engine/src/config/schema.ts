@@ -43,8 +43,12 @@ export const WorkflowConfigSchema = z.object({
     // Basecamp's real move semantics for its built-in Triage/NotNow column
     // archetypes go through this endpoint, not a bare card update.
     card_table_id: z.string().optional(),
-    // WORKFLOW.md stage name -> Basecamp Card Table column id.
+    // WORKFLOW.md stage name -> Basecamp Card Table column id, or (GitHub) the
+    // Status option id on the project.
     columns: z.record(z.string(), z.string()).default({}),
+    // GitHub only (Forge Desktop): the project's single-select Status field.
+    // `project_slug` is the project's node id (PVT_…).
+    status_field_id: z.string().optional(),
     // Forge moves cards out of Backlog itself (orchestrator/backlog-promotion.ts).
     // Both rules are off by default; the app turns them on from Workflow Studio.
     promote: z

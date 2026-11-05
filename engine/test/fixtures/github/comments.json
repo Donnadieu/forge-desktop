@@ -1,0 +1,40 @@
+{
+ "variables": {
+  "issue": "I_kwDOVkEq-M8AAAABcw-jeg",
+  "after": null
+ },
+ "response": {
+  "data": {
+   "node": {
+    "comments": {
+     "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "Y3Vyc29yOnYyOpHPAAAAAY0FCu8="
+     },
+     "nodes": [
+      {
+       "id": "IC_kwDOVkEq-M8AAAABjQQPgg",
+       "body": "## Forge Triage\n\nPlan: nothing, this is a test.",
+       "createdAt": "2026-11-05T14:42:00Z"
+      },
+      {
+       "id": "IC_kwDOVkEq-M8AAAABjQQQYg",
+       "body": "## Forge Workpad\n\n- [x] made the card\n- [x] edited the workpad in place",
+       "createdAt": "2026-11-05T14:42:01Z"
+      },
+      {
+       "id": "IC_kwDOVkEq-M8AAAABjQUJPg",
+       "body": "## Forge Triage\n\nPlan: nothing, this is a test.",
+       "createdAt": "2026-11-05T14:44:39Z"
+      },
+      {
+       "id": "IC_kwDOVkEq-M8AAAABjQUK7w",
+       "body": "## Forge Workpad\n\n- [x] made the card\n- [x] edited the workpad in place",
+       "createdAt": "2026-11-05T14:44:41Z"
+      }
+     ]
+    }
+   }
+  }
+ }
+}

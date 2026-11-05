@@ -35,6 +35,15 @@ final class AppModel: ObservableObject {
         var basecampTable: BasecampAPI.CardTable? = BasecampAPI.CardTable(
             id: 201, title: "Card Table",
             lists: ["Triage", "Todo", "In Progress", "Done"].enumerated().map { .init(id: 300 + $0.offset, title: $0.element, type: nil) })
+        var githubProjects = [
+            GitHubProjectsAPI.Project(id: "PVT_1", number: 1, title: "AI Trading Bot", url: "https://github.com/users/acme/projects/1", closed: false)
+        ]
+        var githubProject: GitHubProjectsAPI.ProjectDetail? = GitHubProjectsAPI.ProjectDetail(
+            project: GitHubProjectsAPI.Project(
+                id: "PVT_1", number: 1, title: "AI Trading Bot", url: "https://github.com/users/acme/projects/1", closed: false),
+            status: GitHubProjectsAPI.StatusField(
+                id: "PVTSSF_1", options: ["Todo", "In Progress", "Done"].enumerated().map { .init(id: "opt\($0.offset)", name: $0.element) }),
+            repos: ["acme/ai-trading-bot"])
         var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
         var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
         var workpad = """
@@ -150,7 +159,7 @@ final class AppModel: ObservableObject {
     /// Basecamp's API for the signed-in account.
     var basecampAPI: BasecampAPI? { choices.basecamp.map { BasecampAPI(accountID: $0.accountID) } }
 
-    /// Makes a card in the board's Todo column (Linear or Basecamp): its identifier and link.
+    /// Makes a card in the board's Todo column (Linear, Basecamp or GitHub Issues): its identifier and link.
     func makeCard(title: String, description: String) async throws -> (identifier: String, url: String) {
         switch choices.board {
         case .linear:
@@ -167,12 +176,22 @@ final class AppModel: ObservableObject {
             }
             let card = try await api.createCard(project: p, column: todo, title: title, content: BasecampAPI.html(description))
             return ("BC-\(card.id)", card.app_url ?? b.url)
+        case .github:
+            guard let g = choices.githubBoard, let project = g.projectID, let field = g.statusFieldID, let todo = g.columns?["Todo"],
+                let repo = g.issueRepo
+            else {
+                throw BasecampLogin.Failure(description: "Forge lost track of your GitHub project. Go back to the Project screen.")
+            }
+            let issue = try await GitHubProjectsAPI().createIssue(
+                repo: repo, project: project, field: field, option: todo, title: title, body: description)
+            return ("\(repo.split(separator: "/").last ?? "")#\(issue.number)", issue.url)
         }
     }
 
-    /// The project's page in Linear or Basecamp (the workspace's address when Forge knows it).
+    /// The project's page in Linear, Basecamp or GitHub (the workspace's address when Forge knows it).
     var projectURL: String {
         if choices.board == .basecamp { return choices.basecamp?.url ?? "https://launchpad.37signals.com" }
+        if choices.board == .github { return choices.githubBoard?.url ?? "https://github.com" }
         let key = choices.linearURLKey ?? engine?.cards.first?.url.flatMap { URL(string: $0)?.pathComponents.dropFirst().first }
         guard let key else { return "https://linear.app" }
         return "https://linear.app/\(key)" + (choices.projectSlug.map { "/project/\($0)" } ?? "")

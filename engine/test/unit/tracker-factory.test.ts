@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { WorkflowConfigSchema } from "../../src/config/schema.js";
 import { BasecampTracker } from "../../src/tracker/basecamp.js";
 import { createCommandTokenFn } from "../../src/tracker/basecamp-token-provider.js";
+import { GitHubTracker } from "../../src/tracker/github.js";
 import { LinearTracker } from "../../src/tracker/linear.js";
 import { createTrackerFromConfig, tokenCommand } from "../../src/tracker-factory.js";
 
@@ -17,6 +18,23 @@ describe("createTrackerFromConfig", () => {
     );
     expect(t).toBeInstanceOf(BasecampTracker);
     expect(t.kind).toBe("basecamp");
+  });
+
+  it("builds a GitHub board from the workflow file and the app's token command", () => {
+    const t = createTrackerFromConfig(
+      config({
+        kind: "github",
+        project_slug: "PVT_1",
+        status_field_id: "F",
+        columns: { Todo: "o1" },
+      }),
+      { FORGE_GITHUB_TOKEN_COMMAND: '["/bin/echo"]' },
+    );
+    expect(t).toBeInstanceOf(GitHubTracker);
+    expect(t.kind).toBe("github");
+    expect(() => createTrackerFromConfig(config({ kind: "github" }), {})).toThrow(
+      "FORGE_GITHUB_TOKEN_COMMAND",
+    );
   });
 
   it("builds a Linear board with the Linear key", () => {

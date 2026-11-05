@@ -6,12 +6,18 @@ struct WorkflowScreen: View {
     @ObservedObject var model: AppModel
     @State private var off: Set<String> = []
     @State private var agents = 1
+    @State private var toTriage = false
+    @State private var toTodo = false
     @State private var more = false
     @State private var showEngine = false
     @State private var restarting = false
 
     private var saved: (off: Set<String>, agents: Int) { (Set(model.choices.stagesOff ?? []), max(1, model.choices.agentsAtOnce ?? 1)) }
-    private var changes: Int { saved.off.symmetricDifference(off).count + (saved.agents == agents ? 0 : 1) }
+    private var savedMoves: (triage: Bool, todo: Bool) { (model.choices.sendNewToTriage ?? false, model.choices.startReady ?? false) }
+    private var changes: Int {
+        saved.off.symmetricDifference(off).count + (saved.agents == agents ? 0 : 1) + (savedMoves.triage == toTriage ? 0 : 1)
+            + (savedMoves.todo == toTodo ? 0 : 1)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,8 +45,10 @@ struct WorkflowScreen: View {
             off = saved.off
             agents = saved.agents
             more = agents > 4
+            (toTriage, toTodo) = savedMoves
             if model.preview, model.sample.scene == "qa-off" { off.insert("QA") }
             if model.preview, model.sample.scene == "restarting" { restarting = true }
+            if model.preview, model.sample.scene == "moves-on" { (toTriage, toTodo) = (true, true) }
         }
     }
 
@@ -102,6 +110,8 @@ struct WorkflowScreen: View {
             Text("Each agent takes one card and may send its own helpers.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
+            backlogMoves
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             Button {
                 withAnimation(.easeOut(duration: 0.2)) { showEngine.toggle() }
             } label: {
@@ -121,6 +131,35 @@ struct WorkflowScreen: View {
         }
         .padding(20)
         .panel()
+    }
+
+    // MARK: Forge moves cards out of Backlog
+
+    private var backlogMoves: some View {
+        let triageOn = !off.contains("Triage")
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "Forge moves cards out of Backlog")
+            moveRow(
+                "New cards to Triage",
+                triageOn
+                    ? "Unassigned cards not marked ready go to Triage, two at a time, so an agent plans them."
+                    : "Triage is off, so new cards stay in Backlog.",
+                on: $toTriage, enabled: triageOn)
+            moveRow("Ready cards to Todo", "Cards marked ready go to Todo, so an agent builds them.", on: $toTodo, enabled: true)
+            Text("Forge checks Backlog every 5 minutes.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+        }
+    }
+
+    private func moveRow(_ title: String, _ line: String, on: Binding<Bool>, enabled: Bool) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                Text(line).font(Theme.sans(11)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            ForgeToggle(on: enabled ? on : .constant(false)).opacity(enabled ? 1 : 0.4).allowsHitTesting(enabled)
+        }
+        .opacity(enabled ? 1 : 0.6)
     }
 
     private func chips(_ key: String, _ values: [String]) -> some View {
@@ -167,6 +206,8 @@ struct WorkflowScreen: View {
     private func save() {
         model.choices.stagesOff = Pipeline.optionalColumns.filter { off.contains($0) }
         model.choices.agentsAtOnce = max(1, agents)
+        model.choices.sendNewToTriage = toTriage
+        model.choices.startReady = toTodo
         model.save()
         restarting = true
         Task {

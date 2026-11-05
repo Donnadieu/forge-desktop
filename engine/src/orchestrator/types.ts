@@ -5,6 +5,7 @@ import type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry
 import type { NormalizedIssue, ProgressCounts, TrackerConfig } from "../tracker/types.js";
 import type { WorkerResult } from "../worker/runner.js";
 import type { HelperActivity } from "./activity.js";
+import type { BacklogPromotionConfig } from "./backlog-promotion.js";
 import type { CostCeilingConfig } from "./cost-ceiling.js";
 
 export type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
@@ -62,6 +63,12 @@ export interface OrchestratorConfig {
    * Ticket-claim settings used when `customWorkflows` is on. Ignored otherwise.
    */
   claimOptions?: ClaimDispatchOptions;
+  /**
+   * Forge moves cards out of `Backlog` itself (workflow file `tracker.promote`):
+   * untriaged cards into `Triage`, ready-for-execution cards into `Todo`. See
+   * `backlog-promotion.ts`. Omitted ⇒ Backlog is only ever emptied by a person.
+   */
+  backlogPromotion?: BacklogPromotionConfig;
   /**
    * Set when this box's build worker must not dispatch at all (FRG-2928: a
    * BYOK Smith whose own key can't back the worker would otherwise spend the

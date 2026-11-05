@@ -41,6 +41,11 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var agentsAtOnce: Int?
     // Harness engineering, per repo (optional: added after 0.2.5). See Harness.swift.
     var harness: [String: HarnessRecord]?
+    // Forge moves cards out of Backlog, from Workflow Studio (optional: added after 0.2.11; nil = off).
+    /// Unassigned Backlog cards that aren't marked ready go to Triage, so an agent plans them.
+    var sendNewToTriage: Bool?
+    /// Backlog cards marked ready go to Todo, so an agent builds them.
+    var startReady: Bool?
 
     enum Signing: String, Codable, CaseIterable, Sendable {
         /// A key Forge makes, kept in the Keychain and registered on the person's GitHub.

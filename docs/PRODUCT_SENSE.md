@@ -20,8 +20,10 @@ Then the **Orchestrator** (the main screen): what's in flight, four stats (Runni
 Tokens today, Runtime), Running sessions with each agent's live lines, Your turn, Up next, Later.
 Start and Stop. No number appears twice on it.
 
-**Workflow** turns optional stages off (Triage, AI Review, QA, Human Review, Merging) and sets how
-many agents work at once. Nothing else: no per-stage agents, models or colours yet.
+**Workflow Studio** turns optional stages off (Triage, AI Review, QA, Human Review, Merging), sets how
+many agents work at once, and has two switches for Forge to move cards out of Backlog itself: new
+unassigned cards to Triage (two at a time) and cards marked ready to Todo. Both start off. Nothing
+else: no per-stage agents, models or colours yet.
 **Settings** shows what Forge connects to (Linear, project, GitHub, repo, signing, agent); each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 

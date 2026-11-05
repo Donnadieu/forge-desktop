@@ -54,6 +54,7 @@ extension ScreenRender {
             Shot(name: "10-workflow", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state),
             Shot(name: "10-workflow-qa-off", screen: AppModel.workflowScreen, choices: ready, scene: "qa-off"),
             Shot(name: "10-workflow-restarting", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state, scene: "restarting"),
+            Shot(name: "10-workflow-moves-on", screen: AppModel.workflowScreen, choices: ready, scene: "moves-on"),
             Shot(name: "11-settings", screen: AppModel.settingsScreen, choices: ready),
         ] + changeShots(ready)
     }

@@ -86,6 +86,20 @@ enum Checks {
         check(
             "settings saved by 0.2.4 still load, with every stage on",
             (try? JSONDecoder().decode(SetupChoices.self, from: Data(older.utf8))).map { $0.worker == .apiKey && $0.stagesOff == nil } == true)
+        var moves = SetupChoices()
+        check("by default Forge moves no cards out of Backlog", !EngineSettings.frontMatter(moves, cardsFolder: "/c").contains("promote:"))
+        (moves.sendNewToTriage, moves.startReady) = (true, true)
+        let both = EngineSettings.frontMatter(moves, cardsFolder: "/c")
+        check(
+            "both Backlog switches reach the engine, inside the tracker block",
+            both.contains("  promote:\n    backlog_to_triage: true\n    ready_to_todo: true\nboard:"))
+        moves.stagesOff = ["Triage"]
+        check(
+            "with Triage off, new cards stay in Backlog",
+            EngineSettings.promoteLines(moves) == ["  promote:", "    backlog_to_triage: false", "    ready_to_todo: true"])
+        check(
+            "older settings still load, with no Backlog moves",
+            (try? JSONDecoder().decode(SetupChoices.self, from: Data(older.utf8))).map { $0.sendNewToTriage == nil && $0.startReady == nil } == true)
         check("every pipeline column is missing from an empty team", Pipeline.missing(existing: []).count == 10)
         check(
             "a new Linear team misses six columns (Triage, AI Review, QA, Human Review, Rework, Merging)",

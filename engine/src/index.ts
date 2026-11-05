@@ -22,6 +22,7 @@ import { validateRequiredEnv } from "./config/env-validator.js";
 import { WorkflowStore } from "./config/watcher.js";
 import { buildMcpServersConfig } from "./mcp/builders.js";
 import { createLogger } from "./observability/logger.js";
+import { resolveBacklogPromotion } from "./orchestrator/backlog-promotion.js";
 import { BoardReader } from "./orchestrator/board-reader.js";
 import { resolveCostCeiling } from "./orchestrator/cost-ceiling.js";
 import { Orchestrator } from "./orchestrator/orchestrator.js";
@@ -106,6 +107,10 @@ async function main(): Promise<void> {
       costCeiling: resolveCostCeiling(config.cost, { logger }),
       customWorkflows: true,
       claimOptions: { assignee: "me" },
+      backlogPromotion: resolveBacklogPromotion(config.tracker.promote, {
+        customWorkflows: true,
+        logger,
+      }),
     },
     {
       onDispatch: (issue) => {

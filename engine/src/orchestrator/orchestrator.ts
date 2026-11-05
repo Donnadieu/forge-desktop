@@ -7,6 +7,7 @@ import type {
 import type { NormalizedIssue, TrackerAdapter } from "../tracker/types.js";
 import { checkInodePressure, createInodePressureState } from "../workspace/inode-pressure.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
+import { BacklogPromoter } from "./backlog-promotion.js";
 import { enforceCostCeiling } from "./cost-ceiling.js";
 import { type DispatchIssueDeps, dispatchIssue as runDispatchIssue } from "./dispatch-issue.js";
 import { inFlightCount, selectIssuesToDispatch } from "./dispatcher.js";
@@ -74,6 +75,8 @@ export class Orchestrator {
   // Periodic + disk-pressure reaper for terminal-ticket workspaces; see
   // workspace-periodic-sweep.ts. Built lazily so updateConfig() can't desync it.
   private workspaceSweeper: WorkspaceSweeper | null = null;
+  // Moves cards out of Backlog (tracker.promote); built lazily like the sweeper.
+  private backlogPromoter: BacklogPromoter | null = null;
 
   constructor(
     tracker: TrackerAdapter,
@@ -301,6 +304,17 @@ export class Orchestrator {
     });
   }
 
+  private async maybePromoteBacklog(): Promise<void> {
+    const promotion = this.config.backlogPromotion;
+    if (!promotion) return;
+    this.backlogPromoter ??= new BacklogPromoter(promotion);
+    await this.backlogPromoter.maybePromote({
+      tracker: this.tracker,
+      trackerConfig: this.config.trackerConfig,
+      logger: this.config.logger,
+    });
+  }
+
   private async pollCycle(): Promise<void> {
     if (this.enforceCostCeiling()) return;
     const workspaceRoot = this.workspace.config?.root;
@@ -320,6 +334,9 @@ export class Orchestrator {
       onReconcile: this.callbacks.onReconcile,
     });
     this.maybeSweepWorkspaces(workspaceRoot);
+    // Before the candidate read, so a card just moved into Triage/Todo is
+    // dispatchable this same cycle. Best-effort: never throws.
+    await this.maybePromoteBacklog();
     // Fetch dispatch candidates and the project's progress counts atomically.
     // `candidates` gates dispatch, so its throw must propagate (getPollHealth
     // surfaces it); the progress count is read straight from the tracker (Linear

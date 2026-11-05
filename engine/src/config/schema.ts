@@ -45,6 +45,21 @@ export const WorkflowConfigSchema = z.object({
     card_table_id: z.string().optional(),
     // WORKFLOW.md stage name -> Basecamp Card Table column id.
     columns: z.record(z.string(), z.string()).default({}),
+    // Forge moves cards out of Backlog itself (orchestrator/backlog-promotion.ts).
+    // Both rules are off by default; the app turns them on from Workflow Studio.
+    promote: z
+      .object({
+        // Unassigned Backlog cards without the ready label -> Triage.
+        backlog_to_triage: z.boolean().default(false),
+        // Backlog cards carrying ready_label -> Todo.
+        ready_to_todo: z.boolean().default(false),
+        ready_label: z.string().min(1).default("ready-for-execution"),
+        // Stop feeding Triage once it holds this many cards.
+        max_in_triage: z.number().int().min(0).default(2),
+        // Minimum gap between sweeps.
+        interval_ms: z.number().int().min(0).default(300_000),
+      })
+      .default({}),
   }),
   workspace: z
     .object({

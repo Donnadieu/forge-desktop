@@ -54,7 +54,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/provider-table.ts | 05deefb0a43a | src/config/provider-table.ts | unchanged |
 | src/config/providers.ts | 05deefb0a43a | src/config/providers.ts | unchanged |
 | src/config/resolver.ts | 05deefb0a43a | src/config/resolver.ts | unchanged |
-| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min); `board.columns` |
+| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min); `board.columns`; `tracker.promote` from Forge 7f02afe2a |
 | src/config/watcher.ts | 05deefb0a43a | src/config/watcher.ts | unchanged |
 | src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | unchanged |
 | src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools; run by the engine's own Node; the key is a `${LINEAR_API_KEY}` placeholder, never written |
@@ -69,19 +69,20 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/observability/secret-spec.json | 05deefb0a43a | src/observability/secret-spec.json | unchanged |
 | src/observability/secret-spec.ts | 05deefb0a43a | src/observability/secret-spec.ts | unchanged |
 | src/observability/types.ts | 05deefb0a43a | src/observability/types.ts | activity, helpers, recent lines |
+| src/orchestrator/backlog-promotion.ts | 7f02afe2a | src/orchestrator/backlog-promotion.ts | comments say "workflow file" and drop the other tracker's marker note; its tests came with it |
 | src/orchestrator/claim-gate.ts | 05deefb0a43a | src/orchestrator/claim-gate.ts | unchanged |
 | src/orchestrator/cost-ceiling.ts | 05deefb0a43a | src/orchestrator/cost-ceiling.ts | unchanged |
 | src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
 | src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name) |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
 | src/orchestrator/session-guard.ts | 05deefb0a43a | src/orchestrator/session-guard.ts | unchanged |
 | src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | activity, helpers, recent lines, usage windows |
 | src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events; passes `shouldStop` |
-| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits` |
+| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits`; `backlogPromotion` from Forge 7f02afe2a |
 | src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | a failed run that says why (a lapsed sign-in) goes on the retry queue with its reason, for every agent |
 | src/orchestrator/workpad-parser.ts | 05deefb0a43a | src/orchestrator/workpad-parser.ts | unchanged |
 | src/orchestrator/workspace-gc.ts | 05deefb0a43a | src/orchestrator/workspace-gc.ts | unchanged |
@@ -122,7 +123,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls |
+| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote` |
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |

@@ -42,6 +42,9 @@ enum EngineSettings {
             "  project_slug: \(quoted(c.projectSlug ?? ""))",
             "  active_states: [\(Pipeline.activeColumns(off: c.stagesOff ?? []).map(quoted).joined(separator: ", "))]",
             "  terminal_states: [\"Done\", \"Closed\", \"Cancelled\", \"Canceled\", \"Duplicate\"]",
+        ]
+        lines += promoteLines(c)
+        lines += [
             "board:",
             "  columns: [\(Pipeline.names.map(quoted).joined(separator: ", "))]",
             "workspace:",
@@ -89,6 +92,15 @@ enum EngineSettings {
             "",
         ]
         return lines.joined(separator: "\n")
+    }
+
+    /// The engine moves cards out of Backlog for the person (Workflow Studio's two switches). Nothing when
+    /// both are off. New cards only go to Triage while the Triage stage is on.
+    static func promoteLines(_ c: SetupChoices) -> [String] {
+        let toTriage = (c.sendNewToTriage ?? false) && c.stageOn("Triage")
+        let toTodo = c.startReady ?? false
+        guard toTriage || toTodo else { return [] }
+        return ["  promote:", "    backlog_to_triage: \(toTriage)", "    ready_to_todo: \(toTodo)"]
     }
 
     /// Writes the workflow file. Throws a plain-words problem when setup isn't finished.

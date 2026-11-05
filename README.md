@@ -7,6 +7,10 @@ You write the tasks. Forge's lead agent picks up what's ready, writes the code o
 opens a pull request, has it reviewed and tested by other agents, and hands it back to you. You read
 the pull request and press Merge, or ask for changes. That's the loop.
 
+[![A 47-second tour of Forge Desktop](docs/promo/forge-desktop-promo.gif)](docs/promo/forge-desktop-promo.mp4)
+
+A 47-second tour, made from the app's own screens: [watch the full video](docs/promo/forge-desktop-promo.mp4).
+
 ![The Orchestrator: what every agent is working on right now](docs/screenshots/orchestrator.png)
 
 - A native Mac app (SwiftUI), never a browser page.

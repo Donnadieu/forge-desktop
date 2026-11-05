@@ -14,13 +14,13 @@ Human Review. You read the pull request and press Merge, or ask for changes. Tha
 - Your keys live in your Mac's Keychain, nowhere else.
 - Commits go out under your name, signed, the way you chose in setup.
 
-**Status:** early, in daily use. Newest version: [latest release](https://github.com/Forge-Factory-AI/forge-desktop/releases/latest).
+**Status:** early, in daily use. Newest version: [latest release](https://github.com/Donnadieu/forge-desktop/releases/latest).
 
 ## Install
 
 You need a Mac with Apple Silicon and macOS 14 or newer.
 
-1. Download `Forge.dmg` from the [latest release](https://github.com/Forge-Factory-AI/forge-desktop/releases/latest). It's signed and
+1. Download `Forge.dmg` from the [latest release](https://github.com/Donnadieu/forge-desktop/releases/latest). It's signed and
    notarized by Apple, so it opens like any other app.
 2. Drag **Forge** into **Applications** and open it.
 3. Have these ready (setup checks each one and tells you what's missing):

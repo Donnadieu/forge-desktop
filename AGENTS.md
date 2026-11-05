@@ -36,7 +36,7 @@ Swift 6 toolchain (language mode 5) / SwiftUI + AppKit / macOS 14+, Apple Silico
 - Native window only: no browser views. Plain words on screen (card, column, agent, repo).
 - Commits are authored, committed and signed by the identity in `.env`. `main` has linear history;
   changes land by local fast-forward after CI is green (docs/HARNESS.md), never a GitHub squash.
-- For `gh`, use `GH_TOKEN=$(gh auth token -u <the org admin account>)` rather than the active account.
+- For `gh`, use `GH_TOKEN=$(gh auth token -u <the repo owner's account>)` rather than the active account.
 
 ## Skills (the compound loop)
 Repo playbooks live in [.agents/skills/](.agents/skills/). Before work: load the one that matches.

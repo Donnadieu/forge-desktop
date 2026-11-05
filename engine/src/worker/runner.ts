@@ -27,6 +27,8 @@ export interface WorkerConfig {
   maxStateCheckRetries?: number;
   /** How long the lead may wait for its helpers after ending its turn (helper-wait.ts). */
   helperWaitMs?: number;
+  /** Forge Desktop: which role a state belongs to. A card that moves to another role's stage ends this run. */
+  roleOf?: (state: string) => number;
 }
 
 export interface WorkerResult {
@@ -49,6 +51,26 @@ export interface WorkerCallbacks {
   signal?: AbortSignal;
 }
 
+/**
+ * Forge Desktop: the card moved to a stage another role's agent works. This run ends as a success with its folder
+ * kept, so the orchestrator dispatches the card again at once, with that role's agent (agent/roles.ts).
+ */
+function handoff(
+  issue: NormalizedIssue,
+  turns: number,
+  tokens: TokenTotals,
+  workspacePath: string,
+): WorkerResult {
+  return {
+    issueId: issue.id,
+    turns,
+    tokens,
+    success: true,
+    workspacePath,
+    preserveWorkspace: true,
+  };
+}
+
 export async function runWorker(
   issue: NormalizedIssue,
   config: WorkerConfig,
@@ -62,6 +84,11 @@ export async function runWorker(
     identifier: issue.identifier,
   });
   const stateChecker = new IssueStateChecker(config.maxStateCheckRetries ?? 3);
+  // Forge Desktop: the role this run's agent was picked for (the card's stage at dispatch). A card that moves
+  // to another role's stage ends the run, so that role's agent picks it up.
+  const roleOf = config.roleOf;
+  const startRole = roleOf?.(issue.state);
+  const leftRole = roleOf ? (state: string) => roleOf(state) !== startRole : undefined;
 
   const totalTokens: TokenTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   let turnNumber = 0;
@@ -219,7 +246,9 @@ export async function runWorker(
           config.trackerConfig.active_states,
           logger,
           { turns: turnNumber, tokens: totalTokens, workspacePath, preserveWorkspace: false },
+          leftRole,
         );
+        if (stateCheck === "handoff") return handoff(issue, turnNumber, totalTokens, workspacePath);
         if (stateCheck === "break") break;
         if (stateCheck) return stateCheck;
       }
@@ -404,7 +433,9 @@ export async function runWorker(
           workspacePath,
           preserveWorkspace: !agent.persistentSession,
         },
+        leftRole,
       );
+      if (stateCheck === "handoff") return handoff(issue, turnNumber, totalTokens, workspacePath);
       if (stateCheck === "break") break;
       if (stateCheck) return stateCheck;
     }

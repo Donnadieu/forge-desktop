@@ -140,6 +140,7 @@ export async function dispatchIssue(
     skillsManifest: deps.config.skillsManifest,
     attempt,
     logger: deps.config.logger,
+    roleOf: deps.config.roleOf,
   };
 
   // Register entry BEFORE starting worker so onEvent can find it immediately
@@ -209,7 +210,8 @@ export async function dispatchIssue(
   entry.workerPromise = runWorker(
     issue,
     workerConfig,
-    deps.agent,
+    // Forge Desktop: the role whose stage the card is in picks the agent (agent/roles.ts).
+    deps.config.agentForState?.(issue.state) ?? deps.agent,
     deps.tracker,
     deps.workspace,
     // Stop lets the agent finish the turn it's on, then ends the run instead of starting another.

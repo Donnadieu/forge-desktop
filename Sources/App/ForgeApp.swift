@@ -55,10 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         RunLoop.main.perform(inModes: [.default, .modalPanel]) { NSApp.terminate(nil) }
     }
 
-    /// Quitting drains the engine first: running agents get the engine's drain window, then it stops.
+    /// Quitting drains every engine first: running agents get the engine's drain window, then it stops.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         Task {
-            await EngineHost.shared.stop()
+            await AppModel.stopAllEngines()
             await MainActor.run { NSApp.reply(toApplicationShouldTerminate: true) }
         }
         return .terminateLater

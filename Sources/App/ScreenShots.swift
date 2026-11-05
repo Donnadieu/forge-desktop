@@ -37,6 +37,7 @@ extension ScreenRender {
             Shot(name: "5-agent-sign-in", screen: 4, choices: repo, scene: "signed-out-guide"),
             Shot(name: "5-agent-sign-in-codex", screen: 4, choices: codex, scene: "signed-out-guide"),
             Shot(name: "5-provider-accounts", screen: 4, choices: done, changing: true),
+            Shot(name: "5-provider-roles", screen: 4, choices: done, scene: "roles", changing: true, height: 1000),
             Shot(name: "5-provider-add-account", screen: 4, choices: done, scene: "add-account", changing: true, height: 1000),
             Shot(name: "5-provider-clear-account", screen: 4, choices: done, scene: "clear-account", changing: true),
             Shot(name: "6-ready", screen: 5, choices: done),
@@ -64,7 +65,8 @@ extension ScreenRender {
             Shot(name: "13-projects", screen: AppModel.projectsScreen, choices: ready),
             Shot(name: "13-github-accounts", screen: 2, choices: ready, changing: true),
             Shot(name: "13-new-workspace", screen: AppModel.settingsScreen, choices: ready, scene: "ask-new"),
-            Shot(name: "13-switch-workspace", screen: board, choices: ready, engine: SampleBoard.state, scene: "ask-switch"),
+            Shot(name: "14-all-workspaces", screen: AppModel.allWorkspacesScreen, choices: ready, engine: SampleBoard.state, scene: "fleet"),
+            Shot(name: "14-all-workspaces-none", screen: AppModel.allWorkspacesScreen, choices: ready),
             Shot(name: "13-run-project", screen: AppModel.settingsScreen, choices: ready, scene: "ask-run"),
         ] + changeShots(ready)
     }

@@ -8,20 +8,7 @@ enum EngineCheck {
         try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
         setenv("FORGE_HOME", scratch.path, 1)
         defer { try? FileManager.default.removeItem(at: scratch) }
-        let workflow = """
-            ---
-            tracker:
-              kind: linear
-              project_slug: engine-check
-              endpoint: http://127.0.0.1:9/graphql
-            workspace:
-              root: \(scratch.path)/workspaces
-            polling:
-              interval_ms: 60000
-            ---
-            Engine check for {{ issue.identifier }}
-            """
-        try? workflow.write(to: Paths.workflow, atomically: true, encoding: .utf8)
+        try? workflow(scratch).write(to: Paths.workflow, atomically: true, encoding: .utf8)
 
         let done = DispatchSemaphore(value: 0)
         let result = Box()
@@ -38,6 +25,39 @@ enum EngineCheck {
     }
 
     private final class Box: @unchecked Sendable { var failed = 0 }
+
+    static func workflow(_ home: URL) -> String {
+        """
+        ---
+        tracker:
+          kind: linear
+          project_slug: engine-check
+          endpoint: http://127.0.0.1:9/graphql
+        workspace:
+          root: \(home.path)/workspaces
+        polling:
+          interval_ms: 60000
+        ---
+        Engine check for {{ issue.identifier }}
+        """
+    }
+
+    /// A second project's engine runs beside the first: its own folder, port, token and store.
+    private static func secondEngine(beside c: EngineHost.Connection, _ check: (String, Bool) -> Void) async {
+        let other = EngineHost.forProject(folder: "projects/engine-check-2")
+        try? FileManager.default.createDirectory(at: other.home, withIntermediateDirectories: true)
+        try? workflow(other.home).write(to: other.workflow, atomically: true, encoding: .utf8)
+        await other.setEnvironment(["LINEAR_API_KEY": "engine-check-not-a-key"])
+        let o = try? await other.ensureStarted()
+        check("a second project's engine starts beside the first (\(await other.lastFailure ?? "ok"))", o != nil && o?.pid != c.pid)
+        check("each engine has its own port and launch token", o?.port != c.port && o?.token != c.token)
+        let first = try? await c.client.state()
+        let second = try? await o?.client.state()
+        check("starting one project doesn't start the other", first?.status == "running" && second?.status == "stopped")
+        check("each engine keeps its store in its own folder", FileManager.default.fileExists(atPath: other.home.path + "/forge.sqlite"))
+        await other.stop(grace: 10)
+        check("stopping one project's engine leaves the other running", (try? await c.client.state())?.status == "running")
+    }
 
     private static func checks() async -> Int {
         var failed = 0
@@ -75,6 +95,7 @@ enum EngineCheck {
 
         let again = try? await host.ensureStarted()
         check("asking again reuses the healthy engine", again?.pid == c.pid)
+        await secondEngine(beside: c, check)
 
         kill(c.pid, SIGKILL)
         var back: EngineHost.Connection?

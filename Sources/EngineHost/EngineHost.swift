@@ -1,14 +1,42 @@
 import Foundation
 import Security
 
-/// Starts, watches and stops the engine: the only code in Forge that runs programs (lint rule `process-area`).
+/// Starts, watches and stops an engine: the only code in Forge that runs programs (lint rule `process-area`).
 ///
-/// - One engine at a time: `ensureStarted()` is single-flight; callers racing at launch share one start.
+/// - One engine per project (`EngineHost.forProject`), each in its own folder with its own workflow file, store,
+///   card folders and log; `shared` is the one in Forge's own folder (the project carried over from before).
+/// - `ensureStarted()` is single-flight; callers racing at launch share one start.
 /// - Never kills a healthy engine: a running engine is reused, not restarted.
 /// - Watched: if the engine dies on its own it is started again, waiting longer after each crash.
 /// - Stopped by draining: SIGTERM lets running agents finish (the engine's drain window), then SIGKILL.
 actor EngineHost {
-    static let shared = EngineHost()
+    static let shared = EngineHost(home: Paths.home, logs: Paths.logs)
+
+    /// This engine's folder: its workflow file, its store and its card folders.
+    let home: URL
+    /// Where its log goes.
+    let logs: URL
+
+    init(home: URL, logs: URL) {
+        self.home = home
+        self.logs = logs
+    }
+
+    nonisolated var workflow: URL { home.appendingPathComponent("WORKFLOW.md") }
+    nonisolated var cards: URL { home.appendingPathComponent("workspaces") }
+
+    private static let registry = HostRegistry()
+
+    /// The engine of a project: `folder` is its folder under Forge's (`ProjectRecord.folder`); nil = Forge's own.
+    static func forProject(folder: String?) -> EngineHost {
+        guard let folder, !folder.isEmpty else { return shared }
+        return registry.host(folder) {
+            EngineHost(home: Paths.home.appendingPathComponent(folder), logs: Paths.logs.appendingPathComponent(folder))
+        }
+    }
+
+    /// Every project engine made so far (not `shared`).
+    static var made: [EngineHost] { registry.all }
 
     struct Connection: Sendable, Equatable {
         let port: Int
@@ -69,8 +97,8 @@ actor EngineHost {
 
     private func launch() async throws -> Connection {
         let (node, script) = try EngineHost.locate()
-        guard FileManager.default.fileExists(atPath: Paths.workflow.path) else { throw Failure.noWorkflow }
-        try? FileManager.default.createDirectory(at: Paths.logs, withIntermediateDirectories: true)
+        guard FileManager.default.fileExists(atPath: workflow.path) else { throw Failure.noWorkflow }
+        try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
         let token = EngineHost.newToken()
         let p = Process()
         p.executableURL = URL(fileURLWithPath: node)
@@ -80,20 +108,22 @@ actor EngineHost {
         for (k, v) in extraEnv { env[k] = v }
         env["FORGE_API_TOKEN"] = token
         env["FORGE_HOME"] = Paths.home.path
-        env["FORGE_LOG_FILE"] = Paths.logs.appendingPathComponent("engine.log").path
+        // The engine keeps its workflow and store here; the app's own commands (token renewal) still use Forge's.
+        env["FORGE_ENGINE_HOME"] = home.path
+        env["FORGE_LOG_FILE"] = logs.appendingPathComponent("engine.log").path
         p.environment = env
-        p.currentDirectoryURL = Paths.home
+        p.currentDirectoryURL = home
         let out = Pipe()
         p.standardOutput = out
-        p.standardError = EngineHost.stderrLog()
-        p.terminationHandler = { proc in
-            Task { await EngineHost.shared.exited(pid: proc.processIdentifier) }
+        p.standardError = EngineHost.stderrLog(logs)
+        p.terminationHandler = { [self] proc in
+            Task { await self.exited(pid: proc.processIdentifier) }
         }
         try p.run()
         process = p
         guard let port = await EngineHost.readyPort(out, timeout: 30) else {
             p.terminate()
-            throw Failure.didNotStart("no ready line within 30 s (see \(Paths.logs.path))")
+            throw Failure.didNotStart("no ready line within 30 s (see \(logs.path))")
         }
         let c = Connection(port: port, token: token, pid: p.processIdentifier)
         connection = c
@@ -118,7 +148,7 @@ actor EngineHost {
         guard !stopping else { return }
         crashes += 1
         guard crashes <= EngineHost.maxCrashes else {
-            lastFailure = "the engine stopped \(crashes) times in a row; see \(Paths.logs.path)"
+            lastFailure = "the engine stopped \(crashes) times in a row; see \(logs.path)"
             return
         }
         let wait = min(30.0, pow(2.0, Double(crashes - 1)))
@@ -162,8 +192,8 @@ actor EngineHost {
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
-    private static func stderrLog() -> FileHandle? {
-        let url = Paths.logs.appendingPathComponent("engine-stderr.log")
+    private static func stderrLog(_ logs: URL) -> FileHandle? {
+        let url = logs.appendingPathComponent("engine-stderr.log")
         if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
         let h = try? FileHandle(forWritingTo: url)
         _ = try? h?.seekToEnd()
@@ -222,5 +252,26 @@ private final class ReadyBox: @unchecked Sendable {
         cont = nil
         lock.unlock()
         c?.resume(returning: v)
+    }
+}
+
+/// The project engines made so far, one per folder.
+final class HostRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var hosts: [String: EngineHost] = [:]
+
+    func host(_ key: String, make: () -> EngineHost) -> EngineHost {
+        lock.lock()
+        defer { lock.unlock() }
+        if let h = hosts[key] { return h }
+        let h = make()
+        hosts[key] = h
+        return h
+    }
+
+    var all: [EngineHost] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(hosts.values)
     }
 }

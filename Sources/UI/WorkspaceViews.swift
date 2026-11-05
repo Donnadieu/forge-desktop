@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// The workspace sheets: switch to another workspace, run another project, name a new one, rename or delete
-/// the one on screen. One at a time, over any screen (`AppModel.ask`).
+/// The workspace sheets: open another of its projects, name a new one, rename or delete the one on screen. One at
+/// a time, over any screen (`AppModel.ask`). Switching workspaces needs no sheet: it only changes the view.
 enum WorkspaceAsk: Equatable {
-    case switchTo(Workspace)
     case run(ProjectRecord)
     case new
     case rename
@@ -49,6 +48,20 @@ struct WorkspaceTile: View {
     }
 }
 
+/// The "All workspaces" tile: stacked squares.
+struct AllTile: View {
+    var size: CGFloat = 22
+
+    var body: some View {
+        Image(systemName: "square.on.square")
+            .font(.system(size: size * 0.45, weight: .medium))
+            .foregroundStyle(Theme.textSec)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surfaceHover))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+    }
+}
+
 /// The top bar's workspace chip: the one on screen; a click lists them all.
 struct WorkspaceChip: View {
     @ObservedObject var model: AppModel
@@ -56,12 +69,13 @@ struct WorkspaceChip: View {
 
     var body: some View {
         if let w = model.workspace {
+            let all = model.screen == AppModel.allWorkspacesScreen
             Button {
                 open.toggle()
             } label: {
                 HStack(spacing: 8) {
-                    WorkspaceTile(w)
-                    Text(w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                    if all { AllTile(size: 22) } else { WorkspaceTile(w) }
+                    Text(all ? "All workspaces" : w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
                     Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textSec)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 4)
@@ -86,6 +100,8 @@ struct WorkspaceSwitcher: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel(text: "Workspaces").padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+            allRow
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 6)
             ForEach(model.store.workspaceList) { w in
                 row(w)
             }
@@ -93,35 +109,27 @@ struct WorkspaceSwitcher: View {
             plain("New workspace", icon: "plus") { model.ask = .new }
             plain("Workspace settings", icon: "gearshape") { model.go(AppModel.settingsScreen) }
                 .padding(.bottom, 8)
-            Text("One workspace runs at a time. Switching stops the one running.")
+            Text("Running workspaces share this Mac and your intelligence provider accounts' usage limits.")
                 .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 .padding(.horizontal, 16).padding(.bottom, 14).fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 400)
+        .frame(width: 460)
         .background(Theme.surface)
     }
 
-    private func row(_ w: Workspace) -> some View {
-        let here = w.id == model.workspace?.id
+    private var allRow: some View {
+        let here = model.screen == AppModel.allWorkspacesScreen
         return Button {
             close()
-            if !here { model.ask = .switchTo(w) }
+            model.go(AppModel.allWorkspacesScreen)
         } label: {
             HStack(spacing: 12) {
-                WorkspaceTile(w, size: 28)
+                AllTile(size: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                    Text(model.summary(w)).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+                    Text("All workspaces").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                    Text("Every running workspace's cards in one place").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 }
                 Spacer(minLength: 8)
-                if here && model.running {
-                    HStack(spacing: 6) {
-                        PulseDot(color: Theme.heat, pulsing: true, size: 6)
-                        Text("Running").font(Theme.sans(11, .medium)).foregroundStyle(Theme.heatBright)
-                    }
-                } else {
-                    Text("Stopped").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
-                }
                 Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.text).opacity(here ? 1 : 0)
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
@@ -129,6 +137,51 @@ struct WorkspaceSwitcher: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func row(_ w: Workspace) -> some View {
+        let here = w.id == model.workspace?.id && model.screen != AppModel.allWorkspacesScreen
+        let on = w.running == true
+        let canRun = !model.runnable(in: w.id).isEmpty || (w.id == model.workspace?.id && model.viewedProject != nil)
+        return HStack(spacing: 12) {
+            Button {
+                close()
+                Task {
+                    if w.id != model.workspace?.id { await model.open(workspace: w.id) } else { model.go(model.choices.nextScreen) }
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    WorkspaceTile(w, size: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            Text(w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                            if here { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.text) }
+                            if on {
+                                PulseDot(color: Theme.heat, pulsing: model.agentsWorking(in: w.id) > 0, size: 6)
+                                Text("Running").font(Theme.sans(11, .medium)).foregroundStyle(Theme.heatBright)
+                            } else {
+                                Text("Stopped").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                            }
+                        }
+                        Text(model.summary(w)).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+                    }
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if on {
+                Button("Stop") { Task { await model.stop(workspace: w.id) } }
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill"))
+            } else {
+                Button("Start") { Task { await model.start(workspace: w.id) } }
+                    .buttonStyle(ForgeButton(kind: .primary, icon: "play.fill"))
+                    .disabled(!canRun)
+                    .help(canRun ? "" : "Set up a project in \(w.name) first.")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .background(here ? Theme.surfaceHover : .clear)
     }
 
     private func plain(_ title: String, icon: String, _ action: @escaping () -> Void) -> some View {
@@ -158,25 +211,13 @@ struct WorkspaceSheet: View {
 
     var body: some View {
         switch ask {
-        case .switchTo(let w):
-            ForgeSheet(
-                title: "Switch to \(w.name)?",
-                lead: model.running
-                    ? "\(model.workspace?.name ?? "This workspace") stops. Running agents finish their turn first. \(w.name) opens stopped; press Start when you're ready."
-                    : "\(w.name) opens stopped; press Start when you're ready. Your cards stay where they are.",
-                action: "Switch", cancel: close
-            ) {
-                EmptyView()
-            } act: {
-                run { await model.open(workspace: w.id) }
-            }
         case .run(let p):
             ForgeSheet(
-                title: "Run \(p.name)?",
-                lead: (model.running ? "The project running now stops. Running agents finish their turn first. " : "")
-                    + (p.choices == nil && p.repo == nil
-                        ? "Forge then asks for this project's repo and intelligence provider." : "It opens stopped; press Start when you're ready."),
-                action: "Run it", cancel: close
+                title: "Open \(p.name)?",
+                lead: p.choices == nil && p.repo == nil
+                    ? "Forge asks for this project's repo and intelligence provider. Projects already running keep running."
+                    : "It shows on the Orchestrator. Projects already running keep running.",
+                action: "Open it", cancel: close
             ) {
                 EmptyView()
             } act: {

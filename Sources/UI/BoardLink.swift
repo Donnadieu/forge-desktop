@@ -1,44 +1,94 @@
 import Foundation
 
-/// The board's link to the engine: start it with setup's answers, follow its live state, send Start and Stop.
+/// One project's link to its engine: start it with the project's answers, follow its live state, send Start and
+/// Stop. Every project has its own engine (`EngineHost.forProject`); the one on screen also feeds `model.engine`.
 @MainActor
 final class BoardLink {
     private weak var model: AppModel?
+    /// The project (`ProjectRecord.id`); nil = the one on screen before its tracker project is picked.
+    let projectID: String?
+    let host: EngineHost
     private var client: EngineClient?
     private var socket: URLSessionWebSocketTask?
     private var connecting = false
+    /// Closed on purpose (its workspace stopped and it's not on screen): don't reconnect.
+    private var closed = false
 
-    init(model: AppModel) { self.model = model }
+    init(model: AppModel, projectID: String?, host: EngineHost) {
+        (self.model, self.projectID, self.host) = (model, projectID, host)
+    }
 
-    /// Starts the engine if needed (fresh settings when `restart`), then follows its state.
+    /// This project is the one on screen.
+    private var onScreen: Bool { model?.viewedProject == projectID }
+
+    /// The answers its engine runs with: the ones being edited when it's on screen, else the ones it keeps.
+    private func choices(_ model: AppModel) -> SetupChoices? {
+        guard !onScreen, let id = projectID else { return model.choices }
+        return model.store.runChoices(id, live: model.choices)
+    }
+
+    private func show(_ s: EngineState) {
+        guard let model else { return }
+        if let id = projectID { model.states[id] = s }
+        if onScreen { model.engine = s }
+    }
+
+    private func report(_ problem: String?) {
+        guard let model else { return }
+        if let id = projectID { model.problems[id] = problem }
+        if onScreen { model.engineProblem = problem }
+    }
+
+    /// Starts the engine if needed (fresh settings when `restart`), then follows its state. A project whose
+    /// workspace is running is started again (after a restart, a crash or a relaunch of Forge).
     func connect(restart: Bool = false) async {
         guard let model, !model.preview, !connecting else { return }
         connecting = true
+        closed = false
         defer { connecting = false }
-        model.engineProblem = nil
+        report(nil)
         do {
-            if restart { await EngineHost.shared.stop() }
-            if await EngineHost.shared.current == nil { try await EngineSettings.prepare(model.choices) }
-            let c = try await EngineHost.shared.ensureStarted()
+            if restart { await host.stop() }
+            if await host.current == nil {
+                guard let c = choices(model) else { throw EngineSettings.Problem(description: "This project isn't set up yet.") }
+                try await EngineSettings.prepare(c, host: host)
+            }
+            let c = try await host.ensureStarted()
             let client = EngineClient(port: c.port, token: c.token)
             self.client = client
-            model.engine = try await client.state()
+            var s = try await client.state()
+            if model.shouldRun(projectID), !s.isRunning, s.status != "stopping" {
+                try await client.start()
+                s = try await client.state()
+            }
+            show(s)
             follow(client)
         } catch {
-            let why = await EngineHost.shared.lastFailure
-            model.engineProblem = Self.plain(error) + (why.map { " (\($0))" } ?? "")
+            let why = await host.lastFailure
+            report(Self.plain(error) + (why.map { " (\($0))" } ?? ""))
         }
+    }
+
+    /// Stops following and quits its engine (agents get their usual time to finish).
+    func close() async {
+        closed = true
+        socket?.cancel()
+        socket = nil
+        client = nil
+        await host.stop()
+        if let id = projectID { model?.states[id] = nil }
     }
 
     private func follow(_ client: EngineClient) {
         socket?.cancel()
         socket = client.live(
-            onState: { [weak self] s in Task { @MainActor in self?.model?.engine = s } },
+            onState: { [weak self] s in Task { @MainActor in self?.show(s) } },
             onClose: { [weak self] in
                 Task { @MainActor in
-                    // The engine restarted or stopped: reconnect after a moment.
+                    // The engine restarted or stopped: reconnect after a moment, unless it was closed on purpose.
                     try? await Task.sleep(for: .seconds(2))
-                    await self?.connect()
+                    guard let self, !self.closed else { return }
+                    await self.connect()
                 }
             })
     }
@@ -79,17 +129,17 @@ final class BoardLink {
         guard let client else { return }
         do {
             try await f(client)
-            model?.engineProblem = nil
+            report(nil)
         } catch {
             // The engine may have taken the request and only been slow to say so: believe its state.
             if let s = try? await client.state() {
-                model?.engine = s
+                show(s)
                 if Self.landed(action, in: s) {
-                    model?.engineProblem = nil
+                    report(nil)
                     return
                 }
             }
-            model?.engineProblem = Self.didNotLand(action)
+            report(Self.didNotLand(action))
         }
     }
 

@@ -24,6 +24,8 @@ struct WorkerScreen: View {
     @State private var signingIn: AIAccount?
     /// The account waiting for the person's yes to clear it.
     @State private var clearing: AIAccount?
+    /// Stages with their own account and model (RolesPanel).
+    @State private var roles: [RoleChoice] = []
     @StateObject private var signIn = AgentSignIn()
 
     /// The provider's name on screen, whichever way it signs in.
@@ -70,6 +72,7 @@ struct WorkerScreen: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+                if !model.store.accounts.isEmpty { RolesPanel(model: model, roles: $roles) }
                 if works { GoodLine(text: "\(chosen?.name ?? provider.name) answered. It's ready to work.") }
                 if let problem {
                     Notice(
@@ -152,6 +155,13 @@ struct WorkerScreen: View {
         selected = a?.id ?? accounts.first?.id ?? AIAccount.addingID
         agentModel = model.choices.model.flatMap { m in provider.models.contains(m) ? m : nil } ?? provider.models[0]
         works = model.preview && model.choices.workerChecked && a != nil
+        roles = model.choices.roles ?? []
+        if model.preview, model.sample.scene == "roles" {
+            roles = [
+                RoleChoice(role: .builds, accountID: "sample-codex"),
+                RoleChoice(role: .reviews, accountID: "sample-work", model: "claude-opus-5"),
+            ]
+        }
         guard model.preview, let scene = model.sample.scene else { return }
         if scene.hasPrefix("signed-out") {
             problem = "\(provider.name) said: Failed to authenticate: OAuth session expired and could not be refreshed"
@@ -234,6 +244,9 @@ struct WorkerScreen: View {
         model.choices.worker = a.worker
         model.choices.model = agentModel.isEmpty ? nil : agentModel
         model.choices.workerChecked = true
+        // A role whose account was cleared meanwhile is dropped.
+        let kept = roles.filter { model.store.account($0.accountID) != nil }
+        model.choices.roles = kept.isEmpty ? nil : kept
         model.next()
     }
 }

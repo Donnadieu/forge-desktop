@@ -5,7 +5,11 @@
  *
  *   FORGE_API_TOKEN   the launch token every local API request must carry (required)
  *   FORGE_HOME        Forge's folder (default ~/Library/Application Support/Forge)
- *   FORGE_WORKFLOW    the workflow file (default $FORGE_HOME/WORKFLOW.md)
+ *   FORGE_ENGINE_HOME this engine's own folder when the app runs one per project (default $FORGE_HOME):
+ *                     its workflow file and its store live there
+ *   FORGE_WORKFLOW    the workflow file (default $FORGE_ENGINE_HOME/WORKFLOW.md)
+ *   FORGE_AGENT_CEILING, FORGE_AGENT_SLOTS_DIR  the most agents at once across every engine on the Mac,
+ *                     and the folder where engines share their counts (orchestrator/shared-slots.ts)
  *   FORGE_LOG_FILE    the log (default ~/Library/Logs/Forge/engine.log)
  *
  * On start it prints one line to stdout, `FORGE_ENGINE_READY {"port":N}`, and
@@ -18,6 +22,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createWorkerAgent, scrubMcpServerEnvs } from "./agent/index.js";
+import { defaultAgentEnv, RoleRouter, roleEnv } from "./agent/roles.js";
 import { validateRequiredEnv } from "./config/env-validator.js";
 import { WorkflowStore } from "./config/watcher.js";
 import { buildMcpServersConfig } from "./mcp/builders.js";
@@ -26,6 +31,7 @@ import { resolveBacklogPromotion } from "./orchestrator/backlog-promotion.js";
 import { BoardReader } from "./orchestrator/board-reader.js";
 import { resolveCostCeiling } from "./orchestrator/cost-ceiling.js";
 import { Orchestrator } from "./orchestrator/orchestrator.js";
+import { SharedSlots } from "./orchestrator/shared-slots.js";
 import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
@@ -38,7 +44,10 @@ import { WorkspaceManager } from "./workspace/manager.js";
 async function main(): Promise<void> {
   const token = process.env.FORGE_API_TOKEN ?? "";
   if (token.length < 32) throw new Error("FORGE_API_TOKEN is missing or too short");
-  const home = process.env.FORGE_HOME ?? join(homedir(), "Library/Application Support/Forge");
+  const home =
+    process.env.FORGE_ENGINE_HOME ??
+    process.env.FORGE_HOME ??
+    join(homedir(), "Library/Application Support/Forge");
   const workflowPath = resolve(process.env.FORGE_WORKFLOW ?? join(home, "WORKFLOW.md"));
   const logFile = process.env.FORGE_LOG_FILE ?? join(homedir(), "Library/Logs/Forge/engine.log");
   if (!existsSync(workflowPath)) throw new Error(`no workflow file at ${workflowPath}`);
@@ -58,12 +67,33 @@ async function main(): Promise<void> {
     done_states: config.tracker.done_states,
     labels: config.tracker.labels,
   };
+  const hasRoles = config.agent.roles.length > 0;
   const agent = createWorkerAgent(config.agent.kind, {
     command: config.agent.command,
     model: config.agent.model,
     logger,
+    // With roles, the default agent never sees another role's account.
+    ...(hasRoles ? { env: defaultAgentEnv(process.env) } : {}),
     envDenylist: config.agent.env_denylist,
   });
+  // Roles: another provider, account and model for some stages (agent/roles.ts).
+  const router = new RoleRouter(
+    agent,
+    config.agent.roles.map((r) => ({
+      states: r.states,
+      agent: createWorkerAgent(r.kind, {
+        model: r.model,
+        logger,
+        env: roleEnv(process.env, r.env_prefix),
+        envDenylist: config.agent.env_denylist,
+      }),
+    })),
+  );
+  const ceiling = Number(process.env.FORGE_AGENT_CEILING ?? 0);
+  const slots =
+    ceiling > 0 && process.env.FORGE_AGENT_SLOTS_DIR
+      ? new SharedSlots(process.env.FORGE_AGENT_SLOTS_DIR, home, ceiling)
+      : undefined;
   const skillsDir = config.workspace.skills_dir
     ? resolve(dirname(workflowPath), config.workspace.skills_dir)
     : undefined;
@@ -84,6 +114,13 @@ async function main(): Promise<void> {
     {
       pollIntervalMs: config.polling.interval_ms,
       maxConcurrentAgents: config.agent.max_concurrent_agents,
+      ...(slots ? { agentLimit: (inFlight: number) => slots.limit(inFlight) } : {}),
+      ...(hasRoles
+        ? {
+            agentForState: (state: string) => router.agentFor(state),
+            roleOf: (state: string) => router.roleOf(state),
+          }
+        : {}),
       maxTurns: config.agent.max_turns,
       turnTimeoutMs: config.agent.turn_timeout_ms,
       readTimeoutMs: config.agent.read_timeout_ms,
@@ -198,6 +235,7 @@ async function main(): Promise<void> {
     }
     clearInterval(boardTimer);
     await api.close();
+    slots?.close();
     local.close();
     process.exit(0);
   };

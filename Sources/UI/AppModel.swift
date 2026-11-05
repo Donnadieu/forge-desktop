@@ -10,9 +10,12 @@ final class AppModel: ObservableObject {
     /// Trackers, projects and the intelligence provider accounts (store.json); `choices` is the running project.
     @Published var store: SetupStore
     @Published var screen: Int
-    /// The live board, pushed by the engine.
+    /// The live board of the project on screen, pushed by its engine.
     @Published var engine: EngineState?
     @Published var engineProblem: String?
+    /// Every project engine's live state and problem, by project (AppModel+Fleet.swift).
+    @Published var states: [String: EngineState] = [:]
+    @Published var problems: [String: String] = [:]
     /// Why the last card move from the board didn't happen; cleared by the next move.
     @Published var moveProblem: String?
     /// The workspace sheet on screen (switch, new, rename, delete, run another project), over any screen.
@@ -21,8 +24,8 @@ final class AppModel: ObservableObject {
     /// Render mode: views draw sample data and never touch Linear, Basecamp, GitHub or the Keychain.
     let preview: Bool
     var sample = Sample()
-    /// The board's link to the engine.
-    lazy var link = BoardLink(model: self)
+    /// Each project's link to its engine (AppModel+Fleet.swift); `link` is the one on screen.
+    var links: [String: BoardLink] = [:]
     /// Setup was changed since the engine started, so the board restarts it with the new answers.
     var settingsChanged = false
 
@@ -109,6 +112,8 @@ final class AppModel: ObservableObject {
     static let settingsScreen = 8
     /// The projects a workspace manages, ticked under each tracker connection.
     static let projectsScreen = 9
+    /// Every running workspace's cards in one Orchestrator.
+    static let allWorkspacesScreen = 10
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
@@ -151,7 +156,7 @@ final class AppModel: ObservableObject {
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.projectsScreen, s))
+        screen = max(0, min(Self.allWorkspacesScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
         if screen != Self.harnessScreen { harnessOffer = nil }
     }

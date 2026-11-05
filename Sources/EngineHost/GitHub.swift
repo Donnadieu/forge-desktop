@@ -56,7 +56,10 @@ enum GitHub {
 
     /// The environment that makes `gh` and git act as `account`. The sign-in stays in memory, never on disk.
     /// An account Forge signed in to itself (`GitHubAccountRecord`) uses its own token from the Keychain.
-    static func env() async -> [String: String] {
+    static func env() async -> [String: String] { await env(for: account) }
+
+    /// The same for one account, without touching `account` (each project's engine names its own).
+    static func env(for account: String?) async -> [String: String] {
         guard let account else { return [:] }
         if let t = tokens.get(account) { return ["GH_TOKEN": t] }
         if let raw = Keychain.get(named: GitHubAccountRecord.item(account)),

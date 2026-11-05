@@ -139,8 +139,11 @@ struct ProjectRecord: Codable, Equatable, Sendable {
     var workspaceID: String?
     /// Ticked in the workspace's project list but not set up yet: where to find it on its tracker.
     var ref: ProjectRef?
-    /// This project's own setup answers, kept while another project runs (`setup.json` holds the running one's).
+    /// This project's own setup answers while it isn't the one being edited (`setup.json` holds that one's).
     var choices: SetupChoices?
+    /// Its engine's folder under Forge's (`projects/<id>`); nil = Forge's own folder, kept by the one project
+    /// carried over from before workspaces so its cards and history stay where they are.
+    var folder: String?
 }
 
 /// How setup's answers relate, kept in `store.json` in Forge's folder: trackers → projects (each mapped to one
@@ -159,6 +162,10 @@ struct SetupStore: Codable, Equatable, Sendable {
     var currentWorkspace: String?
     /// GitHub accounts Forge signed in to itself (the ones the GitHub CLI has are read live).
     var githubAccounts: [GitHubAccountRecord]?
+    /// The most agents at once across every running workspace on this Mac (nil = `defaultCeiling`).
+    var agentCeiling: Int?
+
+    static let defaultCeiling = 6
 
     static var file: URL { Paths.home.appendingPathComponent("store.json") }
 
@@ -206,7 +213,7 @@ struct SetupStore: Codable, Equatable, Sendable {
         }
         guard let id = Self.projectID(c) else { return }
         let account = account(c.accountID)
-        var p = project(id) ?? ProjectRecord(id: id, trackerID: c.connection, name: id)
+        var p = project(id) ?? ProjectRecord(id: id, trackerID: c.connection, name: id, folder: Self.folder(for: id))
         (p.trackerID, p.name, p.repo, p.defaultBranch) = (c.connection, c.projectName ?? id, c.repo, c.defaultBranch)
         (p.provider, p.accountID, p.model) = (account?.provider ?? c.worker.map(IntelligenceProvider.init), account?.id, c.model)
         if p.workspaceID == nil || p.workspaceID == currentWorkspace { p.workspaceID = currentWorkspace }
@@ -283,6 +290,8 @@ struct SetupStore: Codable, Equatable, Sendable {
             if s.upgrade(c, has: has) {
                 // Kept once, so going back to 0.2.17 finds the store it wrote.
                 try? FileManager.default.copyItem(at: file, to: Paths.home.appendingPathComponent("store.v1.json"))
+                s.save()
+            } else if s.giveFolders() {
                 s.save()
             }
             return s

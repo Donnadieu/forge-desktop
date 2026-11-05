@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// Workspaces on the app's model: which one is on screen, switching between them and their projects, and the
-/// tracker connections and GitHub accounts kept on this Mac. One project runs at a time for now.
+/// tracker connections and GitHub accounts kept on this Mac. Running is per workspace (AppModel+Fleet.swift).
 extension AppModel {
     /// The workspace on screen.
     var workspace: Workspace? { store.current }
 
-    /// The engine is working the running project's cards.
-    var running: Bool { engine?.isRunning == true }
+    /// The workspace on screen runs.
+    var running: Bool { workspace?.running == true }
 
     /// Points the tracker sign-ins at the running project's connection (on every change of `choices`), and GitHub
     /// at its account when a project opens (`github`; the GitHub step moves it itself while the person picks).
@@ -19,25 +19,20 @@ extension AppModel {
         if github { GitHub.account = choices.githubLogin }
     }
 
-    /// Opens a workspace and one of its projects (nil = the one it ran last). The engine stops first (running
-    /// agents get their usual time to finish), the running project's answers are kept, and the other project
-    /// opens stopped: on the Orchestrator when it's set up, on the setup step that needs an answer otherwise.
+    /// Opens a workspace and one of its projects (nil = the one it showed last). Only the view changes: running
+    /// workspaces keep running. The answers of the project left are kept; the one opened shows on the
+    /// Orchestrator when it's set up, on the setup step that needs an answer otherwise.
     func open(workspace id: String, project: String? = nil) async {
-        if !preview {
-            if running {
-                await link.stop()
-                // The engine didn't say it stopped: switching now could start the other project's agents. Its
-                // problem line says to press Stop again.
-                if engineProblem != nil { return }
-            }
-            await EngineHost.shared.stop()
-        }
-        engine = nil
-        engineProblem = nil
+        let old = viewedProject
         guard let next = store.switchTo(workspace: id, project: project, from: choices) else { return }
         choices = next
+        engine = viewedProject.flatMap { states[$0] }
+        engineProblem = viewedProject.flatMap { problems[$0] }
+        // Setup changed for the project left while it runs: its engine takes the new answers now.
+        if settingsChanged, !preview, let old, old != viewedProject, shouldRun(old), let l = links[old] { await l.connect(restart: true) }
+        settingsChanged = false
+        await leftProject(old)
         useSignIns(github: true)
-        settingsChanged = true
         if !preview {
             choices.save()
             store.save()
@@ -66,7 +61,7 @@ extension AppModel {
         if !preview { store.save() }
     }
 
-    /// The projects the workspace on screen manages, the running one first.
+    /// The projects the workspace on screen manages, the one on screen first.
     var workspaceProjects: [ProjectRecord] {
         let all = store.projects(in: workspace?.id)
         let running = SetupStore.projectID(choices)

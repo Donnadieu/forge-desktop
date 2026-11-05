@@ -27,7 +27,7 @@ enum EngineSettings {
     }
 
     /// The workflow file's settings block. Pure, so checks can read it.
-    static func frontMatter(_ c: SetupChoices, cardsFolder: String, skillsFolder: String? = nil) -> String {
+    static func frontMatter(_ c: SetupChoices, cardsFolder: String, skillsFolder: String? = nil, store: SetupStore? = nil) -> String {
         let branch = c.defaultBranch ?? "main"
         let kind: String =
             switch c.worker ?? .claude {
@@ -72,6 +72,7 @@ enum EngineSettings {
             "  kind: \(kind)",
         ]
         if let m = c.model { lines.append("  model: \(quoted(m))") }
+        lines += roleLines(c, store: store)
         lines += [
             // One lead agent per card, each sending its own helpers; the Workflow Studio screen sets how many at once.
             "  max_concurrent_agents: \(max(1, c.agentsAtOnce ?? 1))",
@@ -165,18 +166,34 @@ enum EngineSettings {
         return ["  promote:", "    backlog_to_triage: \(toTriage)", "    ready_to_todo: \(toTodo)"]
     }
 
-    /// Writes the workflow file. Throws a plain-words problem when setup isn't finished.
-    static func writeWorkflow(_ c: SetupChoices) throws {
+    /// The roles block: each role's stages, agent kind, model and the prefix its account arrives under. Pure.
+    static func roleLines(_ c: SetupChoices, store: SetupStore?) -> [String] {
+        guard let store else { return [] }
+        let roles = c.roleAccounts(store)
+        guard !roles.isEmpty else { return [] }
+        var lines = ["  roles:"]
+        for (i, r) in roles.enumerated() {
+            lines.append("    - states: [\(r.choice.role.stages.map(quoted).joined(separator: ", "))]")
+            lines.append("      kind: \(r.account.provider.engineKind)")
+            if let m = r.choice.model, !m.isEmpty { lines.append("      model: \(quoted(m))") }
+            lines.append("      env_prefix: \(quoted(SetupChoices.rolePrefix(i)))")
+        }
+        return lines
+    }
+
+    /// Writes the workflow file into an engine's folder. Throws a plain-words problem when setup isn't finished.
+    static func writeWorkflow(_ c: SetupChoices, home: URL = Paths.home, store: SetupStore? = nil) throws {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
-        try FileManager.default.createDirectory(at: Paths.cards, withIntermediateDirectories: true)
+        let cards = home.appendingPathComponent("workspaces")
+        try FileManager.default.createDirectory(at: cards, withIntermediateDirectories: true)
         let file = c.board == .github ? "workflow/github.md" : "workflow/basecamp.md"
         let note = boardNote(c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent(file), encoding: .utf8) })
         if c.board != .linear, note == nil { throw Problem(description: "The \(c.board.name) instructions are missing from the app.") }
         let text =
-            frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + (note ?? "")
+            frontMatter(c, cardsFolder: cards.path, skillsFolder: skillsFolder, store: store) + (note ?? "")
             + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
-        try text.write(to: Paths.workflow, atomically: true, encoding: .utf8)
+        try text.write(to: home.appendingPathComponent("WORKFLOW.md"), atomically: true, encoding: .utf8)
     }
 
     /// The engine's environment, built fresh before every start. Reads the Keychain and the `gh` sign-in.
@@ -210,8 +227,7 @@ enum EngineSettings {
         }
         // Agents run unattended: the commit skill commits without asking.
         env["COMMIT_AUTO_MODE"] = "true"
-        GitHub.account = c.githubLogin
-        let gh = await GitHub.env()
+        let gh = await GitHub.env(for: c.githubLogin)
         guard gh["GH_TOKEN"] != nil else { throw Problem(description: "Forge couldn't use your GitHub sign-in on this Mac.") }
         env.merge(gh) { $1 }
         // git (the clone hook and the agents) asks gh for the sign-in; nothing is stored.
@@ -231,13 +247,37 @@ enum EngineSettings {
             env["FORGE_GIT_UNSIGNED_OK"] = "1"
         }
         // Only this account's sign-in or key, in its own login folder (WorkerCheck.env).
-        env.merge(WorkerCheck.env(account, secret: secret)) { $1 }
+        let own = WorkerCheck.env(account, secret: secret)
+        env.merge(own) { $1 }
+        // Each role's account, under its own prefix, so two accounts never share a variable (engine agent/roles.ts).
+        env.merge(try roleEnv(c, store: store, defaultVars: Array(own.keys))) { $1 }
+        // One ceiling on agents across every engine on this Mac (engine orchestrator/shared-slots.ts).
+        env["FORGE_AGENT_CEILING"] = String(store.agentCeiling ?? SetupStore.defaultCeiling)
+        env["FORGE_AGENT_SLOTS_DIR"] = Paths.home.appendingPathComponent("slots").path
         return env
     }
 
-    /// Everything before the engine starts: the workflow file, then the environment.
-    static func prepare(_ c: SetupChoices) async throws {
-        try writeWorkflow(c)
-        await EngineHost.shared.setEnvironment(try await environment(c))
+    /// The roles' accounts as prefixed variables, and which variables are the default account's.
+    static func roleEnv(
+        _ c: SetupChoices, store: SetupStore, defaultVars: [String], secret find: (AIAccount) -> String? = WorkerCheck.secret
+    ) throws -> [String: String] {
+        let roles = c.roleAccounts(store)
+        guard !roles.isEmpty else { return [:] }
+        var env = ["FORGE_ACCOUNT_VARS": defaultVars.sorted().joined(separator: ",")]
+        for (i, r) in roles.enumerated() {
+            let secret = find(r.account)
+            if r.account.method == .key, secret == nil {
+                throw Problem(description: "Forge doesn't have the \(r.account.provider.keyName) for \(r.account.name). Add it again in Settings.")
+            }
+            for (k, v) in WorkerCheck.env(r.account, secret: secret) { env[SetupChoices.rolePrefix(i) + k] = v }
+        }
+        return env
+    }
+
+    /// Everything before an engine starts: its workflow file, then its environment.
+    static func prepare(_ c: SetupChoices, store: SetupStore? = nil, host: EngineHost = .shared) async throws {
+        let store = store ?? SetupStore.saved(for: c)
+        try writeWorkflow(c, home: host.home, store: store)
+        await host.setEnvironment(try await environment(c, store: store))
     }
 }

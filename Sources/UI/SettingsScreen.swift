@@ -109,10 +109,10 @@ struct SettingsScreen: View {
                     }
                 } action: {
                     if here {
-                        Pill(text: model.running ? "Running" : "Runs here", tone: .green, dot: Theme.good)
+                        Pill(text: "On screen", tone: .green, dot: Theme.good)
                         change("Change repo", step: 3)
                     } else {
-                        Button(p.repo == nil ? "Set up" : "Run this one") { model.ask = .run(p) }.buttonStyle(ForgeButton(kind: .ghost))
+                        Button(p.repo == nil ? "Set up" : "Open") { model.ask = .run(p) }.buttonStyle(ForgeButton(kind: .ghost))
                     }
                 }
             }

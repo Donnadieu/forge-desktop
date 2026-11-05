@@ -90,10 +90,78 @@ extension Checks {
                 && s.connections(.basecamp).count == 2)
         let saved = (try? JSONEncoder().encode(s)).flatMap { try? JSONDecoder().decode(SetupStore.self, from: $0) }
         check("the store with workspaces saves and loads unchanged", saved == s)
+        fleetChecks(check)
         check(
             "tiles get two letters",
             [Workspace(id: "", name: "ConstructEase"), Workspace(id: "", name: "Side projects"), Workspace(id: "", name: "acme")].map(\.initials)
                 == ["CE", "SP", "AC"])
+    }
+
+    /// Everything running at once: each project's own engine folder, Start per workspace, and roles.
+    static func fleetChecks(_ check: (String, Bool) -> Void) {
+        var c = SetupChoices()
+        c.tracker = .linear
+        (c.teamID, c.projectID, c.projectSlug, c.projectName, c.columnsReady) = ("t1", "p1", "forge", "Forge", true)
+        (c.repo, c.worker, c.accountID) = ("acme/forge", .claude, "claude-1")
+        var s = SetupStore()
+        s.accounts = [
+            AIAccount.new(.claude, method: .key, name: "Team", id: "claude-1"),
+            AIAccount.new(.codex, method: .key, name: "Work", id: "codex-1"),
+        ]
+        s.sync(c)
+        s.projects.append(ProjectRecord(id: "linear:web", trackerID: "linear", name: "Web"))
+        s.upgrade(c, has: { _ in false })
+        check("after the upgrade the project that ran keeps Forge's own engine folder", s.project("linear:forge")?.folder == nil)
+        check("every other project gets its own", s.project("linear:web")?.folder == "projects/linear_web")
+        check("a fresh store needs no folders pass", !s.giveFolders())
+        var v2 = s
+        v2.version = 2
+        v2.projects[1].folder = nil
+        check("a store from before folders gives them once", v2.giveFolders() && v2.project("linear:web")?.folder != nil && !v2.giveFolders())
+        check("folder names keep only safe characters", SetupStore.folder(for: "basecamp-ab12:466/x") == "projects/basecamp-ab12_466_x")
+
+        check("only set-up projects can run", s.runnable(live: c).map(\.id) == ["linear:forge"])
+        var other = c
+        (other.projectSlug, other.projectName, other.repo) = ("web", "Web", "acme/web")
+        s.leave(other)
+        if let i = s.projects.firstIndex(where: { $0.id == "linear:web" }) { s.projects[i].choices = other }
+        check("a project not on screen runs with the answers it keeps", s.runChoices("linear:web", live: c)?.repo == "acme/web")
+        check("both run once both are set up", Set(s.runnable(live: c).map(\.id)) == ["linear:forge", "linear:web"])
+        s.setRunning("ws-1", true)
+        let reloaded = (try? JSONEncoder().encode(s)).flatMap { try? JSONDecoder().decode(SetupStore.self, from: $0) }
+        check("a running workspace is remembered", reloaded?.current?.running == true)
+
+        // Roles: Codex builds, Claude Code reviews on Opus; the rest stays on the project's provider.
+        c.roles = [
+            RoleChoice(role: .builds, accountID: "codex-1"), RoleChoice(role: .reviews, accountID: "claude-1", model: "claude-opus-5"),
+            RoleChoice(role: .tests, accountID: "gone"),
+        ]
+        let lines = EngineSettings.roleLines(c, store: s)
+        check("roles go into the workflow file, in order, a cleared account left out", lines.filter { $0.contains("kind:") }.count == 2)
+        check(
+            "each role names its stages, agent and model",
+            lines.contains("    - states: [\"In Progress\", \"Rework\"]") && lines.contains("      kind: codex")
+                && lines.contains("      model: \"claude-opus-5\""))
+        check("each role's account arrives under its own prefix", lines.contains("      env_prefix: \"FORGE_ROLE_1_\""))
+        let env = try? EngineSettings.roleEnv(c, store: s, defaultVars: ["ANTHROPIC_API_KEY"]) { a in "secret-\(a.id)" }
+        check("the default account's variables are named for the engine", env?["FORGE_ACCOUNT_VARS"] == "ANTHROPIC_API_KEY")
+        check(
+            "a role's key is passed only under its prefix", env?["FORGE_ROLE_0_OPENAI_API_KEY"] == "secret-codex-1" && env?["OPENAI_API_KEY"] == nil)
+        check("no roles, nothing added", EngineSettings.roleLines(SetupChoices(), store: s).isEmpty)
+        let missing = (try? EngineSettings.roleEnv(c, store: s, defaultVars: []) { _ in nil }) == nil
+        check("a role on a key Forge lost stops the start with a plain line", missing)
+
+        // All workspaces: two engines' states as one.
+        var a = EngineState(status: "running", started_at: "2026-11-05T10:00:00Z", running: [])
+        a.running = [.init(issue_identifier: "CE-1")]
+        a.board = .init(columns: [.init(name: "Todo", cards: [])])
+        a.usage = .init(last_24h: .init(runs: 2, inputTokens: 100, outputTokens: 10))
+        var b = EngineState(status: "stopped", running: [])
+        b.board = .init(columns: [.init(name: "Todo", cards: []), .init(name: "QA", cards: [])])
+        b.usage = .init(last_24h: .init(runs: 1, inputTokens: 5, outputTokens: 1))
+        let m = AllWorkspacesScreen.merge([a, b])
+        check("All workspaces runs while any does, with every agent", m.isRunning && m.running.count == 1)
+        check("its columns are joined by name and usage added up", m.board?.columns.map(\.name) == ["Todo", "QA"] && m.usage?.last_24h?.runs == 3)
     }
 
     /// `Forge --workspaces-check`: opens the store in `FORGE_HOME` (a copy, never the person's own folder) the way the
@@ -121,6 +189,7 @@ extension Checks {
         print(
             "upgraded: version \(s.version), backup \(FileManager.default.fileExists(atPath: Paths.home.appendingPathComponent("store.v1.json").path))"
         )
-        return s.version == 2 && s.current != nil ? 0 : 1
+        for p in s.projects { print("  engine folder of \(p.id): \(p.folder ?? "Forge's own")") }
+        return s.version >= 2 && s.current != nil ? 0 : 1
     }
 }

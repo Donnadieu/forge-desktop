@@ -1,6 +1,6 @@
 # Workspaces: many trackers, projects, repos and intelligence providers
 
-Status: **design**, waiting for Omar's yes before any code. Design: [workspaces-design.md](workspaces-design.md).
+Status: **built** (all three steps of the build order; not released yet). Design: [workspaces-design.md](workspaces-design.md).
 
 ## The request (Omar, Nov 5 2026, dictated; cleaned up, meaning unchanged)
 

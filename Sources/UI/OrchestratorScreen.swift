@@ -43,8 +43,13 @@ struct OrchestratorScreen: View {
             let restart = model.settingsChanged
             model.settingsChanged = false
             await model.link.connect(restart: restart)
+            // Workspaces left running when Forge last quit start again (once per launch).
+            if !AppModel.resumed {
+                AppModel.resumed = true
+                await model.resumeRunning()
+            }
             // `open -a Forge --args --start`: press Start once the board is up (the same call the button makes).
-            if CommandLine.arguments.contains("--start"), state?.isRunning == false { await model.link.start() }
+            if CommandLine.arguments.contains("--start"), state?.isRunning == false { await model.startShown() }
         }
         .sheet(item: $open) { card in
             CardDetail(model: model, card: state?.cards.first { $0.id == card.id } ?? card) { open = nil }
@@ -105,12 +110,12 @@ struct OrchestratorScreen: View {
                 .buttonStyle(ForgeButton(kind: .ghost, hint: "⌘,", icon: "gearshape"))
                 .keyboardShortcut(",", modifiers: .command)
             if state?.isRunning == true || state?.status == "stopping" {
-                Button("Stop") { act { await model.link.stop() } }
+                Button("Stop") { act { await model.stopShown() } }
                     .buttonStyle(ForgeButton(kind: .secondary, hint: "⌘.", icon: "stop.fill"))
                     .keyboardShortcut(".", modifiers: .command)
                     .disabled(busy || state?.status == "stopping")
             } else {
-                Button("Start") { act { await model.link.start() } }
+                Button("Start") { act { await model.startShown() } }
                     .buttonStyle(ForgeButton(kind: isEmpty ? .secondary : .primary, hint: "↵", icon: "play.fill"))
                     .keyboardShortcut(.defaultAction)
                     .disabled(busy || state == nil)

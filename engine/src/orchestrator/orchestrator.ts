@@ -10,7 +10,7 @@ import type { WorkspaceManager } from "../workspace/manager.js";
 import { BacklogPromoter } from "./backlog-promotion.js";
 import { enforceCostCeiling } from "./cost-ceiling.js";
 import { type DispatchIssueDeps, dispatchIssue as runDispatchIssue } from "./dispatch-issue.js";
-import { inFlightCount, selectIssuesToDispatch } from "./dispatcher.js";
+import { effectiveAgentLimit, inFlightCount, selectIssuesToDispatch } from "./dispatcher.js";
 import { reconcileRunningIssues } from "./reconciler.js";
 import { refetchAndDispatch } from "./refetch-dispatch.js";
 import { cancelAllRetries, cancelRetry, scheduleRetry } from "./retry-queue.js";
@@ -379,7 +379,7 @@ export class Orchestrator {
     const toDispatch = selectIssuesToDispatch(dispatchCandidates, this.state, {
       active_states: this.config.trackerConfig.active_states,
       terminal_states: this.config.trackerConfig.terminal_states,
-      max_concurrent_agents: this.config.maxConcurrentAgents,
+      max_concurrent_agents: effectiveAgentLimit(this.config, inFlightCount(this.state)),
     });
     for (const issue of toDispatch) {
       await this.dispatchIssue(issue);

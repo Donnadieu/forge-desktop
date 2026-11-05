@@ -176,7 +176,11 @@ projects is empty.
 
 Claude Design project: https://claude.ai/design/p/de1adfa6-96d2-454a-8465-09ea364874b5 (file `Workspaces.dc.html`, tokens per frame in `TOKENS-USED.md`).
 
-## 7. Build order (each its own PR, each waits for a yes)
+## 7. Build order
+
+Status: steps 1 to 3 are built (step 1 in PR #58; steps 2 and 3 together after Omar's "build everything first").
+Step 2 needed one small engine change after all: the Mac-wide ceiling has to count agents across engines, so each
+engine shares its count in `slots/` (`orchestrator/shared-slots.ts`).
 
 1. **Store v2 and migration**, the workspace chip and switcher, Settings per workspace, several connections per tracker
    kind, GitHub accounts (add, signing per account), project multi-select and repo mapping, Harness engineering per

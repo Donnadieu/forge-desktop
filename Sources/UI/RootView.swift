@@ -22,6 +22,7 @@ struct RootView: View {
             case AppModel.workflowScreen: WorkflowScreen(model: model)
             case AppModel.settingsScreen: SettingsScreen(model: model)
             case AppModel.projectsScreen: ProjectsScreen(model: model)
+            case AppModel.allWorkspacesScreen: AllWorkspacesScreen(model: model)
             default: OrchestratorScreen(model: model)
             }
         }

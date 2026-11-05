@@ -5,7 +5,7 @@
  */
 
 import type { NormalizedIssue, TrackerAdapter } from "../tracker/types.js";
-import { inFlightCountExcluding } from "./dispatcher.js";
+import { effectiveAgentLimit, inFlightCountExcluding } from "./dispatcher.js";
 import { cancelRetry } from "./retry-queue.js";
 import { liveSessionReason, logDispatchSuppressed } from "./session-guard.js";
 import type { OrchestratorConfig, OrchestratorState } from "./types.js";
@@ -55,7 +55,8 @@ export function refetchAndDispatch(
       // issue's own reservation still sits in `retryAttempts` (held continuously
       // since the timer fired), so exclude it: the retry owns that slot, and
       // only OTHER in-flight work should block it.
-      if (inFlightCountExcluding(deps.state, issueId) >= deps.config.maxConcurrentAgents) return;
+      const inFlight = inFlightCountExcluding(deps.state, issueId);
+      if (inFlight >= effectiveAgentLimit(deps.config, inFlight)) return;
       const candidates = await deps.tracker.fetchCandidates(deps.config.trackerConfig);
       const issue = candidates.find((c) => c.id === issueId);
       // `dispatchIssue` resolves only after the issue is registered in

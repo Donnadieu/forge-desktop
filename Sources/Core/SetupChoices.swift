@@ -40,6 +40,8 @@ struct SetupChoices: Codable, Equatable, Sendable {
     /// `store.json` (optional: added in 0.2.17; nil = carried over by `SetupStore.migrate`). See Accounts.swift.
     var accountID: String?
     var model: String?
+    /// Stages with their own provider, account and model (optional: added with workspaces; nil = none). Roles.swift.
+    var roles: [RoleChoice]?
     var workerChecked = false
     // 6. Ready for agents (optional so settings saved before this screen existed still load)
     /// The repo was read and its card made, or the person chose "Skip for now".

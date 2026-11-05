@@ -145,7 +145,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Tracker sign-ins are per connection: read the running project's with `store.trackerItem(choices)` (or
   `BasecampLogin.item` / `GitHubLogin.item`, which `AppModel.useSignIns` points at it), never `Keychain.Item.linearKey`
   and friends directly; those names belong only to the connection carried over from before workspaces.
-- A project's answers live whole in `setup.json` while it runs and in `ProjectRecord.choices` while another runs. A new
+- Several engines run at once, one per project: never use `EngineHost.shared`, `Paths.workflow` or `GitHub.account` for
+  a project's engine. Get its host with `model.host(for:)` / `model.link(for:)` and its answers with
+  `store.runChoices(id, live: choices)`; `EngineSettings.prepare(c, host:)` writes into that host's folder.
+- A setting every engine reads at start (the Mac-wide agent ceiling) must restart every running workspace's engines,
+  not only the one on screen (`AppModel.restartEngines(in:shown:)`).
+- Prove engine changes that span several engines with `Forge --engine-check` (it starts two real engines side by side)
+  and role routing with the engine test `roles-dispatch.test.ts`, which fails without the hand-off.
+- A project's answers live whole in `setup.json` while it's on screen and in `ProjectRecord.choices` otherwise. A new
   `SetupChoices` field that belongs to the Mac rather than the project (like the Harness engineering records) must be
   carried in `SetupChoices.carried()` and `SetupStore.choices(for:)`, or switching projects drops it.
 - Pieces every screen shares (the top bar's workspace chip) read the model from `\.forgeModel` in the environment;

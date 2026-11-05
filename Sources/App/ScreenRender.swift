@@ -44,9 +44,7 @@ enum ScreenRender {
             if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
             if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
             if shot.scene == "ask-new" { model.ask = .new }
-            if shot.scene == "ask-switch", let w = model.store.workspaceList.last(where: { $0.id != model.workspace?.id }) {
-                model.ask = .switchTo(w)
-            }
+            if shot.scene == "fleet" { AppModel.sampleRunning(model) }
             if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
             let ok = render(
                 RootView(model: model), size: NSSize(width: 1200, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))
@@ -63,8 +61,9 @@ enum ScreenRender {
         // The workspace switcher opens as a popover, which a window render can't show: drawn on its own.
         let switcherModel = AppModel(preview: true, choices: shots().first { $0.name == "11-settings" }?.choices, screen: AppModel.boardScreen)
         switcherModel.engine = SampleBoard.state
+        AppModel.sampleRunning(switcherModel)
         let shown = render(
-            WorkspaceSwitcher(model: switcherModel) {}, size: NSSize(width: 400, height: 330),
+            WorkspaceSwitcher(model: switcherModel) {}, size: NSSize(width: 460, height: 400),
             to: dir.appendingPathComponent("13-workspace-switcher.png"))
         print("\(shown ? "✓" : "✗") 13-workspace-switcher")
         if !shown { failed += 1 }

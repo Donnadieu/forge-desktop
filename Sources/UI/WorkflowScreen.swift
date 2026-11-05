@@ -11,12 +11,15 @@ struct WorkflowScreen: View {
     @State private var more = false
     @State private var showEngine = false
     @State private var restarting = false
+    /// Agents at once across every running workspace on this Mac (`SetupStore.agentCeiling`).
+    @State private var ceiling = SetupStore.defaultCeiling
 
     private var saved: (off: Set<String>, agents: Int) { (Set(model.choices.stagesOff ?? []), max(1, model.choices.agentsAtOnce ?? 1)) }
     private var savedMoves: (triage: Bool, todo: Bool) { (model.choices.sendNewToTriage ?? false, model.choices.startReady ?? false) }
+    private var savedCeiling: Int { model.store.agentCeiling ?? SetupStore.defaultCeiling }
     private var changes: Int {
         saved.off.symmetricDifference(off).count + (saved.agents == agents ? 0 : 1) + (savedMoves.triage == toTriage ? 0 : 1)
-            + (savedMoves.todo == toTodo ? 0 : 1)
+            + (savedMoves.todo == toTodo ? 0 : 1) + (savedCeiling == ceiling ? 0 : 1)
     }
 
     var body: some View {
@@ -46,6 +49,7 @@ struct WorkflowScreen: View {
             agents = saved.agents
             more = agents > 4
             (toTriage, toTodo) = savedMoves
+            ceiling = savedCeiling
             if model.preview, model.sample.scene == "qa-off" { off.insert("QA") }
             if model.preview, model.sample.scene == "restarting" { restarting = true }
             if model.preview, model.sample.scene == "moves-on" { (toTriage, toTodo) = (true, true) }
@@ -107,8 +111,17 @@ struct WorkflowScreen: View {
                     Text("agents").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
                 }
             }
-            Text("Each agent takes one card and may send its own helpers.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+            Text("Each agent takes one card and may send its own helpers. This is for each project in \(model.workspace?.name ?? "this workspace").")
+                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
+            SectionLabel(text: "Across all workspaces")
+            HStack(spacing: 8) {
+                TextField("", value: $ceiling, format: .number).forgeField(mono: true).frame(width: 96)
+                Text("agents at most").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            }
+            Text("Running workspaces share this Mac and your accounts' usage limits. Cards wait until an agent is free.")
+                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             backlogMoves
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
@@ -208,10 +221,16 @@ struct WorkflowScreen: View {
         model.choices.agentsAtOnce = max(1, agents)
         model.choices.sendNewToTriage = toTriage
         model.choices.startReady = toTodo
+        let ceilingChanged = savedCeiling != max(1, ceiling)
+        model.store.agentCeiling = max(1, ceiling) == SetupStore.defaultCeiling ? nil : max(1, ceiling)
         model.save()
         restarting = true
         Task {
-            if !model.preview { await EngineHost.shared.stop() }
+            if !model.preview, let w = model.workspace?.id {
+                // The ceiling is read by every engine when it starts: a new one restarts every running workspace.
+                if ceilingChanged { for o in model.runningWorkspaces where o.id != w { await model.restartEngines(in: o.id, shown: false) } }
+                await model.restartEngines(in: w)
+            }
             restarting = false
             model.go(AppModel.boardScreen)
         }

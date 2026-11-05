@@ -133,27 +133,43 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 
 ## Workspaces and tracker connections
 
-- A workspace (`Core/Workspaces.swift`, in `store.json` version 2) groups the tracker connections, projects, repos and
+- A workspace (`Core/Workspaces.swift`, in `store.json` version 3) groups the tracker connections, projects, repos and
   intelligence providers Forge runs together. Sign-ins belong to the Mac: tracker connections, GitHub accounts and
-  intelligence provider accounts are listed once and any workspace can use them. One project runs at a time: the
-  running project of the workspace on screen (`setup.json` is its working copy, as before).
+  intelligence provider accounts are listed once and any workspace can use them. `setup.json` is the working copy of
+  the project on screen; every other project keeps its answers in `ProjectRecord.choices`.
+- Everything runs at once (`UI/AppModel+Fleet.swift`): Start and Stop are per workspace (`Workspace.running`, remembered
+  so Forge reopens with the same workspaces started), and every set-up project of a running workspace runs in its own
+  engine (`EngineHost.forProject`), with its own folder `projects/<id>/` (`ProjectRecord.folder`: workflow file,
+  `forge.sqlite`, card folders; the engine reads it from `FORGE_ENGINE_HOME`), logs in `Logs/Forge/projects/<id>/`,
+  port and launch token. Only the project carried over from 0.2.17 keeps Forge's own folder, so its cards and history
+  stay put. Each project has its own `BoardLink`; the one on screen also feeds `model.engine`. Looking at a workspace
+  never stops another. Quitting drains every engine (`AppModel.stopAllEngines`).
+- One ceiling on agents across every engine on the Mac (`SetupStore.agentCeiling`, default 6, Workflow Studio): each
+  engine publishes its agents in flight to `slots/` and adds up the others' before dispatching
+  (`engine/src/orchestrator/shared-slots.ts`, env `FORGE_AGENT_CEILING`, `FORGE_AGENT_SLOTS_DIR`).
+- "All workspaces" (`UI/AllWorkspacesScreen.swift`) shows every running workspace's cards in one Orchestrator, with a
+  Workspace column; a row opens that project.
+- Roles (`Core/Roles.swift`): Plans, Builds, Reviews and Tests can each have their own provider account and model
+  (`SetupChoices.roles`); stages no role takes use the project's own. The workflow file lists them under
+  `agent.roles` and each role's account reaches the engine under `FORGE_ROLE_<n>_`, so two accounts never share a
+  variable; the engine picks the agent by the card's stage and a card moving to another role's stage ends its run so
+  that role's agent picks it up (`engine/src/agent/roles.ts`).
 - A tracker connection (`TrackerRecord`) is one sign-in; there can be several of each kind. A new one has the id
   `<kind>-<id>` and its own Keychain item `tracker-<kind>-<id>`; one carried over keeps the item its kind used before
   (`linear-key`, `basecamp-login`, `github-tracker-login`). A project names its connection (`SetupChoices.connectionID`,
   nil = the carried-over one) and its record id is `<connection>:<project>`. The engine's token commands carry the
   item (`Forge --basecamp-token --item <item>`), and `--item` accepts only tracker items (`Checks.trackerItemAllowed`).
-- Switching workspace or project (`SetupStore.switchTo`, `AppModel.open`) stops the engine (running agents drain and
-  the engine records Stop), keeps the running project's answers in its record (`ProjectRecord.choices`) and
-  Workflow Studio's in its workspace, then loads the other project's answers, or a fresh start on its tracker for a
-  project ticked but not set up (`ProjectRef`). What belongs to the Mac comes along: who signs commits (fresh
-  starts only) and every repo's Harness engineering record. The other project opens stopped.
+- Switching workspace or project (`SetupStore.switchTo`, `AppModel.open`) only changes the view: it keeps the shown
+  project's answers in its record (`ProjectRecord.choices`) and Workflow Studio's in its workspace, then loads the
+  other project's answers, or a fresh start on its tracker for a project ticked but not set up (`ProjectRef`). What
+  belongs to the Mac comes along: who signs commits (fresh starts only) and every repo's Harness engineering record.
+  An engine whose workspace isn't running quits when its project leaves the screen.
 - GitHub accounts: the ones the GitHub CLI has (read live) plus the ones Forge signs in to itself with GitHub's
   device sign-in (`GitHubAccountRecord`, Keychain `github-account-<login>`); `GitHub.env()` uses the latter's token.
 - The first open of a 0.2.17 store (`SetupStore.upgrade`) makes one workspace of everything, turns every tracker
   sign-in already in the Keychain into a connection under its old item, and keeps `store.v1.json`. `Forge
   --workspaces-check` runs it on a copy of Forge's folder (`FORGE_HOME`).
-- The design, including what comes later (every project running at once, several workspaces running, roles per
-  stage): [design/workspaces-design.md](design/workspaces-design.md).
+- The design: [design/workspaces-design.md](design/workspaces-design.md).
 
 ## Intelligence providers and their accounts
 
@@ -192,4 +208,5 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 `~/Library/Application Support/Forge/`: the workflow file (source of truth for the pipeline), `setup.json` and
 `store.json` (setup's answers; never a secret), `accounts/` (each browser account's own login folder), one
 SQLite file written only by the engine (running/stopped, runs, usage), `workspaces/` (one folder per
-card). Logs in `~/Library/Logs/Forge/`. Secrets in the Keychain, never on disk.
+card), `projects/<id>/` (the same three for each project after the first: its own engine's folder) and `slots/` (each
+running engine's agents in flight, for the Mac-wide ceiling). Logs in `~/Library/Logs/Forge/`. Secrets in the Keychain, never on disk.

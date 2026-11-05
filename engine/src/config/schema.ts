@@ -89,6 +89,21 @@ export const WorkflowConfigSchema = z.object({
       model: z.string().optional(),
       max_concurrent_agents: z.number().default(10),
       max_concurrent_agents_by_state: z.record(z.string(), z.number()).default({}),
+      // Forge Desktop: another intelligence provider and model for some stages (agent/roles.ts). The
+      // role's account arrives in the environment under `env_prefix`.
+      roles: z
+        .array(
+          z.object({
+            states: z.array(z.string()).min(1),
+            kind: AgentKindWithCustomSchema,
+            model: z.string().optional(),
+            env_prefix: z
+              .string()
+              .regex(/^FORGE_ROLE_\d+_$/)
+              .optional(),
+          }),
+        )
+        .default([]),
       max_turns: z.coerce.number().default(50),
       turn_timeout_ms: z.number().default(1_800_000),
       read_timeout_ms: z.number().default(480_000),

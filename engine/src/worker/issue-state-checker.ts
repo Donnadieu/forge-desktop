@@ -10,6 +10,8 @@ import type { WorkerResult } from "./runner.js";
 export interface StateCheckResult {
   /** True when the issue is known to still be in an active state. */
   stillActive: boolean;
+  /** Forge Desktop: still active, but in a stage another role's agent works (agent/roles.ts). */
+  handoff?: boolean;
   /** True when the failure policy decided the worker should abort. */
   abort: boolean;
   /** Human-readable reason when abort is true. */
@@ -54,8 +56,10 @@ export class IssueStateChecker {
     activeStates: string[],
     logger: Logger,
     abortContext: AbortContext,
-  ): Promise<WorkerResult | "break" | null> {
-    const result = await this.check(tracker, issue, activeStates, logger);
+    handoffWhen?: (state: string) => boolean,
+  ): Promise<WorkerResult | "break" | "handoff" | null> {
+    const result = await this.check(tracker, issue, activeStates, logger, handoffWhen);
+    if (result.handoff) return "handoff";
     if (result.stillActive) return null;
     if (result.abort) {
       return {
@@ -77,6 +81,7 @@ export class IssueStateChecker {
     issue: NormalizedIssue,
     activeStates: string[],
     logger: Logger,
+    handoffWhen?: (state: string) => boolean,
   ): Promise<StateCheckResult> {
     try {
       const currentStates = await tracker.fetchIssueStatesByIds([issue.id]);
@@ -85,6 +90,9 @@ export class IssueStateChecker {
 
       if (currentState !== undefined && !activeStates.includes(currentState)) {
         return { stillActive: false, abort: false };
+      }
+      if (currentState !== undefined && handoffWhen?.(currentState)) {
+        return { stillActive: true, handoff: true, abort: false };
       }
       return { stillActive: true, abort: false };
     } catch (error) {

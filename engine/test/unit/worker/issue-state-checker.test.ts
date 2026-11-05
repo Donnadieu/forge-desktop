@@ -191,4 +191,25 @@ describe("IssueStateChecker", () => {
     expect(errorLogs).toHaveLength(1);
     expect(errorLogs[0].obj.consecutiveFailures).toBe(2);
   });
+
+  it("hands a card to another role's agent when it moves to that role's stage (Forge Desktop)", async () => {
+    const checker = new IssueStateChecker(2);
+    const { logger } = createMockLogger();
+    const moved: TrackerAdapter = {
+      kind: "memory",
+      fetchIssues: async () => [],
+      fetchIssueStatesByIds: async () => new Map([[testIssue.id, "AI Review"]]),
+    } as unknown as TrackerAdapter;
+    const ctx = {
+      turns: 1,
+      tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      workspacePath: "/tmp/ws",
+      preserveWorkspace: false,
+    };
+    const active = ["In Progress", "AI Review"];
+    const leftRole = (s: string) => s === "AI Review";
+    expect(await checker.decide(moved, testIssue, active, logger, ctx, leftRole)).toBe("handoff");
+    expect(await checker.decide(moved, testIssue, active, logger, ctx)).toBeNull();
+    expect(await checker.decide(moved, testIssue, active, logger, ctx, () => false)).toBeNull();
+  });
 });

@@ -2,7 +2,8 @@ import Foundation
 
 /// A workspace: the trackers, projects, repos and intelligence providers Forge runs together. Sign-ins (tracker
 /// connections, GitHub accounts, intelligence provider accounts) belong to the Mac, and any workspace can use them;
-/// a workspace picks its projects. For now one project runs at a time: the one picked in the workspace on screen.
+/// a workspace picks its projects. Every set-up project of a running workspace runs in its own engine, and any
+/// number of workspaces run at once (AppModel+Fleet.swift).
 /// Kept in `store.json` (version 2) next to the projects. Design: docs/design/workspaces-design.md.
 struct Workspace: Codable, Equatable, Identifiable, Sendable {
     var id: String
@@ -11,8 +12,10 @@ struct Workspace: Codable, Equatable, Identifiable, Sendable {
     var color: String?
     /// The tracker connections it uses (`TrackerRecord.id`).
     var connectionIDs: [String]?
-    /// The project it runs (`ProjectRecord.id`).
+    /// The project it shows (`ProjectRecord.id`), the one opened last.
     var runningProject: String?
+    /// Start was pressed and not Stop: its projects run, and start again when Forge reopens.
+    var running: Bool?
     /// Workflow Studio's settings for its projects.
     var workflow: WorkflowSettings?
 
@@ -174,7 +177,8 @@ extension SetupStore {
         let ids = Set(wanted.map(\.id))
         projects.removeAll { $0.workspaceID == w && $0.trackerID == connection && !ids.contains($0.id) && $0.id != running }
         for x in wanted where project(x.id) == nil {
-            projects.append(ProjectRecord(id: x.id, trackerID: connection, name: x.name, workspaceID: w, ref: x.ref))
+            projects.append(
+                ProjectRecord(id: x.id, trackerID: connection, name: x.name, workspaceID: w, ref: x.ref, folder: Self.folder(for: x.id)))
         }
         if !wanted.isEmpty { use(connection: connection, in: w) }
     }
@@ -282,11 +286,50 @@ extension SetupStore {
         let w = Workspace(
             id: "ws-1", name: Self.workspaceName(c), color: "heat", connectionIDs: used, runningProject: activeProject,
             workflow: WorkflowSettings(c))
-        for i in projects.indices { projects[i].workspaceID = w.id }
+        for i in projects.indices {
+            projects[i].workspaceID = w.id
+            // Only the project that ran keeps Forge's own folder (its cards and history are there).
+            projects[i].folder = projects[i].id == activeProject ? nil : Self.folder(for: projects[i].id)
+        }
         workspaces = [w]
         currentWorkspace = w.id
-        version = 2
+        version = 3
         return true
+    }
+
+    /// Stores written before each project had its own engine folder (version 2): the project on screen keeps
+    /// Forge's own folder, every other gets its own. True when something changed.
+    @discardableResult
+    mutating func giveFolders() -> Bool {
+        guard workspaces != nil, version < 3 else { return false }
+        for i in projects.indices where projects[i].folder == nil && projects[i].id != activeProject {
+            projects[i].folder = Self.folder(for: projects[i].id)
+        }
+        version = 3
+        return true
+    }
+
+    /// A project's engine folder under Forge's: `projects/<id>` with anything but letters, digits, `-` and `_` made `_`.
+    static func folder(for id: String) -> String {
+        "projects/" + String(id.map { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" ? $0 : "_" })
+    }
+
+    /// A project's answers as its engine runs them: the ones being edited (`live`) when it's that project, else the
+    /// ones it keeps, with its workspace's Workflow Studio answers and the Mac's Harness engineering records.
+    func runChoices(_ projectID: String, live: SetupChoices) -> SetupChoices? {
+        if Self.projectID(live) == projectID { return live }
+        guard let p = project(projectID), var c = p.choices else { return nil }
+        if let w = workspace(p.workspaceID) { (w.workflow ?? WorkflowSettings(c)).apply(to: &c) }
+        c.harness = live.harness
+        return c
+    }
+
+    /// Every project whose engine can run (set up far enough to write its workflow), in any workspace.
+    func runnable(live: SetupChoices) -> [ProjectRecord] {
+        projects.filter { p in
+            guard p.workspaceID != nil, let c = runChoices(p.id, live: live) else { return false }
+            return c.projectSlug != nil && c.repo != nil && c.worker != nil && c.columnsReady
+        }
     }
 
     /// The first workspace's name: the tracker's organisation or account, else the project, else a plain one.

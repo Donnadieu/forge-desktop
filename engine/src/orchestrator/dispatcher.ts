@@ -32,6 +32,20 @@ export function inFlightCountExcluding(state: OrchestratorState, issueId: string
 }
 
 /**
+ * The most agents this engine may have in flight: its own `maxConcurrentAgents`, and (Forge Desktop) what's left
+ * under the Mac-wide ceiling once the other engines' agents are counted (`agentLimit`).
+ */
+export function effectiveAgentLimit(
+  config: { maxConcurrentAgents: number; agentLimit?: (inFlight: number) => number },
+  inFlight: number,
+): number {
+  const shared = config.agentLimit?.(inFlight);
+  return shared === undefined
+    ? config.maxConcurrentAgents
+    : Math.min(config.maxConcurrentAgents, shared);
+}
+
+/**
  * Rank a ticket's pipeline stage: further along the pipeline = higher number =
  * dispatched first. The order comes from `activeStates`, which callers list in
  * pipeline order (earliest first, e.g. `Todo` … `Merging`), so a later index

@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import type { AgentEvent } from "../agent/types.js";
+import type { AgentAdapter, AgentEvent } from "../agent/types.js";
 import type { TerminalBuildOutcome } from "../observability/types.js";
 import type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
 import type { NormalizedIssue, ProgressCounts, TrackerConfig } from "../tracker/types.js";
@@ -13,6 +13,15 @@ export type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry
 export interface OrchestratorConfig {
   pollIntervalMs: number;
   maxConcurrentAgents: number;
+  /**
+   * Forge Desktop: how many agents may be in flight now, given this engine's own count (the ceiling across
+   * every engine on the Mac, orchestrator/shared-slots.ts). Unset: `maxConcurrentAgents` alone.
+   */
+  agentLimit?: (inFlight: number) => number;
+  /** Forge Desktop: the agent for a card's state (agent/roles.ts). Unset: the orchestrator's one agent. */
+  agentForState?: (state: string) => AgentAdapter;
+  /** Forge Desktop: which role a state belongs to; a card moving to another role ends its run. */
+  roleOf?: (state: string) => number;
   maxTurns: number;
   turnTimeoutMs?: number;
   readTimeoutMs?: number;

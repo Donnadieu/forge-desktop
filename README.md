@@ -9,9 +9,7 @@ the pull request and press Merge, or ask for changes. That's the loop.
 
 [![A 47-second tour of Forge Desktop](docs/promo/forge-desktop-promo.gif)](docs/promo/forge-desktop-promo.mp4)
 
-The full 47-second tour, made from the app's own screens (also in [docs/promo](docs/promo/forge-desktop-promo.mp4)):
-
-https://github.com/user-attachments/assets/7dfb2cfa-7e1d-487d-b4b7-5797c345cb40
+A 47-second tour, made from the app's own screens: [watch the full video](docs/promo/forge-desktop-promo.mp4).
 
 ![The Orchestrator: what every agent is working on right now](docs/screenshots/orchestrator.png)
 

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Setup 4: pick the repo from your GitHub. Forge checks you can push to it before you can go on.
+/// Setup 4: pick the repo from your GitHub. Forge checks you can push to it before you can go on. A GitHub Issues
+/// project is one-to-one with its repo: the repo its issues live in is the one the cards change, locked here.
 struct RepoScreen: View {
     @ObservedObject var model: AppModel
     @State private var repos: [GitHub.Repo] = []
@@ -9,7 +10,13 @@ struct RepoScreen: View {
     @State private var pushOK: Bool?
     @State private var busy = false
 
+    /// The repo a GitHub Issues board files its issues in: the only one its cards may change.
+    private var locked: String? { Self.lockedRepo(model.choices) }
+
+    static func lockedRepo(_ c: SetupChoices) -> String? { c.board == .github ? c.githubBoard?.issueRepo : nil }
+
     private var shown: [GitHub.Repo] {
+        if let locked { return repos.filter { $0.fullName.lowercased() == locked.lowercased() } }
         let f = filter.trimmingCharacters(in: .whitespaces).lowercased()
         return f.isEmpty ? repos : repos.filter { $0.fullName.lowercased().contains(f) }
     }
@@ -18,16 +25,21 @@ struct RepoScreen: View {
         SetupFrame(
             model: model,
             question: "Which repo do the cards change?",
-            detail: "Agents clone it, work on a branch per card and open pull requests against its main branch.",
+            detail: locked.map {
+                "Your GitHub Issues board's issues live in \($0), so its cards change the same repo. Agents clone it, work on a branch per card and open pull requests against its main branch."
+            }
+                ?? "Agents clone it, work on a branch per card and open pull requests against its main branch.",
             primary: "Continue",
             primaryEnabled: pushOK == true,
             busy: busy,
             action: finish
         ) {
-            TextField("", text: $filter)
-                .forgeField(hint: "Search your repos", empty: filter.isEmpty)
-                .frame(maxWidth: 520)
-                .padding(.bottom, 10)
+            if locked == nil {
+                TextField("", text: $filter)
+                    .forgeField(hint: "Search your repos", empty: filter.isEmpty)
+                    .frame(maxWidth: 520)
+                    .padding(.bottom, 10)
+            }
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(shown.enumerated()), id: \.element.fullName) { i, r in
@@ -38,19 +50,24 @@ struct RepoScreen: View {
                             Text(r.fullName).font(Theme.mono(13)).foregroundStyle(on ? Theme.text : Theme.textSec)
                             Spacer()
                             if !r.canPush { Chip(text: "Read only") }
+                            if locked != nil { Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(Theme.textMuted) }
                             if on { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.heatBright) }
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 38)
                         .background(on ? Theme.heat.opacity(0.10) : .clear)
                         .contentShape(Rectangle())
-                        .onTapGesture { selected = r.fullName }
+                        .onTapGesture { if locked == nil { selected = r.fullName } }
                     }
                 }
             }
             .frame(maxWidth: 520, minHeight: 120, maxHeight: 240)
             .fixedSize(horizontal: false, vertical: true)
             .panel()
+            if let locked, !busy, !repos.isEmpty, shown.isEmpty {
+                ProblemLine(text: "Forge can't see \(locked) with your GitHub account. Pick the GitHub account that can push to it.")
+                    .padding(.top, 10)
+            }
             if let s = selected, let ok = pushOK {
                 Group {
                     if ok {
@@ -69,14 +86,18 @@ struct RepoScreen: View {
     private func load() async {
         if model.preview {
             repos = model.sample.repos
-            selected = repos.first?.fullName
+            selected = locked ?? repos.first?.fullName
             pushOK = true
             return
         }
         busy = true
         repos = await GitHub.repos()
         busy = false
-        if let r = model.choices.repo { selected = r }
+        if let locked {
+            selected = repos.first { $0.fullName.lowercased() == locked.lowercased() }?.fullName
+        } else if let r = model.choices.repo {
+            selected = r
+        }
     }
 
     private func check(_ repo: String?) async {

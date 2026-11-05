@@ -32,7 +32,17 @@ extension ScreenRender {
             Shot(name: "1-github-connected", screen: 0, choices: signed),
             Shot(name: "2-github-project", screen: 1, choices: signed),
             Shot(name: "2-github-automations", screen: 1, choices: signed, scene: "github-movers", height: 1000),
+            Shot(name: "4-repo-github-locked", screen: 3, choices: boardPicked(signed)),
         ]
+    }
+
+    /// A GitHub Issues project picked, filing its issues in acme/website.
+    static func boardPicked(_ signed: SetupChoices) -> SetupChoices {
+        var c = signed
+        c.githubBoard?.projectID = "PVT_1"
+        c.githubBoard?.issueRepo = "acme/website"
+        (c.projectSlug, c.projectName, c.columnsReady, c.githubLogin) = ("PVT_1", "Website board", true, "samrivera")
+        return c
     }
 }
 
@@ -41,6 +51,12 @@ extension Checks {
     static func trackerChecks(_ check: (String, Bool) -> Void) {
         let old = #"{"linearUser":"a","projectSlug":"p","columnsReady":true,"repoChecked":true,"workerChecked":true}"#
         let saved = try? JSONDecoder().decode(SetupChoices.self, from: Data(old.utf8))
+        var gh = SetupChoices()
+        gh.tracker = .github
+        gh.githubBoard = GitHubBoard(login: "samrivera", issueRepo: "acme/website")
+        check("a GitHub Issues project's cards change the repo its issues live in", RepoScreen.lockedRepo(gh) == "acme/website")
+        gh.tracker = .linear
+        check("other trackers pick any repo", RepoScreen.lockedRepo(gh) == nil)
         check("settings saved before Basecamp came still mean Linear", saved?.board == .linear && saved?.trackerUser == "a")
 
         var c = SetupChoices()

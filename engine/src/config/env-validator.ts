@@ -31,8 +31,11 @@ export function validateRequiredEnv(config: WorkflowConfig): void {
     missing.push("LINEAR_API_KEY (required for tracker: linear)");
   }
   if (config.tracker.kind === "basecamp") {
-    if (!env.FORGE_BASECAMP_API_KEY) {
-      missing.push("FORGE_BASECAMP_API_KEY (required for tracker: basecamp)");
+    // Forge Desktop: the app's token command (FORGE_BASECAMP_TOKEN_COMMAND) or a fixed key.
+    if (!env.FORGE_BASECAMP_API_KEY && !env.FORGE_BASECAMP_TOKEN_COMMAND) {
+      missing.push(
+        "FORGE_BASECAMP_TOKEN_COMMAND or FORGE_BASECAMP_API_KEY (required for tracker: basecamp)",
+      );
     }
     if (!config.tracker.account_id) {
       missing.push("tracker.account_id (required in WORKFLOW.md for tracker: basecamp)");

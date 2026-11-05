@@ -52,7 +52,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | `helper` and `waiting_for_helpers` events; `rate_limit` event |
 | src/config/boolean-token.ts | 05deefb0a43a | src/config/boolean-token.ts | unchanged |
 | src/config/custom-base-url.ts | 05deefb0a43a | src/config/custom-base-url.ts | unchanged |
-| src/config/env-validator.ts | 05deefb0a43a | src/config/env-validator.ts | unchanged |
+| src/config/env-validator.ts | 05deefb0a43a | src/config/env-validator.ts | a Basecamp board needs the app's token command or a fixed key |
 | src/config/env.ts | 05deefb0a43a | src/config/env.ts | `FORGE_BASECAMP_TOKEN_COMMAND` (the app's token command) |
 | src/config/index.ts | 05deefb0a43a | src/config/index.ts | dropped custom-workflows exports (always on in the app) |
 | src/config/loader.ts | 05deefb0a43a | src/config/loader.ts | unchanged |

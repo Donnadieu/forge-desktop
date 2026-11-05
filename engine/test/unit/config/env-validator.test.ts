@@ -67,6 +67,23 @@ describe("validateRequiredEnv", () => {
     expect(() => validateRequiredEnv(config)).not.toThrow();
   });
 
+  it("lets a Basecamp board start on the app's token command alone", () => {
+    delete process.env.FORGE_BASECAMP_API_KEY;
+    const config = makeConfig({
+      tracker: {
+        kind: "basecamp",
+        project_slug: "42",
+        account_id: "999",
+        active_states: ["Todo"],
+        terminal_states: ["Done"],
+      } as WorkflowConfig["tracker"],
+    });
+    process.env.FORGE_BASECAMP_TOKEN_COMMAND = '["/x/Forge","--basecamp-token"]';
+    expect(() => validateRequiredEnv(config)).not.toThrow();
+    delete process.env.FORGE_BASECAMP_TOKEN_COMMAND;
+    expect(() => validateRequiredEnv(config)).toThrow("FORGE_BASECAMP_TOKEN_COMMAND");
+  });
+
   it("throws when hook references a missing env var", () => {
     process.env.LINEAR_API_KEY = "lin_test_key";
     delete process.env.REPO_URL;

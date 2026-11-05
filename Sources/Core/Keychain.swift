@@ -23,8 +23,22 @@ enum Keychain {
         ProcessInfo.processInfo.environment["FORGE_KEYCHAIN_SERVICE"] ?? service
     }
 
-    private static func query(_ item: Item) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: serviceName, kSecAttrAccount as String: item.rawValue]
+    /// `FORGE_KEYCHAIN_PATH` puts checks' items in a keychain file of their own (unlocked by the check), for
+    /// shells that may not write the login keychain. Unset for the person: their login keychain.
+    private static var testKeychain: SecKeychain? {
+        guard let path = ProcessInfo.processInfo.environment["FORGE_KEYCHAIN_PATH"], !path.isEmpty else { return nil }
+        var kc: SecKeychain?
+        return SecKeychainOpen(path, &kc) == errSecSuccess ? kc : nil
+    }
+
+    private static func query(_ item: Item, adding: Bool = false) -> [String: Any] {
+        var q: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: serviceName, kSecAttrAccount as String: item.rawValue,
+        ]
+        if let kc = testKeychain {
+            if adding { q[kSecUseKeychain as String] = kc } else { q[kSecMatchSearchList as String] = [kc] }
+        }
+        return q
     }
 
     @discardableResult
@@ -32,7 +46,7 @@ enum Keychain {
         let data = Data(value.utf8)
         let update = SecItemUpdate(query(item) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecSuccess { return true }
-        var add = query(item)
+        var add = query(item, adding: true)
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess

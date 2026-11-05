@@ -113,4 +113,9 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   them the refresh token.
 - Test the sign-in without touching the person's: `FORGE_KEYCHAIN_SERVICE=<scratch>` and `FORGE_HOME=<scratch>`
   keep the Keychain items and setup apart; `Forge --basecamp-sign-in` prints the link and code instead of
-  opening a browser.
+  opening a browser. A sandboxed shell can't write the login keychain ("Operation not permitted"): make a
+  scratch keychain (`security create-keychain`, unlock it) and point `FORGE_KEYCHAIN_PATH` at it. Never read
+  Forge's items with `security -w`: the item's ACL trusts only Forge, so it fails or asks the person.
+- The engine's env check must accept every way a tracker can get its secret (Basecamp: the token command);
+  run the real engine once (`node dist/index.js` with a scratch `FORGE_HOME`, never press Start) and read
+  `/api/v1/state` before calling a tracker done. Unit tests didn't catch the refusal to start.

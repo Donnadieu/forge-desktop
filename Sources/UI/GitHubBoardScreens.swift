@@ -9,7 +9,8 @@ final class GitHubBoardSignIn: ObservableObject {
     @Published var problem: String?
     private var task: Task<Void, Never>?
 
-    func start(preview: Bool, openLink: @escaping (String) -> Void, done: @escaping (GitHubBoard) -> Void) {
+    /// `item`: the Keychain item a new connection keeps its sign-in in (nil = the connection in use).
+    func start(preview: Bool, item: String? = nil, openLink: @escaping (String) -> Void, done: @escaping (GitHubBoard) -> Void) {
         task?.cancel()
         problem = nil
         waiting = true
@@ -26,12 +27,12 @@ final class GitHubBoardSignIn: ObservableObject {
                 let c = try await GitHubLogin.start()
                 code = c
                 openLink(c.verificationURL)
-                let tokens = try await GitHubLogin.finish(c)
+                let tokens = try await GitHubLogin.finish(c, item: item)
                 guard tokens.canUseProjects else {
                     problem = "GitHub didn't grant the projects permission. Sign in again and approve it."
                     return
                 }
-                let me = try await GitHubProjectsAPI().viewer()
+                let me = try await GitHubProjectsAPI(token: { try GitHubLogin.accessToken(item: item) }).viewer()
                 done(GitHubBoard(login: me.login, name: me.name))
             } catch is CancellationError {
                 return

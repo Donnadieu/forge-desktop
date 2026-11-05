@@ -8,6 +8,9 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var basecamp: BasecampBoard?
     /// The GitHub project, repo and columns, when the cards are GitHub issues (optional: added in 0.2.16).
     var githubBoard: GitHubBoard?
+    /// The tracker connection the project uses (`TrackerRecord.id`; optional: added with workspaces; nil = the
+    /// one connection of its kind carried over from before). See Workspaces.swift.
+    var connectionID: String?
     // Linear
     var linearUser: String?
     var linearOrg: String?

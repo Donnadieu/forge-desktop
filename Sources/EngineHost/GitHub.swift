@@ -24,8 +24,15 @@ enum GitHub {
         let email: String
     }
 
-    /// The GitHub accounts `gh` is signed in to on this Mac, the active one first.
-    static func accounts() async -> [String] {
+    /// The GitHub accounts `gh` is signed in to on this Mac, the active one first, then the ones Forge signed in
+    /// to itself (`added`).
+    static func accounts(adding added: [String] = []) async -> [String] {
+        let mine = await cliAccounts()
+        return mine + added.filter { a in !mine.contains { $0.lowercased() == a.lowercased() } }
+    }
+
+    /// The accounts the GitHub CLI has on this Mac, the active one first.
+    static func cliAccounts() async -> [String] {
         let r = await Tools.run("gh", ["auth", "status", "--hostname", "github.com"], timeout: 20)
         var names: [String] = []
         var active: String?
@@ -48,9 +55,16 @@ enum GitHub {
     private static let tokens = TokenCache()
 
     /// The environment that makes `gh` and git act as `account`. The sign-in stays in memory, never on disk.
+    /// An account Forge signed in to itself (`GitHubAccountRecord`) uses its own token from the Keychain.
     static func env() async -> [String: String] {
         guard let account else { return [:] }
         if let t = tokens.get(account) { return ["GH_TOKEN": t] }
+        if let raw = Keychain.get(named: GitHubAccountRecord.item(account)),
+            let t = try? JSONDecoder().decode(GitHubLogin.Tokens.self, from: Data(raw.utf8))
+        {
+            tokens.set(account, t.accessToken)
+            return ["GH_TOKEN": t.accessToken]
+        }
         let r = await Tools.run("gh", ["auth", "token", "--hostname", "github.com", "--user", account], timeout: 20)
         let t = r.out.trimmingCharacters(in: .whitespacesAndNewlines)
         guard r.ok, !t.isEmpty else { return [:] }

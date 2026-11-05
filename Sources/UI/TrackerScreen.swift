@@ -1,54 +1,53 @@
 import SwiftUI
 
-/// Setup 1: the tracker (Linear, Basecamp or GitHub Issues), and signing in to it. Linear takes a
-/// personal key, checked with one real call; Basecamp and GitHub sign in through the browser with a short
-/// code. Either way the secret goes only into the Keychain.
+/// Setup 1: the tracker connection the project uses. Pick a kind (Linear, Basecamp or GitHub Issues), then one of
+/// its connections on this Mac, or connect another: there can be several of each, each its own sign-in in its own
+/// Keychain item, so connecting one never signs another out. Linear takes a personal key, checked with one real
+/// call; Basecamp and GitHub sign in through the browser with a short code.
 struct TrackerScreen: View {
     @ObservedObject var model: AppModel
     @State private var picked: Tracker = .linear
+    /// The connection picked (`TrackerRecord.id`), or `adding`.
+    @State private var pick = TrackerScreen.adding
+    /// Sign the picked connection in again (its sign-in ran out, or a different Linear key).
+    @State private var again = false
     @State private var key = ""
+    @State private var name = ""
     @State private var busy = false
     @State private var problem: String?
-    @State private var changing = false
     @StateObject private var basecamp = BasecampSignIn()
     @StateObject private var github = GitHubBoardSignIn()
 
-    /// The picked tracker is signed in and is the one setup saved.
-    private var connected: Bool {
-        guard !changing, model.choices.board == picked else { return false }
-        return model.choices.trackerUser != nil
-    }
+    static let adding = "+new"
+
+    private var list: [TrackerRecord] { model.store.connections(picked) }
+    private var current: TrackerRecord? { list.first { $0.id == pick } }
+    private var signingIn: Bool { pick == Self.adding || again }
 
     var body: some View {
         SetupFrame(
             model: model,
             question: "Which tracker holds your work?",
-            detail: "Forge reads the cards on your tracker and moves them along the board. Pick your tracker, then sign in once; "
-                + "the sign-in is kept in your Mac's Keychain and nowhere else.",
+            detail: "Forge reads the cards on your tracker and moves them along the board. Connect as many as you like, "
+                + "even two of the same kind; each sign-in is kept in your Mac's Keychain and nowhere else.",
             primary: primaryTitle,
             primaryEnabled: primaryEnabled,
             busy: busy || basecamp.waiting || github.waiting,
             action: primaryAction
         ) {
             Segmented(options: Tracker.allCases.map { ($0, $0.name) }, selection: $picked)
-                .frame(maxWidth: 320)
+                .frame(maxWidth: 420)
                 .padding(.bottom, 18)
-            if connected {
-                ConnectedPanel(name: model.choices.trackerUser ?? "", org: model.choices.trackerOrg ?? picked.name)
-                Button(picked == .linear ? "Use a different key" : "Sign in again") { changing = true }
-                    .buttonStyle(ForgeButton(kind: .plain))
-                    .padding(.top, 12)
-            } else if picked == .linear {
-                linearPanel
-            } else if picked == .github {
-                GitHubBoardSignInPanel(signIn: github, openLink: model.openLink)
-            } else {
-                BasecampSignInPanel(signIn: basecamp, openLink: model.openLink)
+            VStack(spacing: 8) {
+                ForEach(list, id: \.id) { t in connectionRow(t) }
+                addRow
             }
+            .frame(maxWidth: 720)
             ProblemLine(text: problem ?? (picked == .basecamp ? basecamp.problem : picked == .github ? github.problem : nil))
         }
         .onAppear {
             picked = model.sample.tracker ?? model.choices.board
+            choose()
             if model.preview && model.sample.scene == "basecamp-code" {
                 basecamp.start(preview: true, openLink: { _ in }) { _ in }
             }
@@ -56,16 +55,94 @@ struct TrackerScreen: View {
                 github.start(preview: true, openLink: { _ in }) { _ in }
             }
         }
-        .onChange(of: picked) { _, _ in problem = nil }
+        .onChange(of: picked) { _, _ in
+            problem = nil
+            choose()
+        }
+    }
+
+    /// Picks the running project's connection when it's this kind, else the first one, else Connect.
+    private func choose() {
+        again = false
+        let mine = model.choices.board == picked ? model.choices.connection : nil
+        pick = list.first { $0.id == mine }?.id ?? list.first?.id ?? Self.adding
+    }
+
+    private func connectionRow(_ t: TrackerRecord) -> some View {
+        let on = t.id == pick
+        let users = model.store.users(of: t.id)
+        let inUse = model.choices.board == picked && model.choices.connection == t.id && model.choices.trackerUser != nil
+        return row(on: on) {
+            HStack(spacing: 8) {
+                Text(t.title).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
+                if inUse { Pill(text: "In use", tone: .green, dot: Theme.good) }
+            }
+            Text(t.line + (users.isEmpty ? "" : " · used by \(users.map(\.name).joined(separator: ", "))"))
+                .font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+            if on && again { signInPanel.padding(.top, 6) }
+            if on && !again {
+                Button(t.kind == .linear ? "Use a different key" : "Sign in again") { again = true }
+                    .buttonStyle(ForgeButton(kind: .plain)).padding(.top, 4)
+            }
+        } trailing: {
+            if users.isEmpty {
+                Button("Clear") { model.ask = .clearConnection(t) }.buttonStyle(ForgeButton(kind: .ghost, icon: "xmark"))
+            }
+        }
+        .onTapGesture {
+            if pick != t.id { again = false }
+            pick = t.id
+        }
+    }
+
+    private var addRow: some View {
+        row(on: pick == Self.adding) {
+            Text(list.isEmpty ? "Connect \(picked.name)" : "Connect another \(picked.name)").font(Theme.sans(13, .semibold))
+                .foregroundStyle(Theme.text)
+            Text("A new sign-in. Your other connections stay signed in.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            if pick == Self.adding {
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionLabel(text: "Name")
+                    TextField("", text: $name).forgeField(hint: "\(picked.name) for work", empty: name.isEmpty)
+                        .frame(maxWidth: 360)
+                    signInPanel.padding(.top, 6)
+                }
+                .padding(.top, 6)
+            }
+        } trailing: {
+            EmptyView()
+        }
+        .onTapGesture { pick = Self.adding }
+    }
+
+    private func row<L: View, T: View>(on: Bool, @ViewBuilder _ label: () -> L, @ViewBuilder trailing: () -> T) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Radio(on: on).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 4) { label() }
+            Spacer(minLength: 0)
+            trailing()
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(on ? Theme.surfaceHover : Theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(on ? Theme.borderHover : Theme.border))
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var signInPanel: some View {
+        switch picked {
+        case .linear: linearPanel
+        case .github: GitHubBoardSignInPanel(signIn: github, openLink: model.openLink)
+        case .basecamp: BasecampSignInPanel(signIn: basecamp, openLink: model.openLink)
+        }
     }
 
     private var primaryTitle: String {
-        if connected { return "Continue" }
+        if !signingIn { return "Continue" }
         return picked == .linear ? "Check and continue" : "Sign in with your browser"
     }
 
     private var primaryEnabled: Bool {
-        if connected { return true }
+        if !signingIn { return current != nil }
         switch picked {
         case .linear: return !key.trimmingCharacters(in: .whitespaces).isEmpty
         case .basecamp: return !basecamp.waiting
@@ -73,34 +150,52 @@ struct TrackerScreen: View {
         }
     }
 
+    /// The connection a sign-in goes to: the picked one again, or a new one with its own Keychain item.
+    private var target: TrackerRecord {
+        if again, let t = current { return t }
+        var t = TrackerRecord.new(picked)
+        let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        t.name = typed.isEmpty ? nil : typed
+        return t
+    }
+
     private func primaryAction() {
-        if connected { return model.next() }
-        if picked == .linear { return checkLinear() }
-        if picked == .github {
-            return github.start(preview: model.preview, openLink: model.openLink) { board in
-                switchTo(.github)
-                model.choices.githubBoard = board
-                changing = false
-                model.next()
+        if !signingIn, let t = current { return use(t) }
+        var t = target
+        switch picked {
+        case .linear:
+            checkLinear(t)
+        case .github:
+            github.start(preview: model.preview, item: t.item, openLink: model.openLink) { board in
+                (t.login, t.user, t.org) = (board.login, board.name ?? board.login, "@\(board.login)")
+                finish(t)
             }
-        }
-        basecamp.start(preview: model.preview, openLink: model.openLink) { board in
-            switchTo(.basecamp)
-            model.choices.basecamp = board
-            changing = false
-            model.next()
+        case .basecamp:
+            basecamp.start(preview: model.preview, item: t.item, openLink: model.openLink) { board in
+                (t.accountID, t.personID, t.user, t.org) = (board.accountID, board.personID, board.personName, board.accountName ?? t.org)
+                finish(t)
+            }
         }
     }
 
-    /// A different tracker means a different project: the project step asks again.
-    private func switchTo(_ t: Tracker) {
-        if model.choices.board != t {
-            model.choices.projectSlug = nil
-            model.choices.projectID = nil
-            model.choices.projectName = nil
+    private func finish(_ t: TrackerRecord) {
+        model.keep(connection: t)
+        key = ""
+        name = ""
+        again = false
+        use(t)
+    }
+
+    /// The project uses this connection. Another connection means another project: the project step asks again,
+    /// and the project that ran keeps its answers.
+    private func use(_ t: TrackerRecord) {
+        if model.choices.connection != t.id || model.choices.board != t.kind {
+            model.store.leave(model.choices)
+            for field in [\SetupChoices.projectSlug, \.projectID, \.projectName, \.teamID, \.teamName] { model.choices[keyPath: field] = nil }
             model.choices.columnsReady = false
         }
-        model.choices.tracker = t
+        t.apply(to: &model.choices)
+        model.next()
     }
 
     private var linearPanel: some View {
@@ -124,7 +219,7 @@ struct TrackerScreen: View {
         .panel()
     }
 
-    private func checkLinear() {
+    private func checkLinear(_ target: TrackerRecord) {
         let k = key.trimmingCharacters(in: .whitespacesAndNewlines)
         busy = true
         problem = nil
@@ -132,41 +227,16 @@ struct TrackerScreen: View {
             defer { busy = false }
             do {
                 let viewer = try await LinearAPI(key: k).viewer()
-                guard model.preview || Keychain.set(k, for: .linearKey) else {
+                guard model.preview || Keychain.set(k, named: target.item) else {
                     problem = "Forge couldn't save the key in your Keychain."
                     return
                 }
-                switchTo(.linear)
-                model.choices.linearUser = viewer.name
-                model.choices.linearOrg = viewer.organization.name
-                model.choices.linearURLKey = viewer.organization.urlKey
-                changing = false
-                key = ""
-                model.next()
+                var t = target
+                (t.user, t.org, t.urlKey) = (viewer.name, viewer.organization.name, viewer.organization.urlKey)
+                finish(t)
             } catch {
                 problem = "\(error)"
             }
         }
-    }
-}
-
-/// Who is signed in, with a Connected pill.
-struct ConnectedPanel: View {
-    let name: String
-    let org: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Initials(name: name, size: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(Theme.sans(14, .medium)).foregroundStyle(Theme.text)
-                Text(org).font(Theme.sans(12)).foregroundStyle(Theme.textSec)
-            }
-            Spacer()
-            Pill(text: "Connected", tone: .green, dot: Theme.good)
-        }
-        .padding(20)
-        .frame(maxWidth: 640)
-        .panel()
     }
 }

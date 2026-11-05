@@ -140,3 +140,16 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Testing the GitHub sign-in from a sandbox: a scratch app copy and keychain (as for Basecamp), a stand-in device
   server proves the save path (`FORGE_GITHUB_AUTH`), then one real approval; record live GraphQL answers by
   wrapping `fetch` in the test script and keep them in `engine/test/fixtures/github/`.
+
+### Workspaces and tracker connections
+- Tracker sign-ins are per connection: read the running project's with `store.trackerItem(choices)` (or
+  `BasecampLogin.item` / `GitHubLogin.item`, which `AppModel.useSignIns` points at it), never `Keychain.Item.linearKey`
+  and friends directly; those names belong only to the connection carried over from before workspaces.
+- A project's answers live whole in `setup.json` while it runs and in `ProjectRecord.choices` while another runs. A new
+  `SetupChoices` field that belongs to the Mac rather than the project (like the Harness engineering records) must be
+  carried in `SetupChoices.carried()` and `SetupStore.choices(for:)`, or switching projects drops it.
+- Pieces every screen shares (the top bar's workspace chip) read the model from `\.forgeModel` in the environment;
+  `RootView` sets it. A popover can't be drawn by `--render-screens`: render its view on its own (`13-workspace-switcher`).
+- Test a migration on a copy of the real folder: `FORGE_HOME=<copy> Forge --workspaces-check` (reads only whether
+  Keychain items exist, never a secret).
+

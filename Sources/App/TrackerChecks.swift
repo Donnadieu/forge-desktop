@@ -68,7 +68,9 @@ extension Checks {
         let note = EngineSettings.boardNote(c, template: "p=@@PROJECT@@ t=@@CARD_TABLE@@ b=@@BACKLOG@@\n@@COLUMNS@@")
         check("the Basecamp note gets this board's ids", note?.hasPrefix("p=42 t=7 b=600\n  - Backlog: `600`") == true)
         check("a Linear board gets no Basecamp note", EngineSettings.boardNote(linear, template: "x") == nil)
-        check("the token command is this app with --basecamp-token", EngineSettings.basecampTokenCommand.hasSuffix(",\"--basecamp-token\"]"))
+        check(
+            "the token command is this app with --basecamp-token and its connection",
+            EngineSettings.basecampTokenCommand(item: "basecamp-login").hasSuffix(",\"--basecamp-token\",\"--item\",\"basecamp-login\"]"))
 
         let table = BasecampAPI.CardTable(
             id: 7, title: "Card Table",
@@ -118,7 +120,9 @@ extension Checks {
                 && fm.contains("    \"Backlog\": \"o0\"") && fm.contains("    \"Done\": \"o9\""))
         let note = EngineSettings.boardNote(c, template: "p=@@PROJECT@@ f=@@FIELD@@ r=@@REPO@@\n@@COLUMNS@@")
         check("the GitHub note gets this board's ids", note?.hasPrefix("p=PVT_9 f=PVTSSF_3 r=acme/app\n  - Backlog: `o0`") == true)
-        check("the GitHub token command is this app with --github-token", EngineSettings.githubTokenCommand.hasSuffix(",\"--github-token\"]"))
+        check(
+            "the GitHub token command is this app with --github-token and its connection",
+            EngineSettings.githubTokenCommand(item: "tracker-github-1").hasSuffix(",\"--github-token\",\"--item\",\"tracker-github-1\"]"))
         let options = [GitHubProjectsAPI.Option(id: "a", name: "todo"), .init(id: "b", name: "In  progress"), .init(id: "c", name: "Done")]
         check(
             "Status options match whatever their case and spacing",

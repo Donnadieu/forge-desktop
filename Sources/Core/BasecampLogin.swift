@@ -63,7 +63,7 @@ enum BasecampLogin {
     }
 
     /// Waits until the person approves the code, then keeps the sign-in. Throws if they deny it or it expires.
-    static func finish(_ code: DeviceCode) async throws -> Tokens {
+    static func finish(_ code: DeviceCode, item: String? = nil) async throws -> Tokens {
         var wait = max(1, code.interval)
         while Date() < code.expiresAt {
             try await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
@@ -74,7 +74,7 @@ enum BasecampLogin {
             switch obj["error"] as? String {
             case nil:
                 let tokens = try tokens(from: obj, keeping: nil)
-                guard save(tokens) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
+                guard save(tokens, item: item) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
                 return tokens
             case "authorization_pending": continue
             case "slow_down": wait += 5
@@ -88,23 +88,28 @@ enum BasecampLogin {
 
     // MARK: The kept sign-in
 
-    static func load() -> Tokens? {
-        guard let s = Keychain.get(.basecampLogin) else { return nil }
+    /// The Keychain item of the connection Forge uses now (`--item` for the engine's command); each Basecamp
+    /// connection keeps its own sign-in, so signing in to one never signs another out.
+    nonisolated(unsafe) static var item = Keychain.Item.basecampLogin.rawValue
+
+    static func load(item: String? = nil) -> Tokens? {
+        guard let s = Keychain.get(named: item ?? Self.item) else { return nil }
         return try? JSONDecoder().decode(Tokens.self, from: Data(s.utf8))
     }
 
     @discardableResult
-    static func save(_ t: Tokens) -> Bool {
+    static func save(_ t: Tokens, item: String? = nil) -> Bool {
         guard let d = try? JSONEncoder().encode(t), let s = String(data: d, encoding: .utf8) else { return false }
-        return Keychain.set(s, for: .basecampLogin)
+        return Keychain.set(s, named: item ?? Self.item)
     }
 
-    static func signOut() { Keychain.delete(.basecampLogin) }
+    static func signOut(item: String? = nil) { Keychain.delete(named: item ?? Self.item) }
 
     /// A token good for at least five more minutes, renewed if needed.
-    static func accessToken() async throws -> Tokens {
-        try await withLock {
-            guard var t = load() else { throw Failure(description: "Forge isn't signed in to Basecamp.", signedOut: true) }
+    static func accessToken(item: String? = nil) async throws -> Tokens {
+        let item = item ?? Self.item
+        return try await withLock {
+            guard var t = load(item: item) else { throw Failure(description: "Forge isn't signed in to Basecamp.", signedOut: true) }
             if t.expiresAt - 300 > Date().timeIntervalSince1970 { return t }
             guard let refresh = t.refreshToken else { throw Failure(description: "The Basecamp sign-in ran out. Sign in again.", signedOut: true) }
             var form = ["grant_type": "refresh_token", "refresh_token": refresh, "client_id": clientID]
@@ -115,7 +120,7 @@ enum BasecampLogin {
                 throw Failure(description: gone ? "Basecamp ended the sign-in. Sign in again." : "Basecamp said: \(err)", signedOut: gone)
             }
             t = try tokens(from: obj, keeping: t)
-            guard save(t) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
+            guard save(t, item: item) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
             return t
         }
     }

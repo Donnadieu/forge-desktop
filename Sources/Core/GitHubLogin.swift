@@ -49,7 +49,8 @@ enum GitHubLogin {
     }
 
     /// Waits until the person approves the code, then keeps the sign-in. Throws if they deny it or it expires.
-    static func finish(_ code: DeviceCode) async throws -> Tokens {
+    /// `item` = where to keep it; nil = the connection Forge uses now, "" = don't keep it (the caller does).
+    static func finish(_ code: DeviceCode, item: String? = nil) async throws -> Tokens {
         var wait = max(1, code.interval)
         while Date() < code.expiresAt {
             try await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
@@ -60,7 +61,7 @@ enum GitHubLogin {
             case nil:
                 guard let access = obj["access_token"] as? String else { throw Failure(description: "GitHub sent no token.") }
                 let tokens = Tokens(accessToken: access, scope: obj["scope"] as? String)
-                guard save(tokens) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
+                guard item == "" || save(tokens, item: item) else { throw Failure(description: "Forge couldn't keep the sign-in in your Keychain.") }
                 return tokens
             case "authorization_pending": continue
             case "slow_down": wait = (obj["interval"] as? Double) ?? Double(obj["interval"] as? Int ?? Int(wait + 5))
@@ -72,21 +73,24 @@ enum GitHubLogin {
         throw Failure(description: "The code ran out. Start the sign-in again.", signedOut: true)
     }
 
-    static func load() -> Tokens? {
-        guard let s = Keychain.get(.githubTrackerLogin) else { return nil }
+    /// The Keychain item of the GitHub Issues connection Forge uses now (`--item` for the engine's command).
+    nonisolated(unsafe) static var item = Keychain.Item.githubTrackerLogin.rawValue
+
+    static func load(item: String? = nil) -> Tokens? {
+        guard let s = Keychain.get(named: item ?? Self.item) else { return nil }
         return try? JSONDecoder().decode(Tokens.self, from: Data(s.utf8))
     }
 
     @discardableResult
-    static func save(_ t: Tokens) -> Bool {
+    static func save(_ t: Tokens, item: String? = nil) -> Bool {
         guard let d = try? JSONEncoder().encode(t), let s = String(data: d, encoding: .utf8) else { return false }
-        return Keychain.set(s, for: .githubTrackerLogin)
+        return Keychain.set(s, named: item ?? Self.item)
     }
 
-    static func signOut() { Keychain.delete(.githubTrackerLogin) }
+    static func signOut(item: String? = nil) { Keychain.delete(named: item ?? Self.item) }
 
-    static func accessToken() throws -> String {
-        guard let t = load() else { throw Failure(description: "Forge isn't signed in to GitHub for the board.", signedOut: true) }
+    static func accessToken(item: String? = nil) throws -> String {
+        guard let t = load(item: item) else { throw Failure(description: "Forge isn't signed in to GitHub for the board.", signedOut: true) }
         return t.accessToken
     }
 

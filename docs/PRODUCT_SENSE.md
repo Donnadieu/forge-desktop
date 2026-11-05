@@ -28,15 +28,19 @@ Start and Stop. No number appears twice on it.
 many agents work at once, and has two switches for Forge to move cards out of Backlog itself: new
 unassigned cards to Triage (two at a time) and cards marked ready to Todo. Both start off. Nothing
 else: no per-stage agents, models or colours yet.
-**Settings** shows what Forge connects to, in setup's order: tracker, project and repo, intelligence provider and
+**Workspaces** group trackers, projects, repos and intelligence providers; the chip in the top bar lists them and
+switches (switching stops the running one). Sign-ins belong to the Mac and any workspace can use them.
+**Settings** shows the workspace on screen, in setup's order: trackers, projects and repos, intelligence provider and
 account, then GitHub and signing; each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 
 ## Words on screen
 Card, column, agent, repo, board, workflow, key, tracker (never "cards" for where they live), intelligence
 provider (what does the work for a project: Claude Code, Codex, Kimi, OpenRouter; never "agent" there), "Orchestrator" as the main screen's name, and
-"Harness engineering" as the name of getting a repo ready for agents (its Settings tile and setup step).
-Never: orchestrator as an engine word, workspace, MCP, harness on its own,
+"Harness engineering" as the name of getting a repo ready for agents (its Settings tile and setup step),
+workspace (a group of trackers, projects, repos and intelligence providers; never the engine's card folders),
+connection (one sign-in to a tracker).
+Never: orchestrator as an engine word, MCP, harness on its own,
 sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
 
 ## Never

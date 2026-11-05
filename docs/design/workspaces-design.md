@@ -1,6 +1,7 @@
 # Workspaces: design
 
-Status: **design, not built.** The request and requirements: [workspaces.md](workspaces.md). Screens made in Claude
+Status: **step 1 built** (workspaces, switcher, several connections per tracker kind, GitHub accounts, the project
+list and repos per project, Harness engineering per repo; one project runs at a time). Steps 2 and 3 not built. The request and requirements: [workspaces.md](workspaces.md). Screens made in Claude
 Design (link in section 6), PNGs in `docs/design/workspaces/`.
 
 ## 1. The name

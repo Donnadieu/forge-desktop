@@ -21,6 +21,7 @@ struct RootView: View {
             case 5: RepoReadyScreen(model: model)
             case AppModel.workflowScreen: WorkflowScreen(model: model)
             case AppModel.settingsScreen: SettingsScreen(model: model)
+            case AppModel.projectsScreen: ProjectsScreen(model: model)
             default: OrchestratorScreen(model: model)
             }
         }
@@ -29,11 +30,15 @@ struct RootView: View {
         .overlay(alignment: .topLeading) {
             if model.preview { TrafficLights() }
         }
+        .overlay {
+            if let ask = model.ask { WorkspaceSheet(model: model, ask: ask) }
+        }
         .background(Theme.bg)
         .foregroundStyle(Theme.text)
         .font(Theme.sans(13))
         .tint(Theme.heat)
         .preferredColorScheme(.dark)
         .ignoresSafeArea()
+        .environment(\.forgeModel, model)
     }
 }

@@ -105,12 +105,23 @@ struct AIAccount: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-/// A tracker Forge is signed in to (Linear, Basecamp or GitHub Issues). Never a secret.
+/// A tracker connection: one sign-in to Linear, Basecamp or GitHub Issues. There can be several of each kind
+/// (Workspaces.swift). Never a secret: that's the Keychain item `item`.
 struct TrackerRecord: Codable, Equatable, Sendable {
+    /// The tracker's kind (`linear`) for a sign-in carried over from before workspaces; `<kind>-<id>` after.
     var id: String
     var kind: Tracker
     var org: String?
     var user: String?
+    /// The person's name for it ("ConstructEase"); nil = its org.
+    var name: String?
+    /// Its Keychain item; nil = the item its kind used before workspaces (`linear-key`, `basecamp-login`…).
+    var secretItem: String?
+    /// Linear: the workspace's part of links. Basecamp: the account and the person Forge acts as. GitHub: the login.
+    var urlKey: String?
+    var accountID: String?
+    var personID: String?
+    var login: String?
 }
 
 /// A project on a tracker, mapped to one GitHub repo, with one intelligence provider and the account it uses.
@@ -124,6 +135,12 @@ struct ProjectRecord: Codable, Equatable, Sendable {
     var provider: IntelligenceProvider?
     var accountID: String?
     var model: String?
+    /// The workspace that manages it (Workspaces.swift); nil only before the store's first upgrade.
+    var workspaceID: String?
+    /// Ticked in the workspace's project list but not set up yet: where to find it on its tracker.
+    var ref: ProjectRef?
+    /// This project's own setup answers, kept while another project runs (`setup.json` holds the running one's).
+    var choices: SetupChoices?
 }
 
 /// How setup's answers relate, kept in `store.json` in Forge's folder: trackers → projects (each mapped to one
@@ -136,6 +153,12 @@ struct SetupStore: Codable, Equatable, Sendable {
     var accounts: [AIAccount] = []
     /// The project Forge runs now (`ProjectRecord.id`).
     var activeProject: String?
+    /// Workspaces (version 2, Workspaces.swift): nil until `upgrade` runs once.
+    var workspaces: [Workspace]?
+    /// The workspace on screen, whose project runs.
+    var currentWorkspace: String?
+    /// GitHub accounts Forge signed in to itself (the ones the GitHub CLI has are read live).
+    var githubAccounts: [GitHubAccountRecord]?
 
     static var file: URL { Paths.home.appendingPathComponent("store.json") }
 
@@ -146,7 +169,7 @@ struct SetupStore: Codable, Equatable, Sendable {
     func project(_ id: String?) -> ProjectRecord? { id.flatMap { id in projects.first { $0.id == id } } }
 
     /// The id a project's record has: its tracker and its id there. Nil until a project is picked.
-    static func projectID(_ c: SetupChoices) -> String? { c.projectSlug.map { "\(c.board.rawValue):\($0)" } }
+    static func projectID(_ c: SetupChoices) -> String? { c.projectSlug.map { "\(c.connection):\($0)" } }
 
     /// Adds an account, or replaces the one with the same id.
     mutating func put(_ a: AIAccount) {
@@ -167,19 +190,30 @@ struct SetupStore: Codable, Equatable, Sendable {
         return (2...).lazy.map { "\(base) \($0)" }.first { !taken.contains($0) }!
     }
 
-    /// Records the project Forge runs now (its tracker, repo, provider and account) as the active one.
+    /// Records the project Forge runs now (its tracker connection, repo, provider and account) as the active one,
+    /// in the workspace on screen. Fields only workspaces know (name, item, snapshot) are kept.
     mutating func sync(_ c: SetupChoices) {
         if c.trackerUser != nil {
-            let t = TrackerRecord(id: c.board.rawValue, kind: c.board, org: c.trackerOrg, user: c.trackerUser)
-            if let i = trackers.firstIndex(where: { $0.id == t.id }) { trackers[i] = t } else { trackers.append(t) }
+            var t = connection(c.connection) ?? TrackerRecord(id: c.connection, kind: c.board)
+            (t.kind, t.org, t.user) = (c.board, c.trackerOrg, c.trackerUser)
+            switch c.board {
+            case .linear: t.urlKey = c.linearURLKey ?? t.urlKey
+            case .basecamp: (t.accountID, t.personID) = (c.basecamp?.accountID, c.basecamp?.personID)
+            case .github: t.login = c.githubBoard?.login
+            }
+            putConnection(t)
+            if let w = currentWorkspace { use(connection: t.id, in: w) }
         }
         guard let id = Self.projectID(c) else { return }
         let account = account(c.accountID)
-        let p = ProjectRecord(
-            id: id, trackerID: c.board.rawValue, name: c.projectName ?? id, repo: c.repo, defaultBranch: c.defaultBranch,
-            provider: account?.provider ?? c.worker.map(IntelligenceProvider.init), accountID: account?.id, model: c.model)
+        var p = project(id) ?? ProjectRecord(id: id, trackerID: c.connection, name: id)
+        (p.trackerID, p.name, p.repo, p.defaultBranch) = (c.connection, c.projectName ?? id, c.repo, c.defaultBranch)
+        (p.provider, p.accountID, p.model) = (account?.provider ?? c.worker.map(IntelligenceProvider.init), account?.id, c.model)
+        if p.workspaceID == nil || p.workspaceID == currentWorkspace { p.workspaceID = currentWorkspace }
+        p.ref = nil
         if let i = projects.firstIndex(where: { $0.id == id }) { projects[i] = p } else { projects.append(p) }
         activeProject = id
+        if let w = currentWorkspace, let i = workspaces?.firstIndex(where: { $0.id == w }) { workspaces?[i].runningProject = id }
     }
 
     /// Setup moved to another project Forge already knows: bring back its repo, provider, account and model, so
@@ -245,20 +279,35 @@ struct SetupStore: Codable, Equatable, Sendable {
 
     /// The store, or one migrated from `setup.json` the first time 0.2.17 opens (saved, with the account it chose).
     static func load(migrating c: inout SetupChoices, has: (String) -> Bool = Keychain.has(named:)) -> SetupStore {
-        if let d = try? Data(contentsOf: file), let s = try? JSONDecoder().decode(SetupStore.self, from: d) { return s }
-        let (s, chosen) = migrate(c, has: has)
+        if let d = try? Data(contentsOf: file), var s = try? JSONDecoder().decode(SetupStore.self, from: d) {
+            if s.upgrade(c, has: has) {
+                // Kept once, so going back to 0.2.17 finds the store it wrote.
+                try? FileManager.default.copyItem(at: file, to: Paths.home.appendingPathComponent("store.v1.json"))
+                s.save()
+            }
+            return s
+        }
+        let migrated = migrate(c, has: has)
+        var s = migrated.store
+        let chosen = migrated.accountID
         if c.accountID == nil, chosen != nil {
             c.accountID = chosen
             c.save()
         }
+        s.upgrade(c, has: has)
         s.save()
         return s
     }
 
     /// The saved store without changing anything (the engine's start reads it); migrated in memory if missing.
     static func saved(for c: SetupChoices) -> SetupStore {
-        if let d = try? Data(contentsOf: file), let s = try? JSONDecoder().decode(SetupStore.self, from: d) { return s }
-        return migrate(c, has: Keychain.has(named:)).store
+        if let d = try? Data(contentsOf: file), var s = try? JSONDecoder().decode(SetupStore.self, from: d) {
+            s.upgrade(c, has: Keychain.has(named:))
+            return s
+        }
+        var s = migrate(c, has: Keychain.has(named:)).store
+        s.upgrade(c, has: Keychain.has(named:))
+        return s
     }
 
     /// The account the project Forge runs now uses: the one setup chose, or (settings older than 0.2.17) the

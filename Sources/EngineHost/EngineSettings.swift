@@ -143,15 +143,16 @@ enum EngineSettings {
             .replacingOccurrences(of: "@@COLUMNS@@", with: list)
     }
 
-    /// The command the engine and the agents' Basecamp tool run for a fresh token: this app, `--basecamp-token`.
-    static var basecampTokenCommand: String { selfCommand("--basecamp-token") }
+    /// The command the engine and the agents' Basecamp tool run for a fresh token: this app, `--basecamp-token`,
+    /// with the connection's Keychain item.
+    static func basecampTokenCommand(item: String) -> String { selfCommand("--basecamp-token", item: item) }
 
     /// The same for a GitHub Issues board: this app, `--github-token`.
-    static var githubTokenCommand: String { selfCommand("--github-token") }
+    static func githubTokenCommand(item: String) -> String { selfCommand("--github-token", item: item) }
 
-    private static func selfCommand(_ flag: String) -> String {
+    static func selfCommand(_ flag: String, item: String) -> String {
         let me = Bundle.main.executablePath ?? CommandLine.arguments[0]
-        let data = (try? JSONSerialization.data(withJSONObject: [me, flag], options: [.withoutEscapingSlashes])) ?? Data()
+        let data = (try? JSONSerialization.data(withJSONObject: [me, flag, "--item", item], options: [.withoutEscapingSlashes])) ?? Data()
         return String(data: data, encoding: .utf8) ?? "[]"
     }
 
@@ -190,18 +191,22 @@ enum EngineSettings {
             throw Problem(description: "Forge doesn't have the \(account.provider.keyName) for \(account.name). Add it again in Settings.")
         }
         var env: [String: String] = ["REPO_URL": "https://github.com/\(repo).git"]
+        // The project's own tracker connection: each keeps its sign-in in its own Keychain item.
+        let item = store.trackerItem(c)
         switch c.board {
         case .linear:
-            guard let linear = Keychain.get(.linearKey) else { throw Problem(description: "Forge doesn't have your Linear key. Run setup again.") }
+            guard let linear = Keychain.get(named: item) else { throw Problem(description: "Forge doesn't have your Linear key. Run setup again.") }
             env["LINEAR_API_KEY"] = linear
         case .basecamp:
             // No token here: the engine asks this app for one (`--basecamp-token`), which renews it in the Keychain.
-            guard BasecampLogin.load() != nil else { throw Problem(description: "Forge isn't signed in to Basecamp. Run setup again.") }
-            env["FORGE_BASECAMP_TOKEN_COMMAND"] = basecampTokenCommand
+            guard BasecampLogin.load(item: item) != nil else { throw Problem(description: "Forge isn't signed in to Basecamp. Run setup again.") }
+            env["FORGE_BASECAMP_TOKEN_COMMAND"] = basecampTokenCommand(item: item)
         case .github:
             // No token here either: the engine and the agents' tool ask this app (`--github-token`).
-            guard GitHubLogin.load() != nil else { throw Problem(description: "Forge isn't signed in to GitHub for the board. Run setup again.") }
-            env["FORGE_GITHUB_TOKEN_COMMAND"] = githubTokenCommand
+            guard GitHubLogin.load(item: item) != nil else {
+                throw Problem(description: "Forge isn't signed in to GitHub for the board. Run setup again.")
+            }
+            env["FORGE_GITHUB_TOKEN_COMMAND"] = githubTokenCommand(item: item)
         }
         // Agents run unattended: the commit skill commits without asking.
         env["COMMIT_AUTO_MODE"] = "true"

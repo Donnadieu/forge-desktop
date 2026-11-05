@@ -4,7 +4,9 @@ import SwiftUI
 /// The app's one model: setup answers, which screen shows, and the board's live state.
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var choices: SetupChoices
+    @Published var choices: SetupChoices {
+        didSet { useSignIns() }
+    }
     /// Trackers, projects and the intelligence provider accounts (store.json); `choices` is the running project.
     @Published var store: SetupStore
     @Published var screen: Int
@@ -13,6 +15,8 @@ final class AppModel: ObservableObject {
     @Published var engineProblem: String?
     /// Why the last card move from the board didn't happen; cleared by the next move.
     @Published var moveProblem: String?
+    /// The workspace sheet on screen (switch, new, rename, delete, run another project), over any screen.
+    @Published var ask: WorkspaceAsk?
 
     /// Render mode: views draw sample data and never touch Linear, Basecamp, GitHub or the Keychain.
     let preview: Bool
@@ -90,7 +94,7 @@ final class AppModel: ObservableObject {
         self.store = preview ? Self.sampleStore(&c) : SetupStore.load(migrating: &c)
         self.choices = c
         self.screen = screen ?? c.nextScreen
-        if !preview { GitHub.account = c.githubLogin }
+        useSignIns(github: true)
     }
 
     static let screenTitles = ["Tracker", "Project", "GitHub", "Repo", "Intelligence provider", "Harness engineering", "Orchestrator"]
@@ -103,6 +107,8 @@ final class AppModel: ObservableObject {
     static let workflowScreen = 7
     /// Settings: what Forge connects to; each Change opens that setup step.
     static let settingsScreen = 8
+    /// The projects a workspace manages, ticked under each tracker connection.
+    static let projectsScreen = 9
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
@@ -145,7 +151,7 @@ final class AppModel: ObservableObject {
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.settingsScreen, s))
+        screen = max(0, min(Self.projectsScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
         if screen != Self.harnessScreen { harnessOffer = nil }
     }
@@ -161,7 +167,8 @@ final class AppModel: ObservableObject {
         go(returnTo ?? screen + 1)
     }
 
-    var linearKey: String? { preview ? "preview" : Keychain.get(.linearKey) }
+    /// The running project's Linear connection's key.
+    var linearKey: String? { preview ? "preview" : Keychain.get(named: store.trackerItem(choices)) }
 
     var linear: LinearAPI? { linearKey.map { LinearAPI(key: $0) } }
 
@@ -238,6 +245,7 @@ final class AppModel: ObservableObject {
         ]
         if c.accountID == nil, let w = c.worker { c.accountID = w.agent == .codex ? "sample-codex" : "sample-work" }
         s.sync(c)
+        sampleWorkspaces(&s, c)
         return s
     }
 

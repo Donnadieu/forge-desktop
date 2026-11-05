@@ -131,6 +131,30 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   `.forge/skills`, git-excluded) before the agent starts. git asks `gh` for the GitHub sign-in through
   `GIT_CONFIG_*` in that environment; nothing is stored on disk.
 
+## Workspaces and tracker connections
+
+- A workspace (`Core/Workspaces.swift`, in `store.json` version 2) groups the tracker connections, projects, repos and
+  intelligence providers Forge runs together. Sign-ins belong to the Mac: tracker connections, GitHub accounts and
+  intelligence provider accounts are listed once and any workspace can use them. One project runs at a time: the
+  running project of the workspace on screen (`setup.json` is its working copy, as before).
+- A tracker connection (`TrackerRecord`) is one sign-in; there can be several of each kind. A new one has the id
+  `<kind>-<id>` and its own Keychain item `tracker-<kind>-<id>`; one carried over keeps the item its kind used before
+  (`linear-key`, `basecamp-login`, `github-tracker-login`). A project names its connection (`SetupChoices.connectionID`,
+  nil = the carried-over one) and its record id is `<connection>:<project>`. The engine's token commands carry the
+  item (`Forge --basecamp-token --item <item>`), and `--item` accepts only tracker items (`Checks.trackerItemAllowed`).
+- Switching workspace or project (`SetupStore.switchTo`, `AppModel.open`) stops the engine (running agents drain and
+  the engine records Stop), keeps the running project's answers in its record (`ProjectRecord.choices`) and
+  Workflow Studio's in its workspace, then loads the other project's answers, or a fresh start on its tracker for a
+  project ticked but not set up (`ProjectRef`). What belongs to the Mac comes along: who signs commits (fresh
+  starts only) and every repo's Harness engineering record. The other project opens stopped.
+- GitHub accounts: the ones the GitHub CLI has (read live) plus the ones Forge signs in to itself with GitHub's
+  device sign-in (`GitHubAccountRecord`, Keychain `github-account-<login>`); `GitHub.env()` uses the latter's token.
+- The first open of a 0.2.17 store (`SetupStore.upgrade`) makes one workspace of everything, turns every tracker
+  sign-in already in the Keychain into a connection under its old item, and keeps `store.v1.json`. `Forge
+  --workspaces-check` runs it on a copy of Forge's folder (`FORGE_HOME`).
+- The design, including what comes later (every project running at once, several workspaces running, roles per
+  stage): [design/workspaces-design.md](design/workspaces-design.md).
+
 ## Intelligence providers and their accounts
 
 - `Core/Accounts.swift` keeps `store.json`: trackers, projects (each on one tracker and mapped to one repo) and

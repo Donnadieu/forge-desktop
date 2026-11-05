@@ -6,12 +6,15 @@ struct TopBar<Right: View>: View {
     /// The mono word after the wordmark ("SETUP", "ORCHESTRATOR").
     let suffix: String
     @ViewBuilder var right: () -> Right
+    /// The workspace chip shows when the app's model is around (always, except in checks that draw a bar alone).
+    @Environment(\.forgeModel) private var model
 
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
                 AnvilMark().sized(32)
                 Text(AppInfo.name).font(Theme.display(20)).foregroundStyle(Theme.text)
+                if let model { WorkspaceChip(model: model).padding(.leading, 8) }
                 Text(suffix.uppercased()).font(Theme.mono(11, .medium)).tracking(1.5).foregroundStyle(Theme.textSec).padding(.leading, 8)
             }
             Spacer(minLength: 16)

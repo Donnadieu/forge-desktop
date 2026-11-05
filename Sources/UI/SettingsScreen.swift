@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Settings: what Forge connects to on this Mac, as equal tiles in two columns. Each Change opens that step of
-/// the setup timeline in its changing mode (every step clickable) and comes back here; the engine restarts with
-/// the new answers when you go back to the Orchestrator.
+/// Settings: the workspace on screen, as equal tiles in two columns (its trackers, projects and repos,
+/// intelligence provider, GitHub, Harness engineering per repo), with Rename and Delete. Each Change opens that
+/// step of the setup timeline in its changing mode (every step clickable) and comes back here; the engine
+/// restarts with the new answers when you go back to the Orchestrator.
 struct SettingsScreen: View {
     @ObservedObject var model: AppModel
 
@@ -19,8 +20,18 @@ struct SettingsScreen: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    PageHeader(eyebrow: "Forge · Settings", title: "Settings", lead: "What Forge connects to on this Mac.")
-                        .padding(.bottom, -24)
+                    PageHeader(
+                        eyebrow: "\(model.workspace?.name ?? "Forge") · Workspace", title: model.workspace?.name ?? "Settings",
+                        lead: "What this workspace runs. Sign-ins stay on this Mac; any workspace can use them."
+                    ) {
+                        HStack(spacing: 8) {
+                            Button("Rename") { model.ask = .rename }.buttonStyle(ForgeButton(kind: .ghost))
+                            if model.store.workspaceList.count > 1 {
+                                Button("Delete workspace") { model.ask = .delete }.buttonStyle(ForgeButton(kind: .ghost, icon: "trash"))
+                            }
+                        }
+                    }
+                    .padding(.bottom, -24)
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .medium))
                         Text(
@@ -56,62 +67,81 @@ struct SettingsScreen: View {
     /// Every tile is this tall, so the grid reads as equal tiles whatever each one holds.
     static let tileHeight: CGFloat = 200
 
+    /// The tracker connections this workspace uses; Change opens setup 1, where more are connected.
     private var tracker: some View {
-        group("Tracker") {
-            row {
-                HStack(spacing: 12) {
-                    Initials(name: c.trackerUser ?? "")
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(c.trackerOrg.map { "\(c.board.name) · \($0)" } ?? c.board.name).font(Theme.sans(13, .medium))
-                            .foregroundStyle(Theme.text)
-                        Text("Signed in as \(c.trackerUser ?? "—")").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+        let ids = model.workspace?.connectionIDs ?? []
+        let list = ids.compactMap { model.store.connection($0) }
+        return group("Trackers") {
+            ForEach(list, id: \.id) { t in
+                row {
+                    HStack(spacing: 12) {
+                        Initials(name: t.user ?? t.title)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(t.kind.name) · \(t.title)").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                            Text(t.line).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                        }
                     }
+                } action: {
+                    if t.id == c.connection { change("Change", step: 0) }
                 }
-            } action: {
-                change(c.board == .linear ? "Change key" : "Change", step: 0)
             }
-            row {
-                field("Projects", trackerProjects)
-            } action: {
-                EmptyView()
+            if list.isEmpty {
+                row {
+                    field("Tracker", "Not connected yet")
+                } action: {
+                    change("Connect", step: 0)
+                }
             }
         }
     }
 
-    /// The projects Forge knows on this tracker, the running one first.
-    private var trackerProjects: String {
-        let known = model.store.projects.filter { $0.trackerID == c.board.rawValue }.map(\.name)
-        let running = c.projectName.map { [$0] } ?? []
-        let names = running + known.filter { !running.contains($0) }
-        return names.isEmpty ? "—" : names.joined(separator: ", ")
-    }
-
+    /// The projects this workspace manages, each with its repo; the running one first. Choose opens the list of
+    /// every project under its trackers.
     private var project: some View {
-        group("Project") {
-            row {
-                field("Project", c.projectName ?? "—")
-            } action: {
-                change("Change", step: 1)
+        group("Projects and repos") {
+            ForEach(model.workspaceProjects, id: \.id) { p in
+                let here = p.id == SetupStore.projectID(c)
+                row {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(p.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                        Text((here ? c.repo : p.repo).map { "→ \($0)" } ?? "Not set up yet").font(Theme.mono(11))
+                            .foregroundStyle((here ? c.repo : p.repo) == nil ? Theme.heatBright : Theme.textSec)
+                    }
+                } action: {
+                    if here {
+                        Pill(text: model.running ? "Running" : "Runs here", tone: .green, dot: Theme.good)
+                        change("Change repo", step: 3)
+                    } else {
+                        Button(p.repo == nil ? "Set up" : "Run this one") { model.ask = .run(p) }.buttonStyle(ForgeButton(kind: .ghost))
+                    }
+                }
             }
             row {
-                field("Repo", c.repo ?? "—", mono: true)
+                field("Managed", model.workspaceProjects.isEmpty ? "No projects yet" : "\(model.workspaceProjects.count) on its trackers")
             } action: {
-                change("Change", step: 3)
+                Button("Choose projects") { model.go(AppModel.projectsScreen) }.buttonStyle(ForgeButton(kind: .ghost))
             }
         }
     }
 
     private var signing: some View {
-        group("Commit signing") {
+        group("GitHub") {
             row {
-                field("GitHub", c.githubLogin.map { "@\($0)" } ?? "—", mono: true)
+                field("Pushes as", c.githubLogin.map { "@\($0)" } ?? "—", mono: true)
             } action: {
-                Pill(text: "Signed in", tone: .green, dot: Theme.good)
+                change("Change", step: 2)
+            }
+            row {
+                field(
+                    "Added in Forge", (model.store.githubAccounts ?? []).map { "@\($0.login)" }.joined(separator: ", ").ifEmpty("None yet"),
+                    mono: true)
+            } action: {
+                EmptyView()
             }
             row {
                 field("Signed by", signer)
             } action: {
-                change("Change", step: 2)
+                EmptyView()
             }
             row {
                 field("Commits as", c.authorName.map { n in c.authorEmail.map { "\(n) <\($0)>" } ?? n } ?? "—", mono: true)
@@ -121,29 +151,44 @@ struct SettingsScreen: View {
         }
     }
 
+    /// Harness engineering for each repo the workspace's projects build; the running project's repo can be changed.
     private var harness: some View {
-        let h = c.harnessHere
-        return group("Harness engineering") {
-            row {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Get your repo ready for agents").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                    HStack(spacing: 8) {
-                        HarnessMark(badge: HarnessMark.of(h.status))
-                        Text(h.status.rawValue).font(Theme.sans(11, .medium)).foregroundStyle(Theme.textSec)
-                        Text(h.line).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(1)
+        group("Harness engineering") {
+            ForEach(harnessRepos, id: \.self) { repo in
+                let h = c.harness?[repo] ?? HarnessRecord()
+                row {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(repo).font(Theme.mono(12)).foregroundStyle(Theme.text)
+                        HStack(spacing: 8) {
+                            HarnessMark(badge: HarnessMark.of(h.status))
+                            Text(h.status.rawValue).font(Theme.sans(11, .medium)).foregroundStyle(Theme.textSec)
+                            Text(h.line).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                        }
+                    }
+                } action: {
+                    if repo == c.repo {
+                        change(SettingsScreen.harnessAction(h.status), step: AppModel.harnessScreen)
+                        if let url = h.cardURL, let card = h.card {
+                            Button("Open \(card)") { model.openLink(url) }.buttonStyle(ForgeButton(kind: .ghost))
+                        }
                     }
                 }
-            } action: {
-                change(SettingsScreen.harnessAction(h.status), step: AppModel.harnessScreen)
             }
-            row {
-                field("Pull request", h.pr.map { "#\($0) \(h.merged == true ? "merged" : "open")" } ?? "None yet", mono: true)
-            } action: {
-                if let url = h.cardURL, let card = h.card {
-                    Button("Open \(card)") { model.openLink(url) }.buttonStyle(ForgeButton(kind: .ghost))
+            if harnessRepos.isEmpty {
+                row {
+                    field("Repos", "No repo picked yet")
+                } action: {
+                    EmptyView()
                 }
             }
         }
+    }
+
+    /// The repos of the workspace's projects, the running one first.
+    private var harnessRepos: [String] {
+        var out: [String] = []
+        for r in [c.repo] + model.workspaceProjects.map(\.repo) { if let r, !out.contains(r) { out.append(r) } }
+        return out
     }
 
     /// The Harness engineering tile's button: Start when nothing's done, Run again when partly done, Change when done.
@@ -233,4 +278,9 @@ struct SettingsScreen: View {
     private func change(_ title: String, step: Int) -> some View {
         Button(title) { model.change(step) }.buttonStyle(ForgeButton(kind: .ghost))
     }
+}
+
+extension String {
+    /// This, or `other` when it's empty.
+    func ifEmpty(_ other: String) -> String { isEmpty ? other : self }
 }

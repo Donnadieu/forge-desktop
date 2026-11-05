@@ -9,7 +9,8 @@ final class BasecampSignIn: ObservableObject {
     @Published var problem: String?
     private var task: Task<Void, Never>?
 
-    func start(preview: Bool, openLink: @escaping (String) -> Void, done: @escaping (BasecampBoard) -> Void) {
+    /// `item`: the Keychain item a new connection keeps its sign-in in (nil = the connection in use).
+    func start(preview: Bool, item: String? = nil, openLink: @escaping (String) -> Void, done: @escaping (BasecampBoard) -> Void) {
         task?.cancel()
         problem = nil
         waiting = true
@@ -26,12 +27,12 @@ final class BasecampSignIn: ObservableObject {
                 let c = try await BasecampLogin.start()
                 code = c
                 openLink(c.verificationURL)
-                let tokens = try await BasecampLogin.finish(c)
+                let tokens = try await BasecampLogin.finish(c, item: item)
                 guard let account = tokens.accountID else {
                     problem = "Basecamp didn't say which account this sign-in is for. Sign in again."
                     return
                 }
-                let me = try await BasecampAPI(accountID: account).me()
+                let me = try await BasecampAPI(accountID: account, token: { try await BasecampLogin.accessToken(item: item).accessToken }).me()
                 done(BasecampBoard(accountID: account, accountName: nil, personID: String(me.id), personName: me.name))
             } catch is CancellationError {
                 return

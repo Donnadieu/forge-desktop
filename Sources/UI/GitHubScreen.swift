@@ -15,6 +15,7 @@ struct GitHubScreen: View {
     @State private var code: String?
     @State private var problem: String?
     @State private var askRegister = false
+    @StateObject private var adding = GitHubAccountSignIn()
 
     var body: some View {
         SetupFrame(
@@ -27,13 +28,20 @@ struct GitHubScreen: View {
             busy: busy,
             action: start
         ) {
-            if accounts.count > 1 {
-                Picker("GitHub account", selection: $account) {
-                    ForEach(accounts, id: \.self) { Text("@\($0)").tag($0) }
+            HStack(spacing: 12) {
+                if accounts.count > 1 {
+                    Picker("GitHub account", selection: $account) {
+                        ForEach(accounts, id: \.self) { Text("@\($0)").tag($0) }
+                    }
+                    .frame(maxWidth: 320)
                 }
-                .frame(maxWidth: 320)
-                .padding(.bottom, 10)
+                if loaded && !adding.waiting {
+                    Button("Add a GitHub account") { addAccount() }.buttonStyle(ForgeButton(kind: .plain, icon: "plus"))
+                }
             }
+            .padding(.bottom, 10)
+            GitHubAccountSignInPanel(signIn: adding, openLink: model.openLink)
+            ProblemLine(text: adding.problem)
             if let user {
                 HStack(spacing: 10) {
                     Initials(name: user.name.isEmpty ? user.login : user.name, size: 24)
@@ -118,15 +126,26 @@ struct GitHubScreen: View {
         }
     }
 
+    /// Another GitHub account, signed in through Forge itself; picked once it's there.
+    private func addAccount() {
+        adding.start(openLink: model.openLink) { a in
+            model.keep(github: a)
+            if !accounts.contains(where: { $0.lowercased() == a.login.lowercased() }) { accounts.append(a.login) }
+            account = a.login
+        }
+    }
+
     private func load() async {
         if model.preview {
             user = model.sample.githubUser
             keys = model.sample.gpgKeys
+            accounts = ["samrivera", "samrivera-andela"] + (model.store.githubAccounts ?? []).map(\.login)
+            account = "samrivera"
             loaded = true
             return
         }
         busy = true
-        accounts = await GitHub.accounts()
+        accounts = await GitHub.accounts(adding: (model.store.githubAccounts ?? []).map(\.login))
         let pick = model.choices.githubLogin.flatMap { l in accounts.first { $0.lowercased() == l.lowercased() } } ?? accounts.first
         GitHub.account = pick
         account = pick ?? ""

@@ -59,6 +59,13 @@ extension ScreenRender {
             Shot(name: "10-workflow-restarting", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state, scene: "restarting"),
             Shot(name: "10-workflow-moves-on", screen: AppModel.workflowScreen, choices: ready, scene: "moves-on"),
             Shot(name: "11-settings", screen: AppModel.settingsScreen, choices: ready),
+            Shot(name: "13-workspace-settings", screen: AppModel.settingsScreen, choices: ready, height: 1000),
+            Shot(name: "13-trackers", screen: 0, choices: ready, changing: true),
+            Shot(name: "13-projects", screen: AppModel.projectsScreen, choices: ready),
+            Shot(name: "13-github-accounts", screen: 2, choices: ready, changing: true),
+            Shot(name: "13-new-workspace", screen: AppModel.settingsScreen, choices: ready, scene: "ask-new"),
+            Shot(name: "13-switch-workspace", screen: board, choices: ready, engine: SampleBoard.state, scene: "ask-switch"),
+            Shot(name: "13-run-project", screen: AppModel.settingsScreen, choices: ready, scene: "ask-run"),
         ] + changeShots(ready)
     }
 

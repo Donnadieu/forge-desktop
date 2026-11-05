@@ -5,10 +5,12 @@ import SwiftUI
 ///   Forge --selftest            facts about the app + the main view draws
 ///   Forge --version             prints the version
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
+///   Forge --workspaces-check    opens a copy of Forge's folder (FORGE_HOME) and prints its workspaces after the upgrade
 ///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
 ///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
-///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it)
+///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it);
+///                               `--item <keychain item>` picks the connection
 ///   Forge --basecamp-sign-in    Basecamp's device sign-in without the window: prints the link and code, waits
 ///   Forge --github-token        prints the GitHub board sign-in's token as one JSON line (for the engine)
 ///   Forge --github-sign-in      GitHub's device sign-in for the board without the window
@@ -21,6 +23,9 @@ enum Checks {
         }
         if args.contains("--selftest") {
             return selftest()
+        }
+        if args.contains("--workspaces-check") {
+            return workspacesLive()
         }
         if args.contains("--accounts-check") {
             return accountsLive()
@@ -35,6 +40,11 @@ enum Checks {
                 if !ok { failed += 1 }
             }
             return failed == 0 ? 0 : 1
+        }
+        // The tracker connection a token command is for (its Keychain item); without it, the one from before workspaces.
+        if let i = args.firstIndex(of: "--item"), i + 1 < args.count, Checks.trackerItemAllowed(args[i + 1]) {
+            BasecampLogin.item = args[i + 1]
+            GitHubLogin.item = args[i + 1]
         }
         if args.contains("--basecamp-token") {
             return BasecampLogin.printToken()
@@ -67,6 +77,11 @@ enum Checks {
             return ScreenRender.run(into: args[i + 1])
         }
         return nil
+    }
+
+    /// A token command may only read a tracker connection's item: one from before workspaces, or `tracker-…`.
+    static func trackerItemAllowed(_ item: String) -> Bool {
+        Tracker.allCases.map(TrackerItem.legacy).contains(item) || item.hasPrefix("tracker-")
     }
 
     static func selftest() -> Int32 {
@@ -199,6 +214,7 @@ enum Checks {
         trackerChecks(check)
         moveChecks(check)
         accountChecks(check)
+        workspaceChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

@@ -59,7 +59,8 @@ def r_no_browser_view(path, lines, ctx):
             yield i, "a browser view in the app"
 
 UI_CALL = re.compile(r'\b(Text|Label|Button|Toggle|TextField|SecureField|Section|navigationTitle|help|alert|Window)\s*\(')
-JARGON = ["orchestrator", "workspace", "MCP", "harness", "sidecar", "JSON", "config", "endpoint", "webhook",
+# "workspace" left this list when Workspaces became the product's word for a group of projects (Omar, Nov 5 2026).
+JARGON = ["orchestrator", "MCP", "harness", "sidecar", "JSON", "config", "endpoint", "webhook",
           "cron", "token", "CLI", "terminal", "stdout", "daemon", "PID"]
 def r_ui_jargon(path, lines, ctx):
     for i, l in enumerate(lines, 1):

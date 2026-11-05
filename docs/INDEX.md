@@ -7,6 +7,8 @@
 - [design-docs/golden-principles.md](design-docs/golden-principles.md): every rule and what enforces it
 - [RELEASING.md](RELEASING.md): signing, notarizing, publishing a release, the in-app updater
 - [design-docs/decisions.md](design-docs/decisions.md): answers to the plan's open questions (triage, signing key, GitHub sign-in)
+- [design/workspaces.md](design/workspaces.md): Workspaces, the request and requirements (design, not built yet)
+  - [design/workspaces-design.md](design/workspaces-design.md): its model, migration, settings flow, screens and open questions
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress

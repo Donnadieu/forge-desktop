@@ -5,6 +5,8 @@ import SwiftUI
 @MainActor
 final class AppModel: ObservableObject {
     @Published var choices: SetupChoices
+    /// Trackers, projects and the intelligence provider accounts (store.json); `choices` is the running project.
+    @Published var store: SetupStore
     @Published var screen: Int
     /// The live board, pushed by the engine.
     @Published var engine: EngineState?
@@ -84,13 +86,14 @@ final class AppModel: ObservableObject {
 
     init(preview: Bool = false, choices: SetupChoices? = nil, screen: Int? = nil) {
         self.preview = preview
-        let c = choices ?? (preview ? SetupChoices() : SetupChoices.load())
+        var c = choices ?? (preview ? SetupChoices() : SetupChoices.load())
+        self.store = preview ? Self.sampleStore(&c) : SetupStore.load(migrating: &c)
         self.choices = c
         self.screen = screen ?? c.nextScreen
         if !preview { GitHub.account = c.githubLogin }
     }
 
-    static let screenTitles = ["Cards", "Project", "GitHub", "Repo", "Agent", "Harness engineering", "Orchestrator"]
+    static let screenTitles = ["Tracker", "Project", "GitHub", "Repo", "Intelligence provider", "Harness engineering", "Orchestrator"]
 
     /// The Orchestrator's screen number (the end of setup).
     static let boardScreen = 6
@@ -122,7 +125,13 @@ final class AppModel: ObservableObject {
 
     /// `restarts: false` for answers the engine doesn't read (harness engineering), so it isn't restarted.
     func save(restarts: Bool = true) {
-        if !preview { choices.save() }
+        // Moved to a project Forge already knows: its repo and account come back. Then the store records it.
+        store.adopt(into: &choices)
+        store.sync(choices)
+        if !preview {
+            choices.save()
+            store.save()
+        }
         if restarts, screen < Self.boardScreen || screen == Self.workflowScreen { settingsChanged = true }
     }
 
@@ -195,6 +204,41 @@ final class AppModel: ObservableObject {
         let key = choices.linearURLKey ?? engine?.cards.first?.url.flatMap { URL(string: $0)?.pathComponents.dropFirst().first }
         guard let key else { return "https://linear.app" }
         return "https://linear.app/\(key)" + (choices.projectSlug.map { "/project/\($0)" } ?? "")
+    }
+
+    /// The account the running project's intelligence provider uses.
+    var account: AIAccount? { store.activeAccount(choices) }
+
+    /// Keeps a new or changed account (saved at once, so a sign-in is never lost).
+    func keep(_ a: AIAccount) {
+        store.put(a)
+        if !preview { store.save() }
+    }
+
+    /// Forgets a cleared account; the running project then needs another one before it starts again.
+    func forget(_ a: AIAccount) {
+        store.remove(a.id)
+        if account?.id == a.id {
+            choices.accountID = nil
+            choices.workerChecked = false
+            settingsChanged = true
+            if !preview { choices.save() }
+        }
+        if !preview { store.save() }
+    }
+
+    /// Render mode's accounts: two Claude Code sign-ins and a key, and one Codex sign-in.
+    static func sampleStore(_ c: inout SetupChoices) -> SetupStore {
+        var s = SetupStore()
+        s.accounts = [
+            AIAccount.new(.claude, method: .browser, name: "Personal", id: "sample-personal"),
+            AIAccount.new(.claude, method: .browser, name: "ConstructEase", id: "sample-work"),
+            AIAccount.new(.claude, method: .key, name: "Team API key", id: "sample-key"),
+            AIAccount.new(.codex, method: .browser, name: "ChatGPT Pro", id: "sample-codex"),
+        ]
+        if c.accountID == nil, let w = c.worker { c.accountID = w.agent == .codex ? "sample-codex" : "sample-work" }
+        s.sync(c)
+        return s
     }
 
     func openLink(_ s: String) {

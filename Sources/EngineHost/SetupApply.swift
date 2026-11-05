@@ -111,18 +111,29 @@ enum SetupApply {
         print("✓ can push to \(a.repo)")
 
         // 5. Who does the work
+        // The account carried over for this way of signing in (its old Keychain item), made if missing.
         let agentKey = env["FORGE_SETUP_AGENT_KEY"]
-        guard case .works = await WorkerCheck.run(a.worker, model: a.model, key: agentKey) else {
-            let r = await WorkerCheck.run(a.worker, model: a.model, key: agentKey)
-            throw Stop(description: "the agent didn't answer: \(r)")
-        }
-        if let agentKey, let item = WorkerCheck.keyItem(a.worker) { _ = Keychain.set(agentKey, for: item) }
+        var store = SetupStore.saved(for: c)
+        let account =
+            store.account("mac-\(a.worker.rawValue)")
+            ?? AIAccount(
+                id: "mac-\(a.worker.rawValue)", provider: IntelligenceProvider(a.worker), method: a.worker.usesKey ? .key : .browser,
+                name: SetupStore.legacyName(a.worker), secretItem: SetupStore.legacyItem(a.worker) ?? "ai-account-mac-\(a.worker.rawValue)",
+                folder: nil)
+        let secret = agentKey ?? WorkerCheck.secret(account)
+        let outcome = await WorkerCheck.run(account, model: a.model, secret: secret)
+        guard case .works = outcome else { throw Stop(description: "the agent didn't answer: \(outcome)") }
+        if let agentKey, let item = account.secretItem, account.method == .key { _ = Keychain.set(agentKey, named: item) }
+        store.put(account)
+        c.accountID = account.id
         c.worker = a.worker
         c.model = a.model
         c.workerChecked = true
         print("✓ \(a.worker.rawValue) answered a real call")
 
         if a.skipRepoReady == true { c.repoReady = true }
+        store.sync(c)
+        store.save()
         c.save()
         print(c.repoReady == true ? "✓ setup saved; Forge opens on the board" : "✓ setup saved; Forge opens on the Ready screen")
     }

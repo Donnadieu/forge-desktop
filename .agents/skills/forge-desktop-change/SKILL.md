@@ -99,6 +99,18 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   Sign-in tokens are 108 characters: another length means the parser glued or cut text (check the
   length, never the value).
 
+### Intelligence provider accounts
+- An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
+  reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over
+  accounts keep their old item names.
+- A browser account must sign in and run inside its own folder: `claude setup-token` with `CLAUDE_CONFIG_DIR`,
+  `codex login` and Codex's agents with `CODEX_HOME`. Claude agents with a kept sign-in get only
+  `CLAUDE_CODE_OAUTH_TOKEN` (their `~/.claude` settings stay as before); without one, `CLAUDE_CONFIG_DIR` points at the
+  empty folder, which Claude Code answers with "Not logged in" (checked live, 2.1.318) instead of the Mac's own login.
+- OpenRouter is Claude Code with `FORGE_SMITH_EXECUTION_PROVIDER=openrouter` + `OPENROUTER_API_KEY` for the engine's
+  own switch (`claude-env.ts`, keeps the `anthropic/...` model name) and the plain Anthropic variables for checks
+  run outside the engine. A new provider is a new `SetupChoices.Worker` case plus an `IntelligenceProvider` case.
+
 ### Trackers (Linear, Basecamp, GitHub Issues)
 - A new tracker touches every place that says Linear: `SetupChoices.board`, setup 1 and 2, `EngineSettings`
   (tracker block, environment, the note in front of lead.md), `AppModel.makeCard`/`projectURL`, the Orchestrator's

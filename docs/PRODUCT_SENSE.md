@@ -6,7 +6,7 @@ pull requests, from a Mac app instead of a terminal.
 explaining, it's wrong.
 
 ## Setup (six screens, one question each)
-1. Where the cards live: Linear (paste the key once), Basecamp or GitHub Issues (approve a short code in
+1. The tracker: Linear (paste the key once), Basecamp or GitHub Issues (approve a short code in
    the browser, each one's device sign-in). The sign-in goes into the Keychain.
 2. Pick the project (on Basecamp, its card table; on GitHub, the project and the repo new issues go to). Forge explains the pipeline and offers to create
    missing statuses or columns:
@@ -14,8 +14,10 @@ explaining, it's wrong.
 3. Sign in to GitHub and choose who authors and signs: you with a key Forge makes and registers,
    your own GPG key, or unsigned with a warning.
 4. Pick the repo; Forge checks you can push.
-5. Choose who does the work (Claude Code, Codex or Kimi) and how it signs in (the browser or an
-   API key), checked with one real call.
+5. The intelligence provider for the project (Claude Code, Codex, Kimi or OpenRouter) and the account it
+   uses. Each provider keeps any number of accounts (browser sign-ins and API keys): add, switch or clear
+   one. Each account has its own login, so switching never signs another out and the person's own Claude
+   Code and Codex logins stay untouched. Checked with one real call.
 6. Ready: the agent reads the repo and suggests guardrails; Forge makes one card for them.
 
 Then the **Orchestrator** (the main screen): what's in flight, four stats (Running, Retrying,
@@ -26,11 +28,13 @@ Start and Stop. No number appears twice on it.
 many agents work at once, and has two switches for Forge to move cards out of Backlog itself: new
 unassigned cards to Triage (two at a time) and cards marked ready to Todo. Both start off. Nothing
 else: no per-stage agents, models or colours yet.
-**Settings** shows what Forge connects to (Linear, Basecamp or GitHub Issues, project, GitHub, repo, signing, agent); each
+**Settings** shows what Forge connects to, in setup's order: tracker, project and repo, intelligence provider and
+account, then GitHub and signing; each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
 
 ## Words on screen
-Card, column, agent, repo, board, workflow, key, "Orchestrator" as the main screen's name, and
+Card, column, agent, repo, board, workflow, key, tracker (never "cards" for where they live), intelligence
+provider (what does the work for a project: Claude Code, Codex, Kimi, OpenRouter; never "agent" there), "Orchestrator" as the main screen's name, and
 "Harness engineering" as the name of getting a repo ready for agents (its Settings tile and setup step).
 Never: orchestrator as an engine word, workspace, MCP, harness on its own,
 sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).

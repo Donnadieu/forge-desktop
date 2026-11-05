@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Setup 1: where the cards live (Linear, Basecamp or GitHub Issues), and signing in to it. Linear takes a
+/// Setup 1: the tracker (Linear, Basecamp or GitHub Issues), and signing in to it. Linear takes a
 /// personal key, checked with one real call; Basecamp and GitHub sign in through the browser with a short
 /// code. Either way the secret goes only into the Keychain.
 struct TrackerScreen: View {
@@ -22,8 +22,8 @@ struct TrackerScreen: View {
     var body: some View {
         SetupFrame(
             model: model,
-            question: "Where do your cards live?",
-            detail: "Forge reads your cards and moves them along the board. Pick where your team keeps them, then sign in once; "
+            question: "Which tracker holds your work?",
+            detail: "Forge reads the cards on your tracker and moves them along the board. Pick your tracker, then sign in once; "
                 + "the sign-in is kept in your Mac's Keychain and nowhere else.",
             primary: primaryTitle,
             primaryEnabled: primaryEnabled,

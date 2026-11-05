@@ -1,106 +1,83 @@
 import SwiftUI
 
-/// Setup 5: who does the work (Claude Code, Codex or Kimi) and how it signs in (the browser, or an API
-/// key kept in the Keychain). Checked with one real call before you can go on.
+/// Setup 5: the intelligence provider that works this project's cards (Claude Code, Codex, Kimi or OpenRouter)
+/// and the account it uses. A provider keeps any number of accounts, browser sign-ins and API keys alike: add
+/// one, switch to another, or clear one. Each keeps its own sign-in, so switching never signs another out. The
+/// chosen account is checked with one real call before you can go on.
 struct WorkerScreen: View {
     @ObservedObject var model: AppModel
-    @State private var agent: SetupChoices.Worker = .claude
-    @State private var useKey = false
-    @State private var agentModel = ""
+    @State private var provider: IntelligenceProvider = .claude
+    /// The chosen account's id, or `AIAccount.addingID` while adding one.
+    @State private var selected = AIAccount.addingID
+    @State private var newName = ""
+    /// The new account uses an API key rather than the browser.
+    @State private var newWithKey = false
     @State private var key = ""
+    @State private var agentModel = ""
     @State private var busy = false
     @State private var problem: String?
     @State private var works = false
-    /// The last check failed because the agent's sign-in lapsed: Sign in is the one thing to do.
+    /// The last check failed because the account's sign-in lapsed: Sign in is the one thing to do.
     @State private var signedOut = false
     @State private var guideOpen = false
+    /// The account the guide signs in. A new one is kept only once it's signed in.
+    @State private var signingIn: AIAccount?
+    /// The account waiting for the person's yes to clear it.
+    @State private var clearing: AIAccount?
     @StateObject private var signIn = AgentSignIn()
 
-    static let agents: [(SetupChoices.Worker, String)] = [(.claude, "Claude Code"), (.codex, "Codex"), (.kimi, "Kimi")]
+    /// The provider's name on screen, whichever way it signs in.
+    static func name(_ w: SetupChoices.Worker) -> String { IntelligenceProvider(w).name }
 
-    /// The agent's name on screen, whichever way it signs in.
-    static func name(_ w: SetupChoices.Worker) -> String {
-        switch w.agent {
-        case .codex: return "Codex"
-        case .kimi: return "Kimi"
-        default: return "Claude Code"
-        }
-    }
-
-    static func models(_ w: SetupChoices.Worker) -> [String] {
-        switch w.agent {
-        case .codex: return [""]
-        case .kimi: return ["kimi-k2.7-code"]
-        default: return ["claude-sonnet-5", "claude-opus-5"]
-        }
-    }
-
-    private var worker: SetupChoices.Worker { SetupChoices.Worker.with(agent, key: useKey || agent == .kimi) }
-
-    private var keyLabel: String {
-        switch agent {
-        case .codex: return "OpenAI API key"
-        case .kimi: return "Moonshot key"
-        default: return "Anthropic API key"
-        }
-    }
+    private var accounts: [AIAccount] { model.store.accounts(for: provider) }
+    private var adding: Bool { selected == AIAccount.addingID }
+    private var chosen: AIAccount? { adding ? nil : model.store.account(selected) }
+    private var addingWithBrowser: Bool { adding && provider.signsInWithBrowser && !newWithKey }
 
     private var browserLine: String {
-        switch agent {
-        case .codex: return "Uses the Codex sign-in on this Mac (your ChatGPT plan)."
-        case .kimi: return "Kimi signs in with a key for now."
-        default: return "Uses the Claude Code sign-in on this Mac (your Pro or Max plan)."
-        }
+        provider == .codex
+            ? "Opens OpenAI's sign-in for your ChatGPT plan. It gets its own login, so Codex on this Mac stays as it is."
+            : "Opens Claude's sign-in for your Pro or Max plan. It gets its own login, so Claude Code on this Mac stays as it is."
     }
 
     var body: some View {
         SetupFrame(
             model: model,
-            question: "Who does the work?",
-            detail: "The agent that works the cards. Forge asks it one small question to be sure it answers.",
-            primary: works ? "Continue" : "Check and continue",
-            primaryEnabled: !signedOut && (!worker.usesKey || !key.isEmpty || hasSavedKey),
+            question: "Which intelligence provider works this project?",
+            detail: "Pick the intelligence provider for \(model.choices.projectName ?? "this project") and the account it uses. "
+                + "Forge asks it one small question to be sure it answers.",
+            primary: works ? "Continue" : addingWithBrowser ? "Sign in and continue" : "Check and continue",
+            primaryEnabled: !signedOut && (!adding || addingWithBrowser || !key.isEmpty),
             busy: busy,
-            action: works ? finish : check
+            action: works ? { if let a = chosen { finish(a) } } : primaryAction
         ) {
             VStack(alignment: .leading, spacing: 20) {
-                Segmented(options: Self.agents, selection: Binding(get: { agent }, set: pick)).frame(maxWidth: 480)
+                Segmented(options: IntelligenceProvider.allCases.map { ($0, $0.name) }, selection: Binding(get: { provider }, set: pick))
+                    .frame(maxWidth: 560)
                 VStack(alignment: .leading, spacing: 8) {
-                    SectionLabel(text: "How \(Self.name(agent)) signs in")
-                    OptionList(
-                        options: [(false, "Sign in with your browser"), (true, "Use an API key")],
-                        selection: Binding(
-                            get: { useKey },
-                            set: {
-                                useKey = $0
-                                reset()
-                            }),
-                        lines: [false: browserLine, true: "Paid per use from your account. The key stays in your Mac's Keychain."],
-                        disabled: agent == .kimi ? [false] : []
-                    ) { method in
-                        if method {
-                            SecureField("", text: $key)
-                                .forgeField(mono: true, hint: hasSavedKey ? "\(keyLabel) (saved)" : keyLabel, empty: key.isEmpty, icon: "key")
-                                .frame(maxWidth: 420)
-                        }
-                    }
+                    SectionLabel(text: "\(provider.name) accounts")
+                    AccountList(
+                        accounts: accounts, selection: Binding(get: { selected }, set: select), inUse: model.account?.id,
+                        clear: { clearing = $0 }
+                    ) { newAccountForm }
                     .frame(maxWidth: 640)
                 }
                 HStack(spacing: 12) {
                     Text("Model").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
                     Picker("", selection: $agentModel) {
-                        ForEach(Self.models(agent), id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
+                        ForEach(provider.models, id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
                     }
                     .labelsHidden()
                     .fixedSize()
                 }
-                if works { GoodLine(text: "\(Self.name(agent)) answered. It's ready to work.") }
+                if works { GoodLine(text: "\(chosen?.name ?? provider.name) answered. It's ready to work.") }
                 if let problem {
                     Notice(
-                        title: signedOut ? "\(Self.name(agent)) is signed out." : "\(Self.name(agent)) didn't answer.", detail: problem, mono: true
+                        title: signedOut ? "\(chosen?.name ?? provider.name) is signed out." : "\(provider.name) didn't answer.", detail: problem,
+                        mono: true
                     ) {
-                        if signedOut {
-                            Button("Sign in to \(Self.name(agent))") { openGuide() }
+                        if signedOut, let a = chosen {
+                            Button("Sign in to \(a.name)") { openGuide(a.preparedForSignIn()) }
                                 .buttonStyle(ForgeButton(kind: .primary, large: true))
                                 .padding(.leading, 26)
                         }
@@ -110,91 +87,151 @@ struct WorkerScreen: View {
             }
         }
         .overlay {
-            if guideOpen { SignInGuide(worker: worker, signIn: signIn, close: closeGuide) }
+            if guideOpen, let a = signingIn { SignInGuide(worker: a.worker, account: a.name, signIn: signIn, close: closeGuide) }
+        }
+        .overlay {
+            if let a = clearing {
+                ClearAccountSheet(account: a, projects: projects(using: a), cancel: { clearing = nil }) { clear(a) }
+            }
         }
         .onAppear(perform: restore)
         .onChange(of: signIn.stage) { _, stage in
-            // Signed in: close the guide and check again by itself.
-            if stage == .done {
-                guideOpen = false
-                signedOut = false
-                check()
-            }
+            // Signed in: keep the account, close the guide and check again by itself.
+            guard stage == .done, let a = signingIn else { return }
+            model.keep(a)
+            guideOpen = false
+            signingIn = nil
+            signedOut = false
+            selected = a.id
+            check(a, secret: WorkerCheck.secret(a))
         }
     }
 
-    private func pick(_ a: SetupChoices.Worker) {
-        guard a != agent else { return }
-        agent = a
-        agentModel = Self.models(a)[0]
-        useKey = a == .kimi
+    private var newAccountForm: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TextField("", text: $newName).forgeField(hint: "Name it, like Work or Personal", empty: newName.isEmpty, icon: "person")
+                .frame(maxWidth: 420)
+            if provider.signsInWithBrowser {
+                Segmented(options: [(false, "Sign in with your browser"), (true, "Use an API key")], selection: $newWithKey)
+                    .frame(maxWidth: 420)
+            }
+            if !addingWithBrowser {
+                SecureField("", text: $key).forgeField(mono: true, hint: provider.keyName, empty: key.isEmpty, icon: "key").frame(maxWidth: 420)
+            }
+            Text(addingWithBrowser ? browserLine : "Paid per use from that account. The key stays in your Mac's Keychain.")
+                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func pick(_ p: IntelligenceProvider) {
+        guard p != provider else { return }
+        provider = p
+        agentModel = p.models[0]
+        selected = model.account.flatMap { $0.provider == p ? $0.id : nil } ?? accounts.first?.id ?? AIAccount.addingID
+        reset()
+    }
+
+    private func select(_ id: String) {
+        guard id != selected else { return }
+        selected = id
         reset()
     }
 
     private func reset() {
         key = ""
+        newName = ""
+        newWithKey = false
         works = false
         problem = nil
         signedOut = false
     }
 
-    private var hasSavedKey: Bool { !model.preview && WorkerCheck.keyItem(worker).flatMap { Keychain.get($0) } != nil }
-
     private func restore() {
-        if let w = model.choices.worker {
-            agent = w.agent
-            useKey = w.usesKey
-        }
-        agentModel = model.choices.model.flatMap { m in Self.models(agent).contains(m) ? m : nil } ?? Self.models(agent)[0]
-        works = model.preview && model.choices.workerChecked
-        if model.preview, let scene = model.sample.scene, scene.hasPrefix("signed-out") {
-            problem = "\(Self.name(agent)) said: Failed to authenticate: OAuth session expired and could not be refreshed"
+        let a = model.account
+        provider = a?.provider ?? model.choices.worker.map(IntelligenceProvider.init) ?? .claude
+        selected = a?.id ?? accounts.first?.id ?? AIAccount.addingID
+        agentModel = model.choices.model.flatMap { m in provider.models.contains(m) ? m : nil } ?? provider.models[0]
+        works = model.preview && model.choices.workerChecked && a != nil
+        guard model.preview, let scene = model.sample.scene else { return }
+        if scene.hasPrefix("signed-out") {
+            problem = "\(provider.name) said: Failed to authenticate: OAuth session expired and could not be refreshed"
             signedOut = true
-            if scene.hasSuffix("guide") {
+            if scene.hasSuffix("guide"), let a = chosen {
+                signingIn = a
                 guideOpen = true
-                signIn.preview(link: URL(string: "https://claude.ai/oauth/authorize"), code: agent == .claude)
+                signIn.preview(link: URL(string: "https://claude.ai/oauth/authorize"), code: provider == .claude)
             }
         }
+        if scene == "add-account" { (selected, newName, works) = (AIAccount.addingID, "ConstructEase work", false) }
+        if scene == "clear-account" { clearing = model.store.account("sample-personal") }
     }
 
-    private func check() {
+    private func primaryAction() {
+        if let a = chosen { return check(a, secret: WorkerCheck.secret(a)) }
+        let a = AIAccount.new(provider, method: addingWithBrowser ? .browser : .key, name: model.store.freeName(provider, newName))
+        if addingWithBrowser { return openGuide(a) }
+        check(a, secret: key.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private func check(_ a: AIAccount, secret: String?) {
         busy = true
         problem = nil
-        let typed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        let w = worker
-        let k = typed.isEmpty ? WorkerCheck.keyItem(w).flatMap { Keychain.get($0) } : typed
+        let isNew = model.store.account(a.id) == nil
         Task {
             defer { busy = false }
-            let chosen = agentModel.isEmpty ? nil : agentModel
-            let outcome = model.preview ? .works : await WorkerCheck.run(w, model: chosen, key: k)
+            let chosenModel = agentModel.isEmpty ? nil : agentModel
+            let outcome = model.preview ? .works : await WorkerCheck.run(a, model: chosenModel, secret: secret)
             switch outcome {
             case .works:
-                if let item = WorkerCheck.keyItem(w), let k, !model.preview, !Keychain.set(k, for: item) {
+                if isNew, a.method == .key, let item = a.secretItem, let secret, !model.preview, !Keychain.set(secret, named: item) {
                     problem = "Forge couldn't save the key in your Keychain."
                     return
                 }
+                if isNew { model.keep(a) }
+                selected = a.id
                 works = true
-                finish()
+                finish(a)
             case .fails(let why):
                 problem = why
-                signedOut = AgentSignIn.command(for: w) != nil && AgentSignIn.looksSignedOut(why)
+                signedOut = !isNew && AgentSignIn.command(for: a.worker) != nil && AgentSignIn.looksSignedOut(why)
             }
         }
     }
 
-    private func openGuide() {
+    private func openGuide(_ a: AIAccount) {
+        signingIn = a
         guideOpen = true
         if model.preview { return }
-        Task { await signIn.start(worker) }
+        Task { await signIn.start(a) }
     }
 
     private func closeGuide() {
         signIn.cancel()
         guideOpen = false
+        // A new account that never signed in leaves nothing behind.
+        if let a = signingIn, model.store.account(a.id) == nil, !model.preview { Task { await AccountClear.clear(a) } }
+        signingIn = nil
     }
 
-    private func finish() {
-        model.choices.worker = worker
+    private func projects(using a: AIAccount) -> [String] {
+        model.store.projects.filter { $0.accountID == a.id }.map { p in p.repo.map { "\(p.name) · \($0)" } ?? p.name }
+    }
+
+    private func clear(_ a: AIAccount) {
+        clearing = nil
+        Task {
+            if !model.preview { await AccountClear.clear(a) }
+            model.forget(a)
+            if selected == a.id {
+                selected = accounts.first?.id ?? AIAccount.addingID
+                reset()
+            }
+        }
+    }
+
+    private func finish(_ a: AIAccount) {
+        model.choices.accountID = a.id
+        model.choices.worker = a.worker
         model.choices.model = agentModel.isEmpty ? nil : agentModel
         model.choices.workerChecked = true
         model.next()

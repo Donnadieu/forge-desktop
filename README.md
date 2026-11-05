@@ -14,7 +14,8 @@ A one-minute tour, with sound. [Download it in full quality](docs/promo/forge-de
 ![The Orchestrator: what every agent is working on right now](docs/screenshots/orchestrator.png)
 
 - A native Mac app (SwiftUI), never a browser page.
-- Works with the agent you already use: Claude Code, Codex or Kimi.
+- Works with the intelligence provider you already use: Claude Code, Codex, Kimi or OpenRouter, with as many
+  accounts as you like (switch one project to your work account without signing out of your own).
 - Your keys live in your Mac's Keychain, nowhere else.
 - Commits go out under your name, signed, the way you chose in setup.
 
@@ -32,8 +33,8 @@ You need a Mac with Apple Silicon and macOS 14 or newer.
      settings), a **Basecamp** project with a card table, or **GitHub Issues** on a GitHub
      project (for both, you sign in through the browser),
    - the **GitHub CLI** (`gh`) on this Mac; Forge runs GitHub's sign-in for you inside the app,
-   - one coding agent: **Claude Code** (your Pro or Max plan, or an API key), **Codex**
-     (browser sign-in or an OpenAI key), or **Kimi** (a Moonshot key).
+   - one intelligence provider: **Claude Code** (your Pro or Max plan, or an API key), **Codex**
+     (browser sign-in or an OpenAI key), **Kimi** (a Moonshot key) or **OpenRouter** (an OpenRouter key).
 4. Follow the six setup screens. Forge saves each answer as you go, so you can quit and pick up
    where you left off.
 

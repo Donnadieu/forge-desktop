@@ -58,20 +58,21 @@ enum SetupProbe {
     /// `Forge --worker-check <claude|codex|kimi|apiKey> [model]`: setup 5's real call, from the command line.
     static func worker(_ name: String, model: String?) -> Int32 {
         guard let w = SetupChoices.Worker(rawValue: name) else {
-            print("✗ unknown worker \(name); use claude, codex, kimi, apiKey or codexKey")
+            print("✗ unknown worker \(name); use claude, codex, kimi, apiKey, codexKey or openrouter")
             return 2
         }
         let done = DispatchSemaphore(value: 0)
         let box = Box()
         Task.detached {
-            let key: String? =
-                switch w {
-                case .apiKey: Keychain.get(.anthropicKey)
-                case .codexKey: Keychain.get(.openaiKey)
-                case .kimi: Keychain.get(.kimiKey)
-                case .claude, .codex: nil
-                }
-            switch await WorkerCheck.run(w, model: model, key: key) {
+            // The project's account when it signs in this way, else the first account that does.
+            let c = SetupChoices.load()
+            let store = SetupStore.saved(for: c)
+            let account =
+                [store.activeAccount(c)].compactMap { $0 }.first { $0.worker == w } ?? store.accounts.first { $0.worker == w }
+                ?? AIAccount(
+                    id: "mac-\(w.rawValue)", provider: IntelligenceProvider(w), method: w.usesKey ? .key : .browser, name: w.rawValue,
+                    secretItem: SetupStore.legacyItem(w), folder: nil)
+            switch await WorkerCheck.run(account, model: model, secret: WorkerCheck.secret(account)) {
             case .works:
                 print("✓ \(name) answered a real call")
                 box.code = 0

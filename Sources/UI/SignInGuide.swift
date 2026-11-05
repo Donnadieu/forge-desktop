@@ -4,6 +4,8 @@ import SwiftUI
 /// with its X, Esc, or a click outside it (which also stops the sign-in). It checks again by itself.
 struct SignInGuide: View {
     let worker: SetupChoices.Worker
+    /// The account's name, when it has one ("Work").
+    var account: String?
     @ObservedObject var signIn: AgentSignIn
     let close: () -> Void
     @State private var code = ""
@@ -19,7 +21,9 @@ struct SignInGuide: View {
             ]
         default:
             return [
-                "Your browser opens \(name)'s sign-in page.", "Sign in with the account that has your plan, and approve.",
+                "Your browser opens \(name)'s sign-in page.",
+                account.map { "Sign in with the account you want as \u{201C}\($0)\u{201D}, and approve. Your other accounts stay signed in." }
+                    ?? "Sign in with the account that has your plan, and approve.",
                 "If the page shows a code, paste it below. Forge checks by itself and moves on.",
             ]
         }
@@ -32,7 +36,11 @@ struct SignInGuide: View {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Sign in to \(name)").font(Theme.display(24)).foregroundStyle(Theme.text)
-                        Text("Do this once on this Mac. Forge waits for you.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                        Text(
+                            account.map { "For \($0). Do this once on this Mac. Forge waits for you." }
+                                ?? "Do this once on this Mac. Forge waits for you."
+                        )
+                        .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
                     }
                     Spacer()
                     Button(action: close) {

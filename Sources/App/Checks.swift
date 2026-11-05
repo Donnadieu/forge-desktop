@@ -5,6 +5,7 @@ import SwiftUI
 ///   Forge --selftest            facts about the app + the main view draws
 ///   Forge --version             prints the version
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
+///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
 ///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
 ///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it)
@@ -20,6 +21,9 @@ enum Checks {
         }
         if args.contains("--selftest") {
             return selftest()
+        }
+        if args.contains("--accounts-check") {
+            return accountsLive()
         }
         if args.contains("--engine-check") {
             return EngineCheck.run()
@@ -194,6 +198,7 @@ enum Checks {
         harnessChecks(check)
         trackerChecks(check)
         moveChecks(check)
+        accountChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

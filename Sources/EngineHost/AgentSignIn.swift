@@ -26,12 +26,14 @@ final class AgentSignIn: ObservableObject {
     private var process: Process?
     private var input: FileHandle?
     private var worker: SetupChoices.Worker?
+    /// The account signing in: its login folder and the Keychain item its sign-in goes to.
+    private var account: AIAccount?
 
     static func command(for worker: SetupChoices.Worker) -> [String]? {
         switch worker {
         case .claude: return ["claude", "setup-token"]
         case .codex: return ["codex", "login"]
-        case .kimi, .apiKey, .codexKey: return nil
+        case .kimi, .apiKey, .codexKey, .openrouter: return nil
         }
     }
 
@@ -79,10 +81,14 @@ final class AgentSignIn: ObservableObject {
         return ["authenticate", "oauth", "log in", "login", "sign in", "expired", "401", "unauthorized", "not logged"].contains { m.contains($0) }
     }
 
-    func start(_ worker: SetupChoices.Worker) async {
+    /// Signs one account in, inside its own login folder (CLAUDE_CONFIG_DIR, CODEX_HOME), so the person's own
+    /// Claude Code and Codex logins and every other account stay as they are. Call `preparedForSignIn()` first.
+    func start(_ account: AIAccount) async {
         cancel()
+        let worker = account.worker
         guard let cmd = Self.command(for: worker) else { return }
         self.worker = worker
+        self.account = account
         stage = .waiting
         link = nil
         acceptsCode = false
@@ -94,6 +100,10 @@ final class AgentSignIn: ObservableObject {
         env["PATH"] = path
         // A token already in the environment would stand in for the new sign-in.
         env.removeValue(forKey: "CLAUDE_CODE_OAUTH_TOKEN")
+        if let folder = account.folderURL {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            env[worker == .codex ? "CODEX_HOME" : "CLAUDE_CONFIG_DIR"] = folder.path
+        }
         let reader: FileHandle
         if Self.needsTerminal(worker), let tty = Self.openTerminal() {
             env["TERM"] = "xterm-256color"
@@ -153,7 +163,8 @@ final class AgentSignIn: ObservableObject {
         if link == nil, let u = found.link ?? Self.scan(seen).link { link = u }
         if found.wantsCode { acceptsCode = true }
         if worker == .claude, stage == .waiting, let token = Self.token(in: seen) {
-            stage = Keychain.set(token, for: .claudeToken) ? .done : .failed("Forge couldn't keep the sign-in in your Keychain.")
+            let item = account?.secretItem ?? Keychain.Item.claudeToken.rawValue
+            stage = Keychain.set(token, named: item) ? .done : .failed("Forge couldn't keep the sign-in in your Keychain.")
             stop(process)
         }
     }

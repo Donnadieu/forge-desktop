@@ -49,7 +49,7 @@ struct OrchestratorScreen: View {
         .sheet(item: $open) { card in
             CardDetail(model: model, card: state?.cards.first { $0.id == card.id } ?? card) { open = nil }
         }
-        .overlay { if guideOpen { SignInGuide(worker: agent, signIn: signIn, close: closeGuide) } }
+        .overlay { if guideOpen { SignInGuide(worker: agent, account: model.account?.name, signIn: signIn, close: closeGuide) } }
         .overlay {
             if let move = confirm {
                 MoveConfirm(move: move, cancel: { confirm = nil }) {
@@ -182,7 +182,8 @@ struct OrchestratorScreen: View {
     /// The agent's sign-in lapsed: cards wait to try again with a sign-in error.
     private var signedOutLine: String? {
         guard let errors = state?.retrying?.compactMap(\.error), errors.contains(where: AgentSignIn.looksSignedOut) else { return nil }
-        return "\(WorkerScreen.name(agent)) is signed out, so agents can't take cards."
+        return
+            "\(model.account.map { "\(WorkerScreen.name(agent)) (\($0.name))" } ?? WorkerScreen.name(agent)) is signed out, so agents can't take cards."
     }
 
     private var agent: SetupChoices.Worker { model.choices.worker ?? .claude }
@@ -229,8 +230,10 @@ struct OrchestratorScreen: View {
 
     private func openGuide() {
         guideOpen = true
-        if model.preview { return }
-        Task { await signIn.start(agent) }
+        guard !model.preview, let account = model.account?.preparedForSignIn() else { return }
+        // The running project's own account signs in again, in its own login folder.
+        model.keep(account)
+        Task { await signIn.start(account) }
     }
 
     private func closeGuide() {

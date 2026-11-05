@@ -31,8 +31,11 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var repo: String?
     var defaultBranch: String?
     var repoChecked = false
-    // 5. Who does the work
+    // 5. The intelligence provider that does the work, and how it signs in (mirrors the account below)
     var worker: Worker?
+    /// The account (sign-in or key) this project's intelligence provider uses: an `AIAccount.id` in
+    /// `store.json` (optional: added in 0.2.17; nil = carried over by `SetupStore.migrate`). See Accounts.swift.
+    var accountID: String?
     var model: String?
     var workerChecked = false
     // 6. Ready for agents (optional so settings saved before this screen existed still load)
@@ -63,26 +66,29 @@ struct SetupChoices: Codable, Equatable, Sendable {
     }
 
     enum Worker: String, Codable, CaseIterable, Sendable {
-        /// `apiKey` is Claude Code on an Anthropic key; `codexKey` is Codex on an OpenAI key.
-        case claude, codex, kimi, apiKey, codexKey
+        /// `apiKey` is Claude Code on an Anthropic key; `codexKey` is Codex on an OpenAI key; `openrouter` is
+        /// Claude Code on an OpenRouter key (added in 0.2.17).
+        case claude, codex, kimi, apiKey, codexKey, openrouter
 
-        /// The agent itself (Claude Code, Codex or Kimi), whichever way it signs in.
+        /// The intelligence provider itself (Claude Code, Codex, Kimi or OpenRouter), whichever way it signs in.
         var agent: Worker {
             switch self {
             case .claude, .apiKey: return .claude
             case .codex, .codexKey: return .codex
             case .kimi: return .kimi
+            case .openrouter: return .openrouter
             }
         }
 
         /// It signs in with a key kept in the Keychain rather than in the browser.
-        var usesKey: Bool { self == .apiKey || self == .codexKey || self == .kimi }
+        var usesKey: Bool { self == .apiKey || self == .codexKey || self == .kimi || self == .openrouter }
 
-        /// The agent and the way it signs in, as one choice.
+        /// The provider and the way it signs in, as one choice.
         static func with(_ agent: Worker, key: Bool) -> Worker {
             switch agent.agent {
             case .claude: return key ? .apiKey : .claude
             case .codex: return key ? .codexKey : .codex
+            case .openrouter: return .openrouter
             default: return .kimi
             }
         }

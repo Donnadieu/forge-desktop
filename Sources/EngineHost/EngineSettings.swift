@@ -31,7 +31,7 @@ enum EngineSettings {
         let branch = c.defaultBranch ?? "main"
         let kind: String =
             switch c.worker ?? .claude {
-            case .claude, .apiKey: "claude"
+            case .claude, .apiKey, .openrouter: "claude"
             case .codex, .codexKey: "codex"
             case .kimi: "kimi"
             }
@@ -179,8 +179,16 @@ enum EngineSettings {
     }
 
     /// The engine's environment, built fresh before every start. Reads the Keychain and the `gh` sign-in.
-    static func environment(_ c: SetupChoices) async throws -> [String: String] {
+    static func environment(_ c: SetupChoices, store: SetupStore? = nil) async throws -> [String: String] {
         guard let repo = c.repo else { throw Problem(description: "Setup isn't finished yet.") }
+        let store = store ?? SetupStore.saved(for: c)
+        guard let account = store.activeAccount(c) else {
+            throw Problem(description: "Pick the account your intelligence provider uses in Settings.")
+        }
+        let secret = WorkerCheck.secret(account)
+        if account.method == .key, secret == nil {
+            throw Problem(description: "Forge doesn't have the \(account.provider.keyName) for \(account.name). Add it again in Settings.")
+        }
         var env: [String: String] = ["REPO_URL": "https://github.com/\(repo).git"]
         switch c.board {
         case .linear:
@@ -217,21 +225,8 @@ enum EngineSettings {
         case .unsigned:
             env["FORGE_GIT_UNSIGNED_OK"] = "1"
         }
-        switch c.worker ?? .claude {
-        case .apiKey:
-            env["ANTHROPIC_API_KEY"] = Keychain.get(.anthropicKey) ?? ""
-            env["CLAUDE_CODE_OAUTH_TOKEN"] = ""
-        case .codexKey:
-            env["OPENAI_API_KEY"] = Keychain.get(.openaiKey) ?? ""
-            env["CODEX_API_KEY"] = env["OPENAI_API_KEY"]
-        case .kimi:
-            env["KIMI_API_KEY"] = Keychain.get(.kimiKey) ?? ""
-        case .claude:
-            // The long-lived token from Forge's sign-in; without one the agents use Claude Code's own login.
-            env.merge(WorkerCheck.env(.claude, key: nil)) { $1 }
-        case .codex:
-            break
-        }
+        // Only this account's sign-in or key, in its own login folder (WorkerCheck.env).
+        env.merge(WorkerCheck.env(account, secret: secret)) { $1 }
         return env
     }
 

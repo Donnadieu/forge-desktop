@@ -10,53 +10,74 @@ enum WorkerCheck {
 
     static let prompt = "Reply with the single word: ready"
 
-    /// The environment the agent runs with: the key from setup, if this worker needs one, or the
-    /// long-lived Claude Code token Forge's sign-in kept (AgentSignIn).
-    static func env(_ worker: SetupChoices.Worker, key: String?) -> [String: String] {
-        if worker == .claude, let kept = Keychain.get(.claudeToken), !kept.isEmpty {
-            let token = AgentSignIn.repaired(kept)
-            if token != kept { Keychain.set(token, for: .claudeToken) }
-            return ["CLAUDE_CODE_OAUTH_TOKEN": token]
-        }
-        guard let key, !key.isEmpty else { return [:] }
-        switch worker {
-        case .apiKey: return ["ANTHROPIC_API_KEY": key]
-        case .codexKey: return ["OPENAI_API_KEY": key, "CODEX_API_KEY": key]
-        case .kimi: return ["KIMI_API_KEY": key]
-        case .claude, .codex: return [:]
+    /// OpenRouter's Anthropic-style address: Claude Code runs on it with an OpenRouter key.
+    static let openRouterBase = "https://openrouter.ai/api"
+
+    /// The environment an account's provider runs with. Only this account's sign-in or key, and its own login
+    /// folder: a browser account without a kept sign-in points Claude Code at its empty folder, so it fails as
+    /// signed out instead of quietly using the person's own Claude Code login. An account carried over from before
+    /// 0.2.17 (no folder) runs the way it did.
+    static func env(_ a: AIAccount, secret: String?) -> [String: String] {
+        let s = secret?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        switch a.worker {
+        case .claude:
+            if !s.isEmpty { return ["CLAUDE_CODE_OAUTH_TOKEN": AgentSignIn.repaired(s)] }
+            guard let dir = a.folderURL else { return [:] }
+            return ["CLAUDE_CONFIG_DIR": dir.path, "CLAUDE_CODE_OAUTH_TOKEN": ""]
+        case .apiKey:
+            return ["ANTHROPIC_API_KEY": s, "CLAUDE_CODE_OAUTH_TOKEN": ""]
+        case .codex:
+            return a.folderURL.map { ["CODEX_HOME": $0.path] } ?? [:]
+        case .codexKey:
+            return ["OPENAI_API_KEY": s, "CODEX_API_KEY": s]
+        case .kimi:
+            return ["KIMI_API_KEY": s]
+        case .openrouter:
+            // The engine's own OpenRouter switch (claude-env.ts) keeps the model's OpenRouter name; the rest is what
+            // Claude Code itself reads, so a check outside the engine runs the same way.
+            return [
+                "FORGE_SMITH_EXECUTION_PROVIDER": "openrouter", "OPENROUTER_API_KEY": s, "ANTHROPIC_BASE_URL": openRouterBase,
+                "ANTHROPIC_AUTH_TOKEN": s, "ANTHROPIC_API_KEY": "", "CLAUDE_CODE_OAUTH_TOKEN": "",
+            ]
         }
     }
 
-    /// The Keychain item that holds this worker's key, if it signs in with one.
+    /// The account's sign-in or key from the Keychain (a Claude sign-in kept by 0.2.7 is repaired on the way).
+    static func secret(_ a: AIAccount) -> String? {
+        guard let item = a.secretItem, let kept = Keychain.get(named: item), !kept.isEmpty else { return nil }
+        if a.worker == .claude {
+            let fixed = AgentSignIn.repaired(kept)
+            if fixed != kept { Keychain.set(fixed, named: item) }
+            return fixed
+        }
+        return kept
+    }
+
+    /// The Keychain item each way of signing in used before 0.2.17 (accounts carried over keep it).
     static func keyItem(_ worker: SetupChoices.Worker) -> Keychain.Item? {
-        switch worker {
-        case .apiKey: return .anthropicKey
-        case .codexKey: return .openaiKey
-        case .kimi: return .kimiKey
-        case .claude, .codex: return nil
-        }
+        SetupStore.legacyItem(worker).flatMap(Keychain.Item.init(rawValue:)).flatMap { $0 == .claudeToken ? nil : $0 }
     }
 
-    static func run(_ worker: SetupChoices.Worker, model: String?, key: String?) async -> Outcome {
+    static func run(_ a: AIAccount, model: String?, secret: String?) async -> Outcome {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("forge-worker-check-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
-        switch worker {
-        case .claude, .apiKey:
+        if let folder = a.folderURL { try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let env = Self.env(a, secret: secret)
+        switch a.worker {
+        case .claude, .apiKey, .openrouter:
+            if a.worker == .openrouter, (secret ?? "").isEmpty { return .fails("Paste your OpenRouter key first.") }
             var args = ["-p", prompt, "--output-format", "json", "--max-turns", "1"]
             if let model { args += ["--model", model] }
-            // An API key must win over any subscription login: drop the subscription token for that run.
-            var env = Self.env(worker, key: key)
-            if worker == .apiKey { env["CLAUDE_CODE_OAUTH_TOKEN"] = "" }
             let r = await Tools.run("claude", args, cwd: dir, env: env, timeout: 120)
             return claudeOutcome(r)
         case .codex, .codexKey:
             var args = ["exec", "--skip-git-repo-check", "--json", prompt]
             if let model { args += ["--model", model] }
-            let r = await Tools.run("codex", args, cwd: dir, env: Self.env(worker, key: key), timeout: 180)
+            let r = await Tools.run("codex", args, cwd: dir, env: env, timeout: 180)
             return codexOutcome(r)
         case .kimi:
-            return await kimiOutcome(key: key)
+            return await kimiOutcome(key: secret)
         }
     }
 

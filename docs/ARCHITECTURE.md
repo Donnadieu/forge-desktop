@@ -131,6 +131,25 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   `.forge/skills`, git-excluded) before the agent starts. git asks `gh` for the GitHub sign-in through
   `GIT_CONFIG_*` in that environment; nothing is stored on disk.
 
+## Intelligence providers and their accounts
+
+- `Core/Accounts.swift` keeps `store.json`: trackers, projects (each on one tracker and mapped to one repo) and
+  intelligence provider accounts, joined by ids. Each project has one provider (Claude Code, Codex, Kimi, or
+  OpenRouter, which is Claude Code on an OpenRouter key) and one account. `setup.json` (`SetupChoices`) stays the
+  working copy of the project Forge runs; `AppModel.save` writes it back (`sync`) and, when setup moves to a
+  project Forge already knows, brings back its repo and account (`adopt`).
+- An account (`AIAccount`) is a browser sign-in or an API key. Its secret is one Keychain item of its own
+  (`ai-account-<id>`); a browser account also has its own login folder in `accounts/<id>`, which the sign-in
+  runs in (`CLAUDE_CONFIG_DIR` for `claude setup-token`, `CODEX_HOME` for `codex login` and Codex's agents), so
+  the person's own logins and other accounts are never touched. `WorkerCheck.env(account, secret:)` is the one
+  place that turns an account into the agents' environment; a Claude account without its sign-in points at its
+  empty folder and fails as signed out, never falling back to the Mac's own Claude Code login.
+- 0.2.16's settings carry over on first launch (`SetupStore.migrate`): each item already in the Keychain
+  (`claude-code-token`, `anthropic-key`, `openai-key`, `kimi-key`) becomes an account under its old name, and the
+  one in use is chosen. Carried-over accounts have no folder and run exactly as before until they sign in again.
+- Clearing an account (`EngineHost/AccountClear.swift`) removes its Keychain item and its folder (only inside
+  `accounts/`) and unassigns it from every project.
+
 ## GitHub and signing
 
 - GitHub: the `gh` sign-in already on the Mac. If `gh` holds several accounts, setup picks one and Forge
@@ -146,6 +165,7 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 
 ## Local state
 
-`~/Library/Application Support/Forge/`: the workflow file (source of truth for the pipeline), one
+`~/Library/Application Support/Forge/`: the workflow file (source of truth for the pipeline), `setup.json` and
+`store.json` (setup's answers; never a secret), `accounts/` (each browser account's own login folder), one
 SQLite file written only by the engine (running/stopped, runs, usage), `workspaces/` (one folder per
 card). Logs in `~/Library/Logs/Forge/`. Secrets in the Keychain, never on disk.

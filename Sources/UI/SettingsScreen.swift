@@ -30,14 +30,15 @@ struct SettingsScreen: View {
                     }
                     .font(Theme.sans(11))
                     .foregroundStyle(model.settingsChanged ? Theme.heatBright : Theme.textMuted)
+                    // Tracker → project and its repo → the project's intelligence provider and account, then the rest.
                     Grid(horizontalSpacing: 16, verticalSpacing: 16) {
                         GridRow {
                             tracker
-                            code
+                            project
                         }
                         GridRow {
+                            intelligence
                             signing
-                            agents
                         }
                         GridRow {
                             harness
@@ -53,7 +54,7 @@ struct SettingsScreen: View {
     }
 
     /// Every tile is this tall, so the grid reads as equal tiles whatever each one holds.
-    static let tileHeight: CGFloat = 176
+    static let tileHeight: CGFloat = 200
 
     private var tracker: some View {
         group("Tracker") {
@@ -70,19 +71,27 @@ struct SettingsScreen: View {
                 change(c.board == .linear ? "Change key" : "Change", step: 0)
             }
             row {
-                field("Project", c.projectName ?? "—")
+                field("Projects", trackerProjects)
             } action: {
-                change("Change", step: 1)
+                EmptyView()
             }
         }
     }
 
-    private var code: some View {
-        group("Code") {
+    /// The projects Forge knows on this tracker, the running one first.
+    private var trackerProjects: String {
+        let known = model.store.projects.filter { $0.trackerID == c.board.rawValue }.map(\.name)
+        let running = c.projectName.map { [$0] } ?? []
+        let names = running + known.filter { !running.contains($0) }
+        return names.isEmpty ? "—" : names.joined(separator: ", ")
+    }
+
+    private var project: some View {
+        group("Project") {
             row {
-                field("GitHub", c.githubLogin.map { "@\($0)" } ?? "—", mono: true)
+                field("Project", c.projectName ?? "—")
             } action: {
-                Pill(text: "Signed in", tone: .green, dot: Theme.good)
+                change("Change", step: 1)
             }
             row {
                 field("Repo", c.repo ?? "—", mono: true)
@@ -94,6 +103,11 @@ struct SettingsScreen: View {
 
     private var signing: some View {
         group("Commit signing") {
+            row {
+                field("GitHub", c.githubLogin.map { "@\($0)" } ?? "—", mono: true)
+            } action: {
+                Pill(text: "Signed in", tone: .green, dot: Theme.good)
+            }
             row {
                 field("Signed by", signer)
             } action: {
@@ -141,27 +155,42 @@ struct SettingsScreen: View {
         }
     }
 
-    private var agents: some View {
-        group("Agent") {
+    /// The project's intelligence provider and the account it uses; Change opens setup 5, where accounts are
+    /// added, switched and cleared.
+    private var intelligence: some View {
+        group("Intelligence provider") {
             let w = c.worker ?? .claude
+            let account = model.account
             row {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(WorkerScreen.name(w)).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                    Text(account.map { "\(WorkerScreen.name(w)) · \($0.name)" } ?? WorkerScreen.name(w)).font(Theme.sans(13, .medium))
+                        .foregroundStyle(Theme.text)
                     HStack(spacing: 8) {
-                        Circle().fill(c.workerChecked ? Theme.good : Theme.textMuted).frame(width: 8, height: 8)
-                        Text(w.usesKey ? "API key set · in Keychain" : "Signed in with your browser").font(Theme.sans(11)).foregroundStyle(
-                            Theme.textSec)
+                        Circle().fill(c.workerChecked && account != nil ? Theme.good : Theme.textMuted).frame(width: 8, height: 8)
+                        Text(account?.line ?? "No account picked yet").font(Theme.sans(11)).foregroundStyle(Theme.textSec)
                     }
                 }
             } action: {
                 change("Change", step: 4)
             }
             row {
-                field("Model", c.model ?? "The agent's default", mono: c.model != nil)
+                field("Accounts", accountCount(account?.provider ?? IntelligenceProvider(w)))
+            } action: {
+                EmptyView()
+            }
+            row {
+                field("Model", c.model ?? "Its usual model", mono: c.model != nil)
             } action: {
                 EmptyView()
             }
         }
+    }
+
+    private func accountCount(_ p: IntelligenceProvider) -> String {
+        let n = model.store.accounts(for: p).count
+        let others = model.store.accounts.count - n
+        let mine = n == 1 ? "1 \(p.name) account" : "\(n) \(p.name) accounts"
+        return others > 0 ? "\(mine), \(others) for other providers" : mine
     }
 
     private var signer: String {

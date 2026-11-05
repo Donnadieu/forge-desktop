@@ -33,9 +33,9 @@ enum Keychain {
         return SecKeychainOpen(path, &kc) == errSecSuccess ? kc : nil
     }
 
-    private static func query(_ item: Item, adding: Bool = false) -> [String: Any] {
+    private static func query(_ name: String, adding: Bool = false) -> [String: Any] {
         var q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: serviceName, kSecAttrAccount as String: item.rawValue,
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: serviceName, kSecAttrAccount as String: name,
         ]
         if let kc = testKeychain {
             if adding { q[kSecUseKeychain as String] = kc } else { q[kSecMatchSearchList as String] = [kc] }
@@ -44,18 +44,28 @@ enum Keychain {
     }
 
     @discardableResult
-    static func set(_ value: String, for item: Item) -> Bool {
+    static func set(_ value: String, for item: Item) -> Bool { set(value, named: item.rawValue) }
+
+    static func get(_ item: Item) -> String? { get(named: item.rawValue) }
+
+    @discardableResult
+    static func delete(_ item: Item) -> Bool { delete(named: item.rawValue) }
+
+    /// The same, for an item named at run time: each intelligence provider account keeps its sign-in or key
+    /// under its own name (`AIAccount.secretItem`).
+    @discardableResult
+    static func set(_ value: String, named name: String) -> Bool {
         let data = Data(value.utf8)
-        let update = SecItemUpdate(query(item) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        let update = SecItemUpdate(query(name) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecSuccess { return true }
-        var add = query(item, adding: true)
+        var add = query(name, adding: true)
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
-    static func get(_ item: Item) -> String? {
-        var q = query(item)
+    static func get(named name: String) -> String? {
+        var q = query(name)
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: CFTypeRef?
@@ -63,9 +73,18 @@ enum Keychain {
         return String(data: data, encoding: .utf8)
     }
 
+    /// True when the item is there. Reads only its attributes, never the secret, so it never asks the person.
+    static func has(named name: String) -> Bool {
+        var q = query(name)
+        q[kSecReturnAttributes as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        return SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess
+    }
+
     @discardableResult
-    static func delete(_ item: Item) -> Bool {
-        let s = SecItemDelete(query(item) as CFDictionary)
+    static func delete(named name: String) -> Bool {
+        let s = SecItemDelete(query(name) as CFDictionary)
         return s == errSecSuccess || s == errSecItemNotFound
     }
 }

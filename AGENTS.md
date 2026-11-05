@@ -2,7 +2,8 @@
 
 Forge for Mac. A native SwiftUI app (the window) that runs the Forge board engine (TypeScript,
 copied from Forge) beside it. You point it at a Linear, Basecamp or GitHub Issues project and a GitHub repo, press Start,
-and one lead agent drives the cards to merged pull requests. **Simplicity is the north star.**
+and one lead agent drives the cards to merged pull requests. Setup's order: tracker, then project and repo,
+then the project's intelligence provider (Claude Code, Codex, Kimi, OpenRouter) and the account it uses. **Simplicity is the north star.**
 
 Status: building (see the plan's Progress). The engine is imported from Forge and runs inside the app; the window is still empty.
 

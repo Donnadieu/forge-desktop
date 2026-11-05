@@ -13,6 +13,9 @@ enum Paths {
     /// One folder per card.
     static var cards: URL { home.appendingPathComponent("workspaces") }
 
+    /// One login folder per intelligence provider account (AIAccount.folder), so accounts never sign each other out.
+    static var accounts: URL { home.appendingPathComponent("accounts") }
+
     static var logs: URL {
         if ProcessInfo.processInfo.environment["FORGE_HOME"] != nil { return home.appendingPathComponent("logs") }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Forge")

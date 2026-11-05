@@ -46,9 +46,13 @@ enum RepoReader {
     }
 
     static func read(_ c: SetupChoices) async throws -> Report {
-        guard let repo = c.repo, let worker = c.worker else { throw Problem(description: "Pick the repo and the agent first.") }
+        guard let repo = c.repo, let account = SetupStore.saved(for: c).activeAccount(c) else {
+            throw Problem(description: "Pick the repo and the intelligence provider first.")
+        }
+        let worker = account.worker
+        let env = WorkerCheck.env(account, secret: WorkerCheck.secret(account))
         guard let skill = instructions else { throw Problem(description: "The repo-reading instructions are missing from the app.") }
-        if worker == .kimi { throw Problem(description: "Reading the repo works with Claude Code or Codex for now.") }
+        if worker == .kimi { throw Problem(description: "Reading the repo works with Claude Code, Codex or OpenRouter for now.") }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("forge-repo-read-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         GitHub.account = c.githubLogin
@@ -57,11 +61,9 @@ enum RepoReader {
         let prompt = skill + "\n\nAssess the repository in the current folder (\(repo)). Read only; change nothing."
         let text: String
         switch worker {
-        case .claude, .apiKey:
+        case .claude, .apiKey, .openrouter:
             var args = ["-p", prompt, "--output-format", "json", "--allowedTools", "Read,Grep,Glob", "--max-turns", "80"]
             if let m = c.model { args += ["--model", m] }
-            var env = WorkerCheck.env(worker, key: worker == .apiKey ? Keychain.get(.anthropicKey) : nil)
-            if worker == .apiKey { env["CLAUDE_CODE_OAUTH_TOKEN"] = "" }
             let r = await Tools.run("claude", args, cwd: dir, env: env, timeout: 1800)
             guard let obj = lastJSONLine(r.out), (obj["is_error"] as? Bool) != true, let result = obj["result"] as? String else {
                 throw Problem(description: "Claude Code didn't finish reading the repo.")
@@ -70,12 +72,11 @@ enum RepoReader {
         case .codex, .codexKey:
             var args = ["exec", "--skip-git-repo-check", "--sandbox", "read-only", "--json", prompt]
             if let m = c.model { args += ["--model", m] }
-            let env = WorkerCheck.env(worker, key: WorkerCheck.keyItem(worker).flatMap { Keychain.get($0) })
             let r = await Tools.run("codex", args, cwd: dir, env: env, timeout: 1800)
             guard let reply = codexReply(r.out) else { throw Problem(description: "Codex didn't finish reading the repo.") }
             text = reply
         case .kimi:
-            throw Problem(description: "Reading the repo works with Claude Code or Codex for now.")
+            throw Problem(description: "Reading the repo works with Claude Code, Codex or OpenRouter for now.")
         }
         guard let report = parse(text) else { throw Problem(description: "The agent's answer didn't include the guardrail list.") }
         save(report, repo: repo)

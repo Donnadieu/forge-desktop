@@ -1,11 +1,11 @@
 # Forge Desktop
 
-**Forge for Mac.** Point it at a Linear project and a GitHub repo, press Start, and an AI coding
-agent takes your cards from the board to merged pull requests while you watch.
+**Your own AI software agency, running on your Mac.** Hand it the work, press Start, and AI coding
+agents plan, build, review and test each task, then bring you a pull request ready to merge.
 
-You write the cards. Forge's lead agent picks up what's in Todo, writes the code on its own branch,
-opens a pull request, has it reviewed and tested by other agents, and hands it back to you in
-Human Review. You read the pull request and press Merge, or ask for changes. That's the loop.
+You write the tasks. Forge's lead agent picks up what's ready, writes the code on its own branch,
+opens a pull request, has it reviewed and tested by other agents, and hands it back to you. You read
+the pull request and press Merge, or ask for changes. That's the loop.
 
 ![The Orchestrator: what every agent is working on right now](docs/screenshots/orchestrator.png)
 
@@ -24,7 +24,8 @@ You need a Mac with Apple Silicon and macOS 14 or newer.
    notarized by Apple, so it opens like any other app.
 2. Drag **Forge** into **Applications** and open it.
 3. Have these ready (setup checks each one and tells you what's missing):
-   - a **Linear** account and a personal API key from Linear's settings,
+   - somewhere for the tasks: today that's a **Linear** project and a personal API key from
+     Linear's settings,
    - the **GitHub CLI** (`gh`) on this Mac; Forge runs GitHub's sign-in for you inside the app,
    - one coding agent: **Claude Code** (your Pro or Max plan, or an API key), **Codex**
      (browser sign-in or an OpenAI key), or **Kimi** (a Moonshot key).

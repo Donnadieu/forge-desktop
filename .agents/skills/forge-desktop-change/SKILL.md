@@ -38,6 +38,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Updater code must handle `NSApp` being nil (CLI modes like `--update-now`).
 - `NSWorkspace.icon(forFile:)` and `NSImage(named: applicationIconName)` return the blank icon on the
   first launch after a rebuild: checks retry or read the .icns directly.
+- macOS 26 draws any .icns picture of 16 or 32 px (ic04/ic05/ic11) shrunk onto a white plate, even one
+  downscaled from the big art; Stage Manager shows that as a blank white tile. Ship 64 to 1024 px only
+  (like Zed) and let macOS scale down. Test icon changes on a copy in `$TMPDIR` with a new bundle id:
+  IconServices caches by path, and copies under Application Support drew as plain documents.
 
 ### Swift
 - New `SetupChoices` fields must be Optional: synthesized Decodable throws on a missing key, and

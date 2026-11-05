@@ -3,6 +3,8 @@
 # app is Developer ID signed), then makes build/Forge.zip (what the updater downloads) and build/Forge.dmg.
 set -euo pipefail
 APP="$1"
+# No release without the real icon: it ships at every size and macOS draws the anvil, never a blank tile.
+"$APP/Contents/MacOS/Forge" --icon-check || { echo "the app icon check failed: no package" >&2; exit 1; }
 SIGNER=$(codesign -dvv "$APP" 2>&1 || true)
 if [ -n "${FORGE_NOTARY_PROFILE:-}" ] && [[ "$SIGNER" == *"Authority=Developer ID Application"* ]]; then
   rm -f build/notarize.zip && ditto -c -k --keepParent "$APP" build/notarize.zip

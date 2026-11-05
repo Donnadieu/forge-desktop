@@ -42,7 +42,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 cp LICENSE NOTICE "$APP/Contents/Resources/"
 cp -R Resources/Fonts "$APP/Contents/Resources/Fonts"
-# The app icon (Finder, Dock, About): PNGs exported from the Claude Design SVGs in Resources/AppIcon.
+# The app icon (Finder, Dock, Stage Manager, About): PNGs exported from the Claude Design SVGs in Resources/AppIcon.
+# 64 to 1024 px only: macOS 26 draws any 16 or 32 px .icns picture on a white plate (a blank tile in Stage
+# Manager), and scales the 64 px picture down well. `Forge --icon-check` (selftest, package-app.sh) enforces it.
 iconutil -c icns Resources/AppIcon/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 tools/bundle-engine.sh "$APP/Contents/Resources/engine"
 tools/sign-app.sh "$APP"

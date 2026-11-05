@@ -38,8 +38,8 @@ Layer N may import only from lower layers. Enforced by `engine/test/architecture
 | 0 | `process/` | process tree start/kill, process table (Linux and macOS) | none |
 | 0 | `telemetry/` | per-card telemetry types | tracker |
 | 1 | `agent/` | Claude Code, Codex, Kimi runners | process, config |
-| 1 | `tracker/` | Linear (and an in-memory board for tests) | observability |
-| 1 | `mcp/` | Linear tools for agents | tracker, observability, config |
+| 1 | `tracker/` | Linear, Basecamp (and an in-memory board for tests) | observability |
+| 1 | `mcp/` | Linear or Basecamp tools for agents | tracker, observability, config |
 | 1 | `workspace/` | one folder per card, hooks, skills copy, git identity | tracker, process |
 | 1 | `store/` | the engine's SQLite file: Start/Stop intent, finished runs and their tokens | none |
 | 2 | `worker/` | one card's agent run, turns, the lead waiting for its helpers (`helper-wait.ts`) | agent, tracker, workspace, telemetry |
@@ -65,6 +65,13 @@ The full import list (which Forge files come over) is in the plan,
   then gives up after 5 in a row and says why). Quit sends SIGTERM: the engine drains (running agents get
   `FORGE_DRAIN_MS`, 20 s), then stops; SIGKILL only if it hangs.
 - Agents get the person's login-shell PATH plus the usual tool folders (an app opened from the Dock has a bare PATH).
+- Basecamp: the sign-in is Basecamp's device sign-in (`Core/BasecampLogin.swift`, the public client its own
+  command-line tool uses); the access and refresh tokens live only in the Keychain (`basecamp-login`). The
+  access token lasts about an hour. The engine and the agents' `basecamp_api` tool never see the refresh
+  token: they run the app itself, `Forge --basecamp-token` (`FORGE_BASECAMP_TOKEN_COMMAND`), which renews
+  the token in the Keychain under a file lock and prints a short-lived one. On a Basecamp board the app puts
+  `engine/workflow/basecamp.md` in front of the lead's instructions, with the board's ids filled in: it maps
+  every Linear step to Basecamp (HTML comments, `Label:` lines for labels, the move endpoint).
 - The Linear tools for agents are configured with a `${LINEAR_API_KEY}` placeholder, filled from the agent's
   environment, so no key is ever written into a card's folder.
 
@@ -83,7 +90,7 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   once, read-only (Claude Code with only Read/Grep/Glob allowed; Codex with `--sandbox read-only`), with
   the bundled `repo-assessment` skill. The answer ends in a JSON block: summary, what's missing, risks,
   and the guardrails worth adding. It's saved in `repo-report.json`, so closing Forge doesn't lose it.
-- The person ticks guardrails; Forge makes one Linear card in Todo whose description lists them and
+- The person ticks guardrails; Forge makes one card in Todo (Linear or Basecamp) whose description lists them and
   names the `harness-engineering` skill. The pipeline does the rest: a pull request that lands in Human
   Review. "Skip for now" moves on; Settings' Harness engineering tile brings the screen back.
 - Kimi can't do the read yet (it says so on the screen).
@@ -101,7 +108,7 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 
 ## The board
 
-- The engine reads every card in the board's columns (`board.columns`) from Linear on start, on every
+- The engine reads every card in the board's columns (`board.columns`) from Linear or Basecamp on start, on every
   poll interval and on Refresh, and merges in what each agent holding a card is doing:
   one plain line built from its events (`orchestrator/activity.ts`), its helpers, and its last lines.
 - The state reaches the app over the live WebSocket when it changes. The app never polls.

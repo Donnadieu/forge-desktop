@@ -30,8 +30,8 @@ import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
 import { openLocalStore } from "./store/local-store.js";
-import { createTracker } from "./tracker/index.js";
 import type { TrackerConfig } from "./tracker/types.js";
+import { createTrackerFromConfig } from "./tracker-factory.js";
 import { loadSkillsManifest } from "./worker/prompt-renderer.js";
 import { WorkspaceManager } from "./workspace/manager.js";
 
@@ -49,10 +49,7 @@ async function main(): Promise<void> {
   validateRequiredEnv(config);
   logger.info({ workflowPath, tracker: config.tracker.kind }, "Forge engine starting");
 
-  const tracker = createTracker(config.tracker.kind, {
-    endpoint: config.tracker.endpoint,
-    apiKey: config.tracker.api_key ?? process.env.LINEAR_API_KEY,
-  });
+  const tracker = createTrackerFromConfig(config, process.env, logger);
   const trackerConfig: TrackerConfig = {
     kind: config.tracker.kind,
     project_slug: config.tracker.project_slug,
@@ -99,7 +96,10 @@ async function main(): Promise<void> {
       trackerConfig,
       promptTemplate,
       mcpServers: scrubMcpServerEnvs(
-        buildMcpServersConfig(config.tracker.kind),
+        buildMcpServersConfig(config.tracker.kind, {
+          accountId: config.tracker.account_id,
+          endpoint: config.tracker.endpoint,
+        }),
         config.agent.env_denylist,
       ),
       skillsManifest: skillsDir ? loadSkillsManifest(skillsDir) : undefined,

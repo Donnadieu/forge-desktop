@@ -35,11 +35,8 @@ enum EngineSettings {
             case .codex, .codexKey: "codex"
             case .kimi: "kimi"
             }
-        var lines = [
-            "---",
-            "tracker:",
-            "  kind: linear",
-            "  project_slug: \(quoted(c.projectSlug ?? ""))",
+        var lines = ["---", "tracker:"] + trackerLines(c)
+        lines += [
             "  active_states: [\(Pipeline.activeColumns(off: c.stagesOff ?? []).map(quoted).joined(separator: ", "))]",
             "  terminal_states: [\"Done\", \"Closed\", \"Cancelled\", \"Canceled\", \"Duplicate\"]",
         ]
@@ -94,6 +91,46 @@ enum EngineSettings {
         return lines.joined(separator: "\n")
     }
 
+    /// Which board the engine reads: Linear names the project; Basecamp also names the account, the card
+    /// table, the person Forge assigns cards to, and the column id of each pipeline column.
+    static func trackerLines(_ c: SetupChoices) -> [String] {
+        guard c.board == .basecamp, let b = c.basecamp else {
+            return ["  kind: linear", "  project_slug: \(quoted(c.projectSlug ?? ""))"]
+        }
+        var lines = [
+            "  kind: basecamp",
+            "  project_slug: \(quoted(b.projectID ?? ""))",
+            "  account_id: \(quoted(b.accountID))",
+            "  identity_id: \(quoted(b.personID))",
+            "  card_table_id: \(quoted(b.cardTableID ?? ""))",
+            "  columns:",
+        ]
+        let cols = b.columns ?? [:]
+        lines += Pipeline.names.compactMap { n in cols[n].map { "    \(quoted(n)): \(quoted($0))" } }
+        return lines
+    }
+
+    /// The Basecamp section put in front of the lead's instructions (engine/workflow/basecamp.md), with
+    /// this board's ids filled in. Nil for Linear.
+    static func boardNote(_ c: SetupChoices, template: String?) -> String? {
+        guard c.board == .basecamp, let b = c.basecamp, let template else { return nil }
+        let cols = b.columns ?? [:]
+        let list = Pipeline.names.compactMap { n in cols[n].map { "  - \(n): `\($0)`" } }.joined(separator: "\n")
+        return
+            template
+            .replacingOccurrences(of: "@@PROJECT@@", with: b.projectID ?? "")
+            .replacingOccurrences(of: "@@CARD_TABLE@@", with: b.cardTableID ?? "")
+            .replacingOccurrences(of: "@@BACKLOG@@", with: cols["Backlog"] ?? "")
+            .replacingOccurrences(of: "@@COLUMNS@@", with: list)
+    }
+
+    /// The command the engine and the agents' Basecamp tool run for a fresh token: this app, `--basecamp-token`.
+    static var basecampTokenCommand: String {
+        let me = Bundle.main.executablePath ?? CommandLine.arguments[0]
+        let data = (try? JSONSerialization.data(withJSONObject: [me, "--basecamp-token"], options: [.withoutEscapingSlashes])) ?? Data()
+        return String(data: data, encoding: .utf8) ?? "[]"
+    }
+
     /// The engine moves cards out of Backlog for the person (Workflow Studio's two switches). Nothing when
     /// both are off. New cards only go to Triage while the Triage stage is on.
     static func promoteLines(_ c: SetupChoices) -> [String] {
@@ -108,16 +145,28 @@ enum EngineSettings {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         try FileManager.default.createDirectory(at: Paths.cards, withIntermediateDirectories: true)
+        let note = boardNote(
+            c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent("workflow/basecamp.md"), encoding: .utf8) })
+        if c.board == .basecamp, note == nil { throw Problem(description: "The Basecamp instructions are missing from the app.") }
         let text =
-            frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
+            frontMatter(c, cardsFolder: Paths.cards.path, skillsFolder: skillsFolder) + (note ?? "")
+            + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
         try text.write(to: Paths.workflow, atomically: true, encoding: .utf8)
     }
 
     /// The engine's environment, built fresh before every start. Reads the Keychain and the `gh` sign-in.
     static func environment(_ c: SetupChoices) async throws -> [String: String] {
-        guard let linear = Keychain.get(.linearKey) else { throw Problem(description: "Forge doesn't have your Linear key. Run setup again.") }
         guard let repo = c.repo else { throw Problem(description: "Setup isn't finished yet.") }
-        var env: [String: String] = ["LINEAR_API_KEY": linear, "REPO_URL": "https://github.com/\(repo).git"]
+        var env: [String: String] = ["REPO_URL": "https://github.com/\(repo).git"]
+        switch c.board {
+        case .linear:
+            guard let linear = Keychain.get(.linearKey) else { throw Problem(description: "Forge doesn't have your Linear key. Run setup again.") }
+            env["LINEAR_API_KEY"] = linear
+        case .basecamp:
+            // No token here: the engine asks this app for one (`--basecamp-token`), which renews it in the Keychain.
+            guard BasecampLogin.load() != nil else { throw Problem(description: "Forge isn't signed in to Basecamp. Run setup again.") }
+            env["FORGE_BASECAMP_TOKEN_COMMAND"] = basecampTokenCommand
+        }
         // Agents run unattended: the commit skill commits without asking.
         env["COMMIT_AUTO_MODE"] = "true"
         GitHub.account = c.githubLogin

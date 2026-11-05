@@ -153,14 +153,8 @@ struct RepoReadyScreen: View {
         Task {
             defer { busy = false }
             if !model.preview {
-                guard let api = model.linear, let team = model.choices.teamID, let project = model.choices.projectID else {
-                    problem = "Forge lost track of your Linear project. Go back to the Project screen."
-                    return
-                }
                 do {
-                    let card = try await api.createIssue(
-                        team: team, project: project, column: "Todo", title: "Get \(repo) ready for agents",
-                        description: RepoReader.cardText(r, chosen: picked))
+                    let card = try await model.makeCard(title: "Get \(repo) ready for agents", description: RepoReader.cardText(r, chosen: picked))
                     model.choices.repoReadyCard = card.url
                     var h = record
                     if h.proposed == nil { h.read(r.guardrails) }

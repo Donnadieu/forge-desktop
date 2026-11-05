@@ -1,14 +1,21 @@
 import Foundation
 
 /// `Forge --apply-setup <answers.json>`: the setup screens' answers without the window, through the same
-/// real checks (Linear's viewer call, the push check, a signed test commit, the agent's real call).
+/// real checks (Linear's viewer call or Basecamp's, the push check, a signed test commit, the agent's real call).
+/// Basecamp needs a sign-in first (`Forge --basecamp-sign-in`).
 /// Keys come from the environment (FORGE_SETUP_LINEAR_KEY, FORGE_SETUP_AGENT_KEY), never the file;
 /// they go into the Keychain only after their check passes. Used for unattended end-to-end runs.
 enum SetupApply {
     struct Answers: Decodable {
         var githubAccount: String?
-        var team: String
+        /// Where the cards live (default Linear).
+        var tracker: Tracker?
+        /// Linear only.
+        var team: String?
+        /// The Linear project, or the Basecamp project.
         var project: String
+        /// Basecamp only, when the project has more than one card table.
+        var cardTable: String?
         var createMissingColumns: Bool?
         var signing: SetupChoices.Signing
         var gpgKey: String?
@@ -47,37 +54,11 @@ enum SetupApply {
         let a = try JSONDecoder().decode(Answers.self, from: data)
         var c = SetupChoices.load()
 
-        // 1. Linear
-        guard let key = env["FORGE_SETUP_LINEAR_KEY"] ?? Keychain.get(.linearKey) else { throw Stop(description: "no Linear key") }
-        let linear = LinearAPI(key: key)
-        let viewer = try await linear.viewer()
-        guard Keychain.set(key, for: .linearKey) else { throw Stop(description: "couldn't save the Linear key") }
-        c.linearUser = viewer.name
-        c.linearOrg = viewer.organization.name
-        print("✓ Linear: \(viewer.name) in \(viewer.organization.name)")
-
-        // 2. Project and columns
-        guard let team = try await linear.teams().first(where: { $0.name == a.team || $0.key == a.team }) else {
-            throw Stop(description: "no Linear team \(a.team)")
+        if a.tracker == .basecamp {
+            try await applyBasecamp(a, &c)
+        } else {
+            try await applyLinear(a, &c, key: env["FORGE_SETUP_LINEAR_KEY"])
         }
-        guard let project = try await linear.projects(team: team.id).first(where: { $0.name == a.project }) else {
-            throw Stop(description: "no project \(a.project) in \(team.name)")
-        }
-        var missing = Pipeline.missing(existing: try await linear.states(team: team.id).map(\.name))
-        if !missing.isEmpty, a.createMissingColumns == true {
-            for note in try await linear.createMissing(team: team.id, missing) { print("· \(note)") }
-            missing = Pipeline.missing(existing: try await linear.states(team: team.id).map(\.name))
-        }
-        guard missing.isEmpty || missing.map(\.name) == ["Triage"] && team.triageEnabled == true else {
-            throw Stop(description: "the team is missing \(missing.map(\.name).joined(separator: ", "))")
-        }
-        c.teamID = team.id
-        c.teamName = team.name
-        c.projectID = project.id
-        c.projectName = project.name
-        c.projectSlug = project.slugId
-        c.columnsReady = true
-        print("✓ project \(project.name) in \(team.name); all ten columns there")
 
         // 3. GitHub and who signs
         let accounts = await GitHub.accounts()
@@ -140,5 +121,95 @@ enum SetupApply {
         if a.skipRepoReady == true { c.repoReady = true }
         c.save()
         print(c.repoReady == true ? "✓ setup saved; Forge opens on the board" : "✓ setup saved; Forge opens on the Ready screen")
+    }
+
+    static func applyLinear(_ a: Answers, _ c: inout SetupChoices, key: String?) async throws {
+        c.tracker = .linear
+        // 1. Linear
+        guard let key = key ?? Keychain.get(.linearKey) else { throw Stop(description: "no Linear key") }
+        let linear = LinearAPI(key: key)
+        let viewer = try await linear.viewer()
+        guard Keychain.set(key, for: .linearKey) else { throw Stop(description: "couldn't save the Linear key") }
+        c.linearUser = viewer.name
+        c.linearOrg = viewer.organization.name
+        print("✓ Linear: \(viewer.name) in \(viewer.organization.name)")
+
+        // 2. Project and columns
+        guard let team = try await linear.teams().first(where: { $0.name == a.team || $0.key == a.team }) else {
+            throw Stop(description: "no Linear team \(a.team ?? "")")
+        }
+        guard let project = try await linear.projects(team: team.id).first(where: { $0.name == a.project }) else {
+            throw Stop(description: "no project \(a.project) in \(team.name)")
+        }
+        var missing = Pipeline.missing(existing: try await linear.states(team: team.id).map(\.name))
+        if !missing.isEmpty, a.createMissingColumns == true {
+            for note in try await linear.createMissing(team: team.id, missing) { print("· \(note)") }
+            missing = Pipeline.missing(existing: try await linear.states(team: team.id).map(\.name))
+        }
+        guard missing.isEmpty || missing.map(\.name) == ["Triage"] && team.triageEnabled == true else {
+            throw Stop(description: "the team is missing \(missing.map(\.name).joined(separator: ", "))")
+        }
+        c.teamID = team.id
+        c.teamName = team.name
+        c.projectID = project.id
+        c.projectName = project.name
+        c.projectSlug = project.slugId
+        c.columnsReady = true
+        print("✓ project \(project.name) in \(team.name); all ten columns there")
+    }
+
+    static func applyBasecamp(_ a: Answers, _ c: inout SetupChoices) async throws {
+        guard let login = BasecampLogin.load(), let account = login.accountID else {
+            throw Stop(description: "not signed in to Basecamp (run Forge --basecamp-sign-in)")
+        }
+        let api = BasecampAPI(accountID: account)
+        let me = try await api.me()
+        print("✓ Basecamp: \(me.name) in account \(account)")
+        guard let project = try await api.projects().first(where: { $0.name == a.project }) else {
+            throw Stop(description: "no Basecamp project \(a.project)")
+        }
+        guard let dock = project.cardTables.first(where: { a.cardTable == nil || $0.title == a.cardTable }) else {
+            throw Stop(description: "\(project.name) has no card table")
+        }
+        var table = try await api.cardTable(project: project.id, id: dock.id)
+        var missing = Pipeline.missing(existing: table.lists.map(\.title))
+        if !missing.isEmpty, a.createMissingColumns == true {
+            try await api.createMissing(project: project.id, table: table.id, missing)
+            table = try await api.cardTable(project: project.id, id: dock.id)
+            missing = Pipeline.missing(existing: table.lists.map(\.title))
+        }
+        guard missing.isEmpty else { throw Stop(description: "the card table is missing \(missing.map(\.name).joined(separator: ", "))") }
+        c.tracker = .basecamp
+        c.basecamp = BasecampBoard(
+            accountID: account, accountName: c.basecamp?.accountName, personID: String(me.id), personName: me.name,
+            projectID: String(project.id), projectName: project.name, cardTableID: String(table.id),
+            columns: BasecampAPI.columnMap(table))
+        c.projectID = String(project.id)
+        c.projectName = project.name
+        c.projectSlug = String(project.id)
+        c.columnsReady = true
+        print("✓ card table \(table.title) in \(project.name); all ten columns there")
+    }
+
+    /// `Forge --basecamp-sign-in`: prints the link and the code, waits for the approval, keeps the sign-in.
+    static func basecampSignIn() -> Int32 {
+        let done = DispatchSemaphore(value: 0)
+        final class Box: @unchecked Sendable { var code: Int32 = 1 }
+        let box = Box()
+        Task.detached {
+            do {
+                let code = try await BasecampLogin.start()
+                print("Open \(code.verificationURL) and approve the code \(code.userCode)")
+                fflush(stdout)
+                let t = try await BasecampLogin.finish(code)
+                print("✓ signed in to Basecamp account \(t.accountID ?? "?")")
+                box.code = 0
+            } catch {
+                print("✗ \(error)")
+            }
+            done.signal()
+        }
+        done.wait()
+        return box.code
     }
 }

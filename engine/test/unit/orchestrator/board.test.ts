@@ -292,3 +292,39 @@ describe("a Claude subscription's usage windows", () => {
     ).toBeNull();
   });
 });
+
+describe("the workpad on a Basecamp card", () => {
+  it("is found in Basecamp's HTML and shown as Markdown", async () => {
+    const t: TrackerAdapter = {
+      ...tracker(async () => []),
+      kind: "basecamp",
+      fetchIssueComments: async () => [
+        { id: "1", body: "<div>Looks good to me</div>", createdAt: "" },
+        {
+          id: "2",
+          body: "<h1>Forge Workpad</h1><ul><li>[x] plan</li><li>[ ] build</li></ul>",
+          createdAt: "",
+        },
+      ],
+    };
+    const reader = new BoardReader(t, config, columns);
+    await expect(reader.workpad("9")).resolves.toEqual({
+      workpad: "# Forge Workpad\n\n- [x] plan\n- [ ] build",
+      comments: 2,
+    });
+  });
+
+  it("names Basecamp when the board can't be read", async () => {
+    const t: TrackerAdapter = {
+      ...tracker(async () => {
+        throw new Error("Basecamp sign-in needed: refresh failed");
+      }),
+      kind: "basecamp",
+    };
+    const reader = new BoardReader(t, config, columns);
+    await reader.refresh();
+    expect(reader.view([]).problem).toBe(
+      "Forge couldn't read the board from Basecamp: Basecamp sign-in needed: refresh failed",
+    );
+  });
+});

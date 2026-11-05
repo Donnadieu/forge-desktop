@@ -12,7 +12,7 @@ final class AppModel: ObservableObject {
     /// Why the last card move from the board didn't happen; cleared by the next move.
     @Published var moveProblem: String?
 
-    /// Render mode: views draw sample data and never touch Linear, GitHub or the Keychain.
+    /// Render mode: views draw sample data and never touch Linear, Basecamp, GitHub or the Keychain.
     let preview: Bool
     var sample = Sample()
     /// The board's link to the engine.
@@ -27,6 +27,14 @@ final class AppModel: ObservableObject {
         var teams = [LinearAPI.Team(id: "t1", name: "Engineering", key: "ENG", triageEnabled: false)]
         var projects = [LinearAPI.Project(id: "p1", name: "AI Trading Bot", slugId: "ai-trading-bot")]
         var states = ["Backlog", "Todo", "In Progress", "Done", "Canceled"]
+        /// The tracker setup 1 shows first (nil = the saved one).
+        var tracker: Tracker?
+        var basecampProjects = [
+            BasecampAPI.Project(id: 101, name: "AI Trading Bot", dock: [.init(id: 201, name: "kanban_board", title: "Card Table", enabled: true)])
+        ]
+        var basecampTable: BasecampAPI.CardTable? = BasecampAPI.CardTable(
+            id: 201, title: "Card Table",
+            lists: ["Triage", "Todo", "In Progress", "Done"].enumerated().map { .init(id: 300 + $0.offset, title: $0.element, type: nil) })
         var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
         var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
         var workpad = """
@@ -73,7 +81,7 @@ final class AppModel: ObservableObject {
         if !preview { GitHub.account = c.githubLogin }
     }
 
-    static let screenTitles = ["Linear", "Project", "GitHub", "Repo", "Agent", "Harness engineering", "Orchestrator"]
+    static let screenTitles = ["Cards", "Project", "GitHub", "Repo", "Agent", "Harness engineering", "Orchestrator"]
 
     /// The Orchestrator's screen number (the end of setup).
     static let boardScreen = 6
@@ -139,8 +147,32 @@ final class AppModel: ObservableObject {
 
     var linear: LinearAPI? { linearKey.map { LinearAPI(key: $0) } }
 
-    /// The project's page in Linear (the workspace's address when Forge knows it).
+    /// Basecamp's API for the signed-in account.
+    var basecampAPI: BasecampAPI? { choices.basecamp.map { BasecampAPI(accountID: $0.accountID) } }
+
+    /// Makes a card in the board's Todo column (Linear or Basecamp): its identifier and link.
+    func makeCard(title: String, description: String) async throws -> (identifier: String, url: String) {
+        switch choices.board {
+        case .linear:
+            guard let api = linear, let team = choices.teamID, let project = choices.projectID else {
+                throw BasecampLogin.Failure(description: "Forge lost track of your Linear project. Go back to the Project screen.")
+            }
+            let card = try await api.createIssue(team: team, project: project, column: "Todo", title: title, description: description)
+            return (card.identifier, card.url)
+        case .basecamp:
+            guard let api = basecampAPI, let b = choices.basecamp, let p = b.projectID.flatMap(Int.init),
+                let todo = b.columns?["Todo"].flatMap(Int.init)
+            else {
+                throw BasecampLogin.Failure(description: "Forge lost track of your Basecamp project. Go back to the Project screen.")
+            }
+            let card = try await api.createCard(project: p, column: todo, title: title, content: BasecampAPI.html(description))
+            return ("BC-\(card.id)", card.app_url ?? b.url)
+        }
+    }
+
+    /// The project's page in Linear or Basecamp (the workspace's address when Forge knows it).
     var projectURL: String {
+        if choices.board == .basecamp { return choices.basecamp?.url ?? "https://launchpad.37signals.com" }
         let key = choices.linearURLKey ?? engine?.cards.first?.url.flatMap { URL(string: $0)?.pathComponents.dropFirst().first }
         guard let key else { return "https://linear.app" }
         return "https://linear.app/\(key)" + (choices.projectSlug.map { "/project/\($0)" } ?? "")

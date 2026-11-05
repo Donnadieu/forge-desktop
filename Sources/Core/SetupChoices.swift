@@ -2,7 +2,11 @@ import Foundation
 
 /// What setup decided, kept in `setup.json` in Forge's folder. Never a secret: keys live in the Keychain.
 struct SetupChoices: Codable, Equatable, Sendable {
-    // 1. Linear
+    // 1. Where the cards live (optional: added in 0.3; nil = Linear). See Tracker.swift.
+    var tracker: Tracker?
+    /// The Basecamp account, person, project and columns, when the cards live in Basecamp.
+    var basecamp: BasecampBoard?
+    // Linear
     var linearUser: String?
     var linearOrg: String?
     /// The workspace's part of Linear links (linear.app/<key>/…); optional so older settings still load.
@@ -86,7 +90,7 @@ struct SetupChoices: Codable, Equatable, Sendable {
 
     /// The first screen that still needs an answer (6 = the board).
     var nextScreen: Int {
-        if linearUser == nil { return 0 }
+        if trackerUser == nil { return 0 }
         if projectSlug == nil || !columnsReady { return 1 }
         if githubLogin == nil || signing == nil { return 2 }
         if repo == nil || !repoChecked { return 3 }

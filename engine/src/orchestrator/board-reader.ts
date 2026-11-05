@@ -5,6 +5,7 @@
  * New in Forge Desktop.
  */
 import type { RunningSessionSnapshot } from "../observability/types.js";
+import { htmlToMarkdown } from "../tracker/rich-text.js";
 import type {
   BoardCard,
   NormalizedIssue,
@@ -56,6 +57,12 @@ export const PERSON_MOVES: Readonly<Record<string, readonly string[]>> = {
   "Human Review": ["Merging", "Rework"],
 };
 
+/** The tracker's name as people say it. */
+export function trackerName(kind: string): string {
+  const names: Record<string, string> = { linear: "Linear", basecamp: "Basecamp" };
+  return names[kind] ?? kind;
+}
+
 export class BoardReader {
   private cards: BoardCard[] = [];
   private readAt: string | null = null;
@@ -86,7 +93,7 @@ export class BoardReader {
       this.readAt = new Date().toISOString();
       this.problem = null;
     } catch (err) {
-      this.problem = `Forge couldn't read the board from ${this.tracker.kind === "linear" ? "Linear" : this.tracker.kind}: ${
+      this.problem = `Forge couldn't read the board from ${trackerName(this.tracker.kind)}: ${
         err instanceof Error ? err.message : String(err)
       }`;
     }
@@ -110,7 +117,7 @@ export class BoardReader {
     } catch (err) {
       return {
         ok: false,
-        problem: `Linear didn't move ${card.identifier}: ${err instanceof Error ? err.message : String(err)}`,
+        problem: `${trackerName(this.tracker.kind)} didn't move ${card.identifier}: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
     await this.refresh();
@@ -120,8 +127,10 @@ export class BoardReader {
   /** The card's workpad: the agent's one running note on the card (its comment that starts with a Workpad heading). */
   async workpad(cardId: string): Promise<{ workpad: string | null; comments: number }> {
     const comments = (await this.tracker.fetchIssueComments?.(cardId)) ?? [];
-    const pad = comments.filter((c) => /^#{1,3}\s*(\w+\s+)?workpad\b/i.test(c.body.trim())).pop();
-    return { workpad: pad?.body ?? null, comments: comments.length };
+    // Basecamp comments are HTML: read them as the Markdown the window shows.
+    const bodies = comments.map((c) => htmlToMarkdown(c.body));
+    const pad = bodies.filter((b) => /^#{1,3}\s*(\w+\s+)?workpad\b/i.test(b.trim())).pop();
+    return { workpad: pad ?? null, comments: comments.length };
   }
 
   /** The board with each held card's live activity. Cards in columns not on the board are left out. */

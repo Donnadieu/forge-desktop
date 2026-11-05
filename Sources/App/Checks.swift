@@ -7,6 +7,8 @@ import SwiftUI
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
 ///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
+///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it)
+///   Forge --basecamp-sign-in    Basecamp's device sign-in without the window: prints the link and code, waits
 @MainActor
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
@@ -27,6 +29,12 @@ enum Checks {
                 if !ok { failed += 1 }
             }
             return failed == 0 ? 0 : 1
+        }
+        if args.contains("--basecamp-token") {
+            return BasecampLogin.printToken()
+        }
+        if args.contains("--basecamp-sign-in") {
+            return SetupApply.basecampSignIn()
         }
         if let i = args.firstIndex(of: "--apply-setup"), i + 1 < args.count {
             return SetupApply.run(args[i + 1])
@@ -114,7 +122,7 @@ enum Checks {
             Pipeline.missing(existing: ["Backlog", "Todo", "In Progress", "Done", "Canceled"]).map(\.name)
                 == ["Triage", "AI Review", "QA", "Human Review", "Rework", "Merging"])
         check("column names match whatever their case and spacing", Pipeline.missing(existing: Pipeline.names.map { $0.uppercased() }).isEmpty)
-        check("setup starts at the Linear screen", SetupChoices().nextScreen == 0)
+        check("setup starts at the first screen (where the cards live)", SetupChoices().nextScreen == 0)
         var almost = SetupChoices()
         (almost.linearUser, almost.projectSlug, almost.columnsReady) = ("a", "p", true)
         (almost.githubLogin, almost.signing, almost.repo, almost.repoChecked) = ("g", .unsigned, "o/r", true)
@@ -176,6 +184,7 @@ enum Checks {
             "a failed Codex turn fails the check",
             WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
         harnessChecks(check)
+        trackerChecks(check)
         moveChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1

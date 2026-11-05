@@ -100,7 +100,9 @@ struct OrchestratorTables: View {
         if state == nil {
             section("Running sessions", count: nil) { skeleton }
         } else if state?.cards.isEmpty == true {
-            EmptyBoard(project: model.choices.projectName ?? "your project") { model.openLink(model.projectURL) }
+            EmptyBoard(project: model.choices.projectName ?? "your project", tracker: model.choices.board.name) {
+                model.openLink(model.projectURL)
+            }
         } else {
             VStack(alignment: .leading, spacing: 24) {
                 let flying = Self.inFlightCards(state)
@@ -275,14 +277,16 @@ struct OrchestratorTables: View {
 /// When the board has no cards: the anvil, one line of what to do next, and the one button for it.
 struct EmptyBoard: View {
     let project: String
+    /// Where the cards live: Linear or Basecamp.
+    var tracker = "Linear"
     let openLinear: () -> Void
 
     var body: some View {
         VStack(spacing: 12) {
             AnvilMark().sized(48, Theme.textMuted)
             Text("Nothing on the anvil yet").font(Theme.serifItalic(24)).foregroundStyle(Theme.textSec)
-            Text("Add a card to Todo in Linear, then press Start.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
-            Button("Open \(project) in Linear ↗", action: openLinear)
+            Text("Add a card to Todo in \(tracker), then press Start.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Button("Open \(project) in \(tracker) ↗", action: openLinear)
                 .buttonStyle(ForgeButton(kind: .primary, large: true))
                 .padding(.top, 4)
         }

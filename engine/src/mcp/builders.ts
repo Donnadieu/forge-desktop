@@ -15,6 +15,9 @@ import { buildMcpServers } from "./config.js";
 
 export type McpServersConfig = Record<string, unknown>;
 
-export function buildMcpServersConfig(trackerKind: string): McpServersConfig {
-  return buildMcpServers(trackerKind);
+export function buildMcpServersConfig(
+  trackerKind: string,
+  board: { accountId?: string; endpoint?: string } = {},
+): McpServersConfig {
+  return buildMcpServers(trackerKind, board);
 }

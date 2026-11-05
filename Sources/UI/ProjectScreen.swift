@@ -137,10 +137,12 @@ struct ProjectScreen: View {
     }
 }
 
-/// The ten columns with one plain line each, and whether the team has each one.
+/// The ten columns with one plain line each, and whether the team (or card table) has each one.
 struct ColumnList: View {
     let existing: [String]
     let showMarks: Bool
+    /// Where the columns live, for the marks ("In Linear").
+    var `where` = "Linear"
 
     var body: some View {
         let have = Set(existing.map(Pipeline.normalized))
@@ -160,7 +162,7 @@ struct ColumnList: View {
                     Spacer(minLength: 8)
                     if showMarks {
                         let ok = have.contains(Pipeline.normalized(c.name))
-                        Chip(text: ok ? "In Linear" : "Missing", tone: ok ? .quiet : .heat)
+                        Chip(text: ok ? "In \(`where`)" : "Missing", tone: ok ? .quiet : .heat)
                     }
                 }
                 .padding(.horizontal, 14)

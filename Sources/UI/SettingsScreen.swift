@@ -59,14 +59,15 @@ struct SettingsScreen: View {
         group("Tracker") {
             row {
                 HStack(spacing: 12) {
-                    Initials(name: c.linearUser ?? "")
+                    Initials(name: c.trackerUser ?? "")
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Linear · \(c.linearOrg ?? "Linear")").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                        Text("Signed in as \(c.linearUser ?? "—")").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                        Text(c.trackerOrg.map { "\(c.board.name) · \($0)" } ?? c.board.name).font(Theme.sans(13, .medium))
+                            .foregroundStyle(Theme.text)
+                        Text("Signed in as \(c.trackerUser ?? "—")").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
                     }
                 }
             } action: {
-                change("Change key", step: 0)
+                change(c.board == .linear ? "Change key" : "Change", step: 0)
             }
             row {
                 field("Project", c.projectName ?? "—")

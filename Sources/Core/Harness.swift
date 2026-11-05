@@ -129,7 +129,7 @@ extension SetupChoices {
     /// Whether a setup step is done, for the step list when changing settings (5 = harness engineering).
     func stepDone(_ step: Int) -> Bool {
         switch step {
-        case 0: return linearUser != nil
+        case 0: return trackerUser != nil
         case 1: return projectSlug != nil && columnsReady
         case 2: return githubLogin != nil && signing != nil
         case 3: return repo != nil && repoChecked

@@ -25,6 +25,12 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   same commit; its "Running it" section (Forge's internal `pnpm harden` tool) became the steps a card
   follows (formatter, custom rules with WHY and FIX, ratchet, three enforcement points, canary proof).
   `skills/repo-assessment` is new: a read-only assessment that proposes guardrails.
+- **Basecamp (Nov 4, 2026):** the eight `src/tracker/basecamp*.ts` files and their three tests
+  (`basecamp.test.ts`, `basecamp-labels.test.ts`, `basecamp-token-provider.test.ts`) came from Forge
+  `7f02afe2a` (includes the Backlog to Triage and ready to Todo moves). `workflow/basecamp.md` is new:
+  the app puts it in front of the lead's instructions on a Basecamp board, with the board's ids filled in
+  (how to read the Linear steps on Basecamp: the `basecamp_api` tool, HTML comments, `Label:` lines,
+  the move endpoint). Bundled skills stay tracker-neutral, so it is not a skill.
 
 | Our path | Forge commit | Forge path | What changed |
 |---|---|---|---|
@@ -47,7 +53,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/boolean-token.ts | 05deefb0a43a | src/config/boolean-token.ts | unchanged |
 | src/config/custom-base-url.ts | 05deefb0a43a | src/config/custom-base-url.ts | unchanged |
 | src/config/env-validator.ts | 05deefb0a43a | src/config/env-validator.ts | unchanged |
-| src/config/env.ts | 05deefb0a43a | src/config/env.ts | unchanged |
+| src/config/env.ts | 05deefb0a43a | src/config/env.ts | `FORGE_BASECAMP_TOKEN_COMMAND` (the app's token command) |
 | src/config/index.ts | 05deefb0a43a | src/config/index.ts | dropped custom-workflows exports (always on in the app) |
 | src/config/loader.ts | 05deefb0a43a | src/config/loader.ts | unchanged |
 | src/config/model-id.ts | 05deefb0a43a | src/config/model-id.ts | unchanged |
@@ -56,8 +62,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/resolver.ts | 05deefb0a43a | src/config/resolver.ts | unchanged |
 | src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min); `board.columns`; `tracker.promote` from Forge 7f02afe2a |
 | src/config/watcher.ts | 05deefb0a43a | src/config/watcher.ts | unchanged |
-| src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | unchanged |
-| src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools; run by the engine's own Node; the key is a `${LINEAR_API_KEY}` placeholder, never written |
+| src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | passes the Basecamp board's account through |
+| src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools, or the Basecamp tool (`basecamp-api-server.ts`, account and the app's token command, no token); run by the engine's own Node; the Linear key is a `${LINEAR_API_KEY}` placeholder, never written |
 | src/mcp/handler-log.ts | 05deefb0a43a | src/mcp/forge-pipeline/handler-log.ts | moved from mcp/forge-pipeline/handler-log.ts |
 | src/mcp/linear-graphql-server.ts | 05deefb0a43a | src/mcp/linear-graphql-server.ts | imports handler-log from its new path |
 | src/observability/index.ts | 05deefb0a43a | src/observability/index.ts | dropped the terminal dashboard export |
@@ -100,7 +106,15 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/server/types.ts | 05deefb0a43a | src/server/types.ts | kept only the status types; IntendedStateRepo defined here (local store, no database) |
 | src/telemetry/infer-issue-type.ts | 05deefb0a43a | src/telemetry/infer-issue-type.ts | unchanged |
 | src/telemetry/types.ts | 05deefb0a43a | src/telemetry/types.ts | TicketStatus written out instead of read from the database schema |
-| src/tracker/index.ts | 05deefb0a43a | src/tracker/index.ts | dropped Basecamp |
+| src/tracker/index.ts | 7f02afe2a | src/tracker/index.ts | unchanged |
+| src/tracker/basecamp.ts | 7f02afe2a | src/tracker/basecamp.ts | `fetchBoard` (basecamp-board.ts); user agent names Forge Desktop; exports `createCommandTokenFn` |
+| src/tracker/basecamp-claim.ts | 7f02afe2a | src/tracker/basecamp-claim.ts | unchanged |
+| src/tracker/basecamp-errors.ts | 7f02afe2a | src/tracker/basecamp-errors.ts | unchanged |
+| src/tracker/basecamp-normalize.ts | 7f02afe2a | src/tracker/basecamp-normalize.ts | a card's state is the canonical column name whatever its case; `Label:` lines are found in Basecamp's HTML (a block's end is a new line) |
+| src/tracker/basecamp-paginate.ts | 7f02afe2a | src/tracker/basecamp-paginate.ts | unchanged |
+| src/tracker/basecamp-reads.ts | 7f02afe2a | src/tracker/basecamp-reads.ts | unchanged |
+| src/tracker/basecamp-token-provider.ts | 7f02afe2a | src/tracker/basecamp-token-provider.ts | `createCommandTokenFn`: the token comes from the app's `--basecamp-token` |
+| src/tracker/basecamp-writes.ts | 7f02afe2a | src/tracker/basecamp-writes.ts | unchanged |
 | src/tracker/linear-claim.ts | 05deefb0a43a | src/tracker/linear-claim.ts | unchanged |
 | src/tracker/linear-errors.ts | 05deefb0a43a | src/tracker/linear-errors.ts | unchanged |
 | src/tracker/linear-normalize.ts | 05deefb0a43a | src/tracker/linear-normalize.ts | unchanged |
@@ -123,11 +137,15 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote` |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote` |
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |
-| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework) |
+| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems; reads an HTML workpad |
 | src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers |
+| src/tracker/basecamp-board.ts | new | | the board's Basecamp read: every column, Backlog labels and pull requests from comments, kept per card until it changes |
+| src/tracker/rich-text.ts | new | | Basecamp's HTML comments as the Markdown the window reads |
+| src/tracker-factory.ts | new | | builds Linear or Basecamp from the workflow file (adapted from Forge's `src/tracker-factory.ts` at 7f02afe2a: the token comes from the app) |
+| src/mcp/basecamp-api-server.ts | new | | the agents' `basecamp_api` tool: one request per call, the app's short-lived token, paths kept inside the account |

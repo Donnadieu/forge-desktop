@@ -5,8 +5,12 @@ import { fileURLToPath } from "node:url";
  * Build the MCP server configuration map for the orchestrator.
  *
  * @param trackerKind - The issue tracker kind (e.g. "linear")
+ * @param board - Basecamp only: the board's account, read from the workflow file.
  */
-export function buildMcpServers(trackerKind: string): Record<string, unknown> {
+export function buildMcpServers(
+  trackerKind: string,
+  board: { accountId?: string; endpoint?: string } = {},
+): Record<string, unknown> {
   let mcpServers: Record<string, unknown> | undefined;
 
   if (trackerKind === "linear") {
@@ -26,6 +30,23 @@ export function buildMcpServers(trackerKind: string): Record<string, unknown> {
         env: {
           LINEAR_API_KEY: "${LINEAR_API_KEY}",
           LINEAR_ENDPOINT: "https://api.linear.app/graphql",
+        },
+      },
+    };
+  }
+
+  if (trackerKind === "basecamp") {
+    mcpServers = {
+      "forge-basecamp": {
+        command: process.execPath,
+        args: [
+          resolve(dirname(fileURLToPath(import.meta.url)), "..", "mcp", "basecamp-api-server.js"),
+        ],
+        // No secret here: the command asks the app for a short-lived token each time.
+        env: {
+          BASECAMP_ACCOUNT_ID: board.accountId ?? "",
+          BASECAMP_ENDPOINT: board.endpoint ?? "https://3.basecampapi.com",
+          BASECAMP_TOKEN_COMMAND: process.env.FORGE_BASECAMP_TOKEN_COMMAND ?? "[]",
         },
       },
     };

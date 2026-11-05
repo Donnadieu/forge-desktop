@@ -8,8 +8,9 @@ struct RootView: View {
     var body: some View {
         Group {
             switch model.screen {
-            case 0: LinearKeyScreen(model: model)
-            case 1: ProjectScreen(model: model)
+            case 0: TrackerScreen(model: model)
+            case 1:
+                if model.choices.board == .basecamp { BasecampProjectScreen(model: model) } else { ProjectScreen(model: model) }
             case 2: GitHubScreen(model: model)
             case 3: RepoScreen(model: model)
             case 4: WorkerScreen(model: model)

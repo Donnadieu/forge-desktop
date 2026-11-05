@@ -138,7 +138,7 @@ struct OrchestratorScreen: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel(text: "\(project) · Linear")
+            SectionLabel(text: "\(project) · \(model.choices.board.name)")
             HStack(spacing: 12) {
                 if state == nil {
                     Text("Reading your board…").foregroundStyle(Theme.text)
@@ -157,7 +157,7 @@ struct OrchestratorScreen: View {
     }
 
     private var lead: String {
-        guard let s = state else { return "Forge is reading \(project) from Linear." }
+        guard let s = state else { return "Forge is reading \(project) from \(model.choices.board.name)." }
         switch s.status {
         case "running": return "Everything your agents are working on in \(project)."
         case "stopping": return "Stopping: agents finish what they're doing first."
@@ -204,7 +204,7 @@ struct OrchestratorScreen: View {
         }
     }
 
-    /// The line under a problem. Only the engine's own problems (Linear, sign-in) clear by themselves on its next try;
+    /// The line under a problem. Only the engine's own problems (Linear, Basecamp, sign-in) clear by themselves on its next try;
     /// a problem the app hit talking to the engine says what to press in its own line, so nothing goes under it.
     static func noticeDetail(_ text: String, signedOutLine: String?, appProblem: String?) -> String? {
         if text == signedOutLine { return "Forge opened the sign-in for you. Cards start again once you approve it." }
@@ -215,6 +215,9 @@ struct OrchestratorScreen: View {
     static func fix(for problem: String) -> (title: String, target: String, isLink: Bool)? {
         let p = problem.lowercased()
         if p.contains("didn't accept this key") { return ("Change the Linear key", "", false) }
+        if p.contains("basecamp sign-in needed") || p.contains("sign in to basecamp") || p.contains("signed in to basecamp") {
+            return ("Sign in to Basecamp again", "", false)
+        }
         if p.contains("linear said") && (p.contains("usage limit") || p.contains("plan")) {
             return ("Open your Linear plan", "https://linear.app/settings/billing", true)
         }
@@ -240,7 +243,7 @@ struct OrchestratorScreen: View {
             HStack(spacing: 12) {
                 Text(readLine)
                 Text("·").opacity(0.5)
-                Button("Open in Linear ↗") { model.openLink(model.projectURL) }.buttonStyle(ForgeButton(kind: .plain))
+                Button("Open in \(model.choices.board.name) ↗") { model.openLink(model.projectURL) }.buttonStyle(ForgeButton(kind: .plain))
                 Spacer()
             }
             .font(Theme.mono(11))

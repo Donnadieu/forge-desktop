@@ -100,6 +100,10 @@ export const EnvSchema = z.object({
   // to `basecamp auth status --json` (cheap, read-only, still triggers the
   // CLI's own refresh-if-needed logic).
   FORGE_BASECAMP_REFRESH_COMMAND: optionalString,
+  // 3) Forge Desktop: a JSON array naming a command that prints a fresh token
+  //    as one JSON line (the app's own `--basecamp-token`, which keeps the
+  //    sign-in in the Keychain). See src/tracker-factory.ts.
+  FORGE_BASECAMP_TOKEN_COMMAND: optionalString,
 
   // Commit identity for agent workspaces. When NAME and EMAIL are both set,
   // each workspace's LOCAL git config gets user.name/user.email, plus

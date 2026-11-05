@@ -98,3 +98,19 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   from `claude auth status`. An expired session can exit 0, so checks read `is_error` and the result.
   Sign-in tokens are 108 characters: another length means the parser glued or cut text (check the
   length, never the value).
+
+### Trackers (Linear, Basecamp)
+- A new tracker touches every place that says Linear: `SetupChoices.board`, setup 1 and 2, `EngineSettings`
+  (tracker block, environment, the note in front of lead.md), `AppModel.makeCard`/`projectURL`, the Orchestrator's
+  words and fixes, `SetupApply`. `grep -rn Linear Sources` before calling it done.
+- Bundled skills must not mention Basecamp (`bundled-skills.test.ts` bans it), so tracker-specific agent
+  instructions live in `engine/workflow/<tracker>.md`, put in front of the lead's instructions by the app.
+- Basecamp keeps rich text as HTML with only div, h1, br, strong, em, a, pre, ul, ol, li, blockquote, and no
+  line breaks between blocks: anything that reads comments line by line (labels, the workpad) must turn a
+  block's end into a new line first (`tracker/rich-text.ts`, `extractLabels`).
+- Basecamp access tokens last about an hour and a renewal may replace the refresh token: only the app renews
+  (`Forge --basecamp-token`, under a file lock); the engine and the agents' tool run that command. Never give
+  them the refresh token.
+- Test the sign-in without touching the person's: `FORGE_KEYCHAIN_SERVICE=<scratch>` and `FORGE_HOME=<scratch>`
+  keep the Keychain items and setup apart; `Forge --basecamp-sign-in` prints the link and code instead of
+  opening a browser.

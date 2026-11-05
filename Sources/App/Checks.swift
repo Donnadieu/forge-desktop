@@ -6,7 +6,7 @@ import SwiftUI
 ///   Forge --version             prints the version
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
 ///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
-///   Forge --icon-check          the app icon ships and macOS draws it at every size (package-app.sh runs it)
+///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
 @MainActor
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
@@ -179,77 +179,6 @@ enum Checks {
         moveChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
-    }
-}
-
-/// The icon macOS draws for this bundle. Amber in the middle means the anvil; the blank generic app icon
-/// is grey and white there.
-@MainActor
-enum AppIcon {
-    /// Pixel sizes AppIcon.icns must hold: 32 pt @2x up to 512 pt @2x. macOS scales the smaller sizes from these.
-    static let sizes = [64, 128, 256, 512, 1024]
-    /// Sizes macOS draws in small places: Stage Manager's strip, Finder lists, menus, the Dock.
-    static let drawnSizes = [16, 32, 48, 64, 128, 256]
-
-    static func checks(_ check: (String, Bool) -> Void) {
-        check("the anvil app icon ships inside the app", shipsTheAnvil)
-        check("the app icon holds every size from 64 to 1024 px", hasEverySize)
-        check("the app icon has no 16 or 32 px pictures (macOS 26 puts those on a blank white tile)", hasNoTinyPictures)
-        check("Finder, the Dock and Stage Manager show the anvil at every size, never a blank tile", finderShowsTheAnvil)
-    }
-
-    static var icns: URL? {
-        guard Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String == "AppIcon" else { return nil }
-        return Bundle.main.url(forResource: "AppIcon", withExtension: "icns")
-    }
-
-    /// The bundle names AppIcon.icns, and that file is the anvil.
-    static var shipsTheAnvil: Bool {
-        guard let url = icns, let icon = NSImage(contentsOf: url) else { return false }
-        return isTheAnvil(icon, size: 64)
-    }
-
-    static var pixelSizes: Set<Int> {
-        guard let url = icns, let icon = NSImage(contentsOf: url) else { return [] }
-        return Set(icon.representations.map(\.pixelsWide))
-    }
-
-    static var hasEverySize: Bool { Set(sizes).isSubset(of: pixelSizes) }
-
-    /// On macOS 26 an .icns picture of 32 px or less is drawn shrunk onto a white plate, which Stage
-    /// Manager shows as a blank white tile. Without them macOS scales the 64 px picture down instead.
-    static var hasNoTinyPictures: Bool { !pixelSizes.isEmpty && pixelSizes.allSatisfy { $0 > 32 } }
-
-    /// What Finder, the Dock and Stage Manager draw for the app (the About box uses the same icon). A
-    /// bundle built a moment ago can still get the blank icon for a second while macOS registers it, so
-    /// this asks a few times before failing.
-    static var finderShowsTheAnvil: Bool {
-        LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
-        for attempt in 0..<10 {
-            if attempt > 0 { Thread.sleep(forTimeInterval: 0.5) }
-            let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
-            if drawnSizes.allSatisfy({ isTheAnvil(icon, size: $0) }) { return true }
-        }
-        return false
-    }
-
-    /// Amber in the middle, and the dark tile (not a white plate) between the anvil and the left edge.
-    static func isTheAnvil(_ icon: NSImage, size: Int) -> Bool {
-        guard
-            let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4,
-                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
-        else { return false }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        icon.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
-        NSGraphicsContext.restoreGraphicsState()
-        guard let mid = rep.colorAt(x: size / 2, y: size * 47 / 100)?.usingColorSpace(.deviceRGB),
-            let edge = rep.colorAt(x: (size * 15 + 50) / 100, y: size / 2)?.usingColorSpace(.deviceRGB)
-        else { return false }
-        let amber = mid.redComponent > 0.6 && mid.redComponent > mid.greenComponent && mid.greenComponent > mid.blueComponent + 0.15
-        let darkTile = edge.alphaComponent > 0.9 && edge.redComponent < 0.35 && edge.greenComponent < 0.35
-        return amber && darkTile
     }
 }
 

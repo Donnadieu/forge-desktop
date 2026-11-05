@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         src.resume()
         termSource = src
         Updater.shared.startChecking()
+        // Stage Manager and the Dock draw the icon macOS keeps for the bundle id: clear it if it's stale (see AppIcon).
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        DispatchQueue.global(qos: .utility).async { SystemIcon.healIfStale(bundleID: bundleID, waitForRedraw: false) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

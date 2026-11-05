@@ -12,4 +12,6 @@ rm -rf /Applications/Forge.app.new
 ditto "$APP" /Applications/Forge.app.new
 rm -rf /Applications/Forge.app
 mv /Applications/Forge.app.new /Applications/Forge.app
+# Launch Services reads the new version and icon now, not whenever it next looks.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/Forge.app
 echo "installed /Applications/Forge.app"

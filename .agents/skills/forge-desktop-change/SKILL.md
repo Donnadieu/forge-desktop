@@ -38,10 +38,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Updater code must handle `NSApp` being nil (CLI modes like `--update-now`).
 - `NSWorkspace.icon(forFile:)` and `NSImage(named: applicationIconName)` return the blank icon on the
   first launch after a rebuild: checks retry or read the .icns directly.
-- macOS 26 draws any .icns picture of 16 or 32 px (ic04/ic05/ic11) shrunk onto a white plate, even one
-  downscaled from the big art; Stage Manager shows that as a blank white tile. Ship 64 to 1024 px only
-  (like Zed) and let macOS scale down. Test icon changes on a copy in `$TMPDIR` with a new bundle id:
-  IconServices caches by path, and copies under Application Support drew as plain documents.
+- Stage Manager and the Dock get an app's icon from macOS by bundle id; Finder and `NSWorkspace.icon(forFile:)`
+  get it by path. macOS 26 keeps the bundle-id picture: a new version, a new icon file, an asset catalog
+  or `lsregister -f` don't replace it. A blank white tile in Stage Manager is that cache. Check icons by
+  bundle id (`SystemIcon.state`), test icon changes on a copy with a new bundle id, and clear the cache
+  with `notifyutil -p com.apple.iconservicesd.clearCache.immediately` (Forge does it at launch when stale).
+- macOS 26 shrinks any icon picture that doesn't sit on its icon grid (squircle 824/1024 of the canvas)
+  onto a light plate. The small SVG's 16/32 px art is drawn bigger, so the iconset ships 64 to 1024 px.
 
 ### Swift
 - New `SetupChoices` fields must be Optional: synthesized Decodable throws on a missing key, and

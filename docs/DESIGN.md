@@ -27,10 +27,14 @@ Every colour, font and control comes from `Sources/UI/Theme.swift` and `Sources/
 - **App icon:** the amber anvil on a warm near-black rounded square, made in Claude Design (project
   "Forge Desktop", files `Forge App Icon.svg` and `Forge App Icon small.svg`). The SVGs and their PNG
   exports live in `Resources/AppIcon`; `build.sh` turns the `AppIcon.iconset` (64 to 1024 px) into
-  `AppIcon.icns` with `iconutil`. No 16 or 32 px pictures: macOS 26 draws those on a white plate, which
-  Stage Manager shows as a blank tile, so the small SVG isn't exported into the icon any more.
-  `Forge --icon-check` (in the selftest and in `package-app.sh`) checks every size and that macOS draws the
-  anvil at 16 to 256 px. To change it, change the SVGs in Claude Design and export every size again.
+  `AppIcon.icns` with `iconutil`. No 16 or 32 px pictures: the small SVG's art fills more of its square
+  than macOS 26's icon grid allows, so macOS shrinks it onto a light plate; macOS scales the 64 px picture
+  down instead. Stage Manager and the Dock ask macOS for the icon by bundle id, and macOS keeps that
+  picture even after the app changes: a Mac that once registered a Forge build without an icon showed a
+  blank white tile there. Forge checks at launch and asks macOS to clear its icon cache when that picture
+  isn't the anvil (`SystemIcon` in `Sources/App/AppIcon.swift`). `Forge --icon-check` (in the selftest and
+  in `package-app.sh`) checks every size, what Finder draws, and what macOS hands Stage Manager, light and
+  dark. To change the icon, change the SVGs in Claude Design and export every size again.
 - **Shape:** radii 2 / 4 / 8 / 14 / pill, spacing in 4 px steps, one soft shadow, an amber glow only
   on work that's running.
 - **Sizes:** where the design system's UI kit sets a size (Orchestrator headline 38, stat numbers 40,

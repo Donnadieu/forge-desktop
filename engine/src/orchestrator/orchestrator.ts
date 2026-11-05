@@ -6,6 +6,7 @@ import type {
 } from "../observability/types.js";
 import type { NormalizedIssue, TrackerAdapter } from "../tracker/types.js";
 import { checkInodePressure, createInodePressureState } from "../workspace/inode-pressure.js";
+import { LeftoverSweeper } from "../workspace/leftover-sweep.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
 import { BacklogPromoter } from "./backlog-promotion.js";
 import { enforceCostCeiling } from "./cost-ceiling.js";
@@ -71,6 +72,8 @@ export class Orchestrator {
   // abort path runs exactly once even if a tick is already in flight.
   private costCeilingTripped = false;
   private readonly inodePressure = createInodePressureState();
+  // Dev servers left running by runs that ended without their engine (leftover-sweep.ts).
+  private readonly leftovers = new LeftoverSweeper();
   private startupSweepPromise: Promise<void> | null = null;
   // Periodic + disk-pressure reaper for terminal-ticket workspaces; see
   // workspace-periodic-sweep.ts. Built lazily so updateConfig() can't desync it.
@@ -320,6 +323,7 @@ export class Orchestrator {
     const workspaceRoot = this.workspace.config?.root;
     if (workspaceRoot) {
       void checkInodePressure({ workspaceRoot, logger: this.config.logger }, this.inodePressure);
+      void this.leftovers.maybeSweep(workspaceRoot, this.config.logger);
     }
     const reconcileResult = await reconcileRunningIssues(this.state, this.tracker, {
       active_states: this.config.trackerConfig.active_states,

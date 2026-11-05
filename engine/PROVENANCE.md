@@ -7,7 +7,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 - **Tests:** `test/unit/**` and `test/support/**` came from Forge's `test/` at the same commit.
   Tests for code left behind were dropped (the container privilege drop, the hermes runner, the
   factory QA bound and build completion, boot scripts). Two skills tests wait for step 9
-  (the agent skills). `test/unit/process/ps-table.test.ts` is new.
+  (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts` and
+  `test/unit/workspace/leftover-sweep.test.ts` are new.
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
   command, run the project the way its README says). The app writes the settings block above it.
@@ -85,7 +86,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit` |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling) |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`) |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
 | src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit` |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
@@ -102,6 +103,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/process/process-tree.ts | 05deefb0a43a | src/process/process-tree.ts | unchanged |
 | src/process/procfs.ts | 05deefb0a43a | src/process/procfs.ts | falls back to the macOS process table (ps-table.ts) where /proc is missing |
 | src/process/ps-table.ts | new | | macOS process table (Forge reads Linux /proc only) |
+| src/process/leftovers.ts | new | | finds processes left running in card folders by cwd (`lsof`): detached, no terminal; stops them |
 | src/process/run-tree.ts | 05deefb0a43a | src/process/run-tree.ts | unchanged |
 | src/server/http-utils.ts | 05deefb0a43a | src/server/http-utils.ts | unchanged |
 | src/server/index.ts | 05deefb0a43a | src/server/index.ts | exports the local pieces only (the hosted router stays in Forge) |
@@ -138,10 +140,11 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/git-identity.ts | 05deefb0a43a | src/workspace/git-identity.ts | SSH signing (`FORGE_GIT_SIGNING_FORMAT=ssh`); `verifyWorkspaceSigning` (a test signature before a card starts; unsigned only when chosen) |
 | src/workspace/inode-pressure.ts | 05deefb0a43a | src/workspace/inode-pressure.ts | unchanged |
 | src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | stale-lock reclaim takes turns through a `.reclaiming` gate (fixes a race where two acquirers both held the lock) |
-| src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off |
+| src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off; `acquireLock` stops a card's leftover processes after taking the lock and before releasing it |
+| src/workspace/leftover-sweep.ts | new | | stops dev servers left running in card workspaces: at a run's start and end, and every 3 minutes for cards no live run holds |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`) |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
 | src/orchestrator/shared-slots.ts | new | | the ceiling on agents across every engine on the Mac: each engine publishes its count in a shared folder |
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once |

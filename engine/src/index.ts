@@ -39,6 +39,7 @@ import { openLocalStore } from "./store/local-store.js";
 import type { TrackerConfig } from "./tracker/types.js";
 import { createTrackerFromConfig } from "./tracker-factory.js";
 import { loadSkillsManifest } from "./worker/prompt-renderer.js";
+import { stopLeftoverServers } from "./workspace/leftover-sweep.js";
 import { WorkspaceManager } from "./workspace/manager.js";
 
 async function main(): Promise<void> {
@@ -102,6 +103,7 @@ async function main(): Promise<void> {
     hooks: config.workspace.hooks,
     hookTimeoutMs: config.workspace.hooks.timeout_ms,
     skillsDir,
+    stopLeftovers: (root, card) => stopLeftoverServers(root, { only: card, logger }),
   });
   const local = openLocalStore(join(home, "forge.sqlite"));
   const board = new BoardReader(tracker, trackerConfig, config.board.columns);

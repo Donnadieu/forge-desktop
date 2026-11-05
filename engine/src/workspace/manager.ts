@@ -1,11 +1,12 @@
 import { exec } from "node:child_process";
 import { lstat, mkdir, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { NormalizedIssue } from "../tracker/types.js";
 import { type CleanupWorkspaceResult, cleanupCompletedWorkspaceImpl } from "./cleanup.js";
 import { copyWorkspaceAssets, type OrgSkillFile } from "./copy-assets.js";
-import { acquireWorkspaceLock, liveLockHolder } from "./lock.js";
+import { stopLeftoverServers } from "./leftover-sweep.js";
+import { acquireWorkspaceLock, liveLockHolder, type WorkspaceLockResult } from "./lock.js";
 import { writeMcpConfig as writeMcpConfigFile } from "./mcp-config.js";
 
 export interface WorkspaceConfig {
@@ -34,7 +35,15 @@ export interface WorkspaceConfig {
    * hooks too without this layer importing `agent/`. Absent ⇒ `process.env`.
    */
   hookBaseEnv?: () => NodeJS.ProcessEnv;
+  /**
+   * Stops what earlier runs left running in a card's workspace (dev servers),
+   * called while the card's lock is held. Absent ⇒ `stopLeftoverServers`.
+   */
+  stopLeftovers?: (root: string, card: string) => Promise<unknown>;
 }
+
+const defaultStopLeftovers = (root: string, card: string) =>
+  stopLeftoverServers(root, { only: card });
 
 export class WorkspaceManager {
   public readonly config: WorkspaceConfig;
@@ -193,11 +202,27 @@ export class WorkspaceManager {
     return writeMcpConfigFile(workspacePath, mcpServers);
   }
 
-  /** Take the issue's workspace dispatch lock; usable before {@link ensureWorkspace}. */
-  async acquireLock(issue: NormalizedIssue | string) {
+  /**
+   * Take the issue's workspace dispatch lock; usable before {@link ensureWorkspace}.
+   * Holding it, stop whatever earlier runs left running in the workspace (a dev
+   * server on the port the agent wants), and again on release, after the agent.
+   */
+  async acquireLock(issue: NormalizedIssue | string): Promise<WorkspaceLockResult> {
     const workspacePath = await this.resolveWorkspacePath(issue);
     await mkdir(this.config.root, { recursive: true });
-    return acquireWorkspaceLock(workspacePath);
+    const result = await acquireWorkspaceLock(workspacePath);
+    if (!result.acquired) return result;
+    const stop = () =>
+      (this.config.stopLeftovers ?? defaultStopLeftovers)(this.config.root, basename(workspacePath))
+        .then(() => undefined)
+        .catch(() => undefined);
+    await stop();
+    const { lock } = result;
+    const release = async () => {
+      await stop();
+      await lock.release();
+    };
+    return { acquired: true, lock: { recordAgentPid: (pid) => lock.recordAgentPid(pid), release } };
   }
 
   /** The live holder of the issue's workspace dispatch lock, or `null` when free. */

@@ -99,6 +99,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   Sign-in tokens are 108 characters: another length means the parser glued or cut text (check the
   length, never the value).
 
+- Agents start dev servers detached (`(bin/rails server &)`, `nohup vite &`): they leave the agent's process
+  group, and puma's title (`$0 =`) wipes the environment marker the tree kill searches for, so they outlived
+  their cards for hours. `process/leftovers.ts` finds them by working folder (`lsof`) instead; a lock holder
+  stops them at a run's start and end, and the poll loop every 3 minutes. Keep that check to detached
+  processes (parent pid 1) with no terminal whose cwd is inside the workspace root, so an editor or shell
+  the person opened there is never touched. Its real-process test runs on macOS only (Linux may hand
+  orphans to a subreaper instead of pid 1).
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

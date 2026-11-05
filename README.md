@@ -20,6 +20,7 @@ A one-minute tour, with sound. [Download it in full quality](docs/promo/forge-de
 - Commits go out under your name, signed, the way you chose in setup.
 
 **Status:** early, in daily use. Newest version: [latest release](https://github.com/Donnadieu/forge-desktop/releases/latest).
+Website: [donnadieu.github.io/forge-desktop](https://donnadieu.github.io/forge-desktop/).
 
 ## Install
 

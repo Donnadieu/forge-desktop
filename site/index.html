@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge Desktop: your own AI software agency, on your Mac</title>
+<meta name="description" content="Hand it the work and press Start. AI coding agents plan, build, review and test each task, then bring you a pull request ready to merge. Free, for Mac.">
+<link rel="canonical" href="https://donnadieu.github.io/forge-desktop/">
+<meta name="theme-color" content="#1C1A17">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Forge Desktop">
+<meta property="og:url" content="https://donnadieu.github.io/forge-desktop/">
+<meta property="og:title" content="Forge Desktop: your own AI software agency, on your Mac">
+<meta property="og:description" content="Hand it the work and press Start. AI coding agents plan, build, review and test each task, then bring you a pull request ready to merge. Free, for Mac.">
+<meta property="og:image" content="https://donnadieu.github.io/forge-desktop/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Forge: your own AI software agency">
+<meta property="og:video" content="https://donnadieu.github.io/forge-desktop/forge-desktop-promo.mp4">
+<meta property="og:video:type" content="video/mp4">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Forge Desktop: your own AI software agency, on your Mac">
+<meta name="twitter:description" content="Hand it the work and press Start. Agents plan, build, review and test each task, then bring you a pull request ready to merge.">
+<meta name="twitter:image" content="https://donnadieu.github.io/forge-desktop/og.jpg">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  /* Forge Design System tokens (colors_and_type.css, dark) */
+  :root {
+    --bg:#1C1A17; --surface:#2E2B27; --border:#4A4640; --border-hover:#7A7470;
+    --silver-bright:#F7F5F1; --silver-mid:#B0A99F; --silver-faint:#4A4640;
+    --fg:#F7F5F1; --fg-2:#B0A99F; --fg-3:#7A7470;
+    --heat-warm:#C47F2A; --heat-strong:#E59B47; --heat-deep:#8A5519;
+    --heat-glow:rgba(196,127,42,.18); --heat-bg:rgba(196,127,42,.10); --heat-border:rgba(196,127,42,.34);
+    --atm-glow:radial-gradient(ellipse at 50% 0%, rgba(196,127,42,.05) 0%, transparent 65%);
+    --shadow-glow:0 0 24px -4px var(--heat-glow);
+    --font-sans:"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-serif:"Playfair Display", Georgia, "Times New Roman", serif;
+    --font-mono:"DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --ease-soft:cubic-bezier(.32,.72,.4,1);
+    --gap-section:160px;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--font-sans); -webkit-font-smoothing:antialiased; position:relative; overflow-x:hidden; }
+  body::before { content:""; position:absolute; left:0; right:0; top:0; height:1000px; background:var(--atm-glow); pointer-events:none; }
+  body::after { content:""; position:fixed; inset:0; pointer-events:none; z-index:2; opacity:.03;
+    background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22220%22%20height%3D%22220%22%3E%3Cfilter%20id%3D%22n%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.85%22%20numOctaves%3D%222%22%20stitchTiles%3D%22stitch%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20filter%3D%22url(%23n)%22%2F%3E%3C%2Fsvg%3E"); }
+  .wrap { position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:0 32px; }
+  img { max-width:100%; }
+  h1, h2, h3, p { margin:0; }
+  a { color:inherit; }
+
+  .eyebrow { font-family:var(--font-mono); font-weight:500; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--fg-3); }
+  .display { font-family:var(--font-serif); font-weight:900; line-height:1.08; letter-spacing:-.02em; color:var(--silver-bright); text-wrap:balance; }
+  .lede { font-size:19px; line-height:1.65; color:var(--fg-2); text-wrap:pretty; }
+  .body { font-size:17px; line-height:1.65; color:var(--fg-2); text-wrap:pretty; }
+  .small { font-size:15px; line-height:1.65; color:var(--fg-2); text-wrap:pretty; }
+  .note { font-size:14px; line-height:1.65; color:var(--fg-3); text-wrap:pretty; }
+  h3 { font-weight:600; font-size:19px; line-height:1.3; color:var(--silver-bright); }
+
+  /* Header */
+  header.top { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:28px 0; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; min-height:44px; border-radius:4px; }
+  .brand img { width:30px; height:30px; display:block; }
+  .brand span { font-family:var(--font-serif); font-weight:900; font-size:24px; letter-spacing:-.02em; line-height:1; color:var(--silver-bright); }
+  nav.links { display:flex; align-items:center; gap:24px; }
+  .ext { display:inline-flex; align-items:center; gap:6px; min-height:44px; font-size:14px; color:var(--fg-2); text-decoration:none; border-radius:2px; transition:color 120ms var(--ease-soft); }
+  .ext:hover { color:var(--silver-bright); }
+  .ext svg { width:13px; height:13px; }
+  a:focus-visible, button:focus-visible { outline:none; box-shadow:0 0 0 2px var(--heat-border), var(--shadow-glow); }
+
+  /* Download button */
+  .dl { display:inline-flex; align-items:center; justify-content:center; gap:10px; height:48px; padding:0 24px; border-radius:8px; background:var(--heat-warm); color:var(--bg); font-size:15px; font-weight:600; text-decoration:none; transition:background 200ms var(--ease-soft), box-shadow 200ms var(--ease-soft); }
+  .dl:hover { background:var(--heat-strong); box-shadow:var(--shadow-glow); }
+  .dl:active { background:var(--heat-deep); }
+  .dl svg { width:18px; height:18px; }
+  .need { font-family:var(--font-mono); font-size:12px; letter-spacing:.04em; color:var(--fg-2); }
+
+  /* Hero */
+  .hero { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:64px; align-items:center; padding-top:96px; }
+  .hero-copy { display:flex; flex-direction:column; gap:28px; }
+  .hero h1 { font-family:var(--font-serif); font-weight:900; font-size:84px; line-height:1; letter-spacing:-.025em; color:var(--silver-bright); }
+  .cta { display:flex; flex-direction:column; gap:14px; align-items:flex-start; margin-top:4px; }
+  .player { position:relative; width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden; border:1px solid var(--border); background:#000; }
+  .player video { width:100%; height:100%; display:block; object-fit:cover; background:#000; }
+  .play { position:absolute; left:20px; bottom:20px; width:80px; height:80px; border-radius:9999px; border:1px solid var(--heat-border); background:rgba(28,26,23,.78); color:var(--silver-bright); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; transition:background 200ms var(--ease-soft), color 200ms var(--ease-soft), border-color 200ms var(--ease-soft); }
+  .play:hover { background:var(--heat-warm); color:var(--bg); border-color:var(--heat-warm); }
+  .play svg { width:28px; height:28px; margin-left:3px; }
+  .length { position:absolute; right:18px; bottom:14px; font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--fg-2); background:rgba(28,26,23,.78); border-radius:2px; padding:3px 6px; }
+  .player.playing .play, .player.playing .length { display:none; }
+
+  section { margin-top:var(--gap-section); }
+
+  /* Problem */
+  .problem { display:flex; flex-direction:column; align-items:center; text-align:center; gap:20px; }
+  .problem h2 { font-size:64px; }
+  .problem p { font-size:20px; max-width:660px; }
+
+  /* How it works */
+  .how-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+  .how-head > div:first-child { display:flex; flex-direction:column; gap:14px; }
+  .how-head h2 { font-size:52px; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 20px; font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-3); }
+  .legend span { display:inline-flex; align-items:center; gap:8px; }
+  .dot { width:10px; height:10px; border-radius:9999px; background:var(--silver-mid); flex:0 0 auto; display:inline-block; }
+  .dot.opt { background:var(--bg); border:1.5px solid var(--fg-3); }
+  .dot.live { width:14px; height:14px; background:var(--heat-warm); box-shadow:0 0 0 4px var(--heat-bg), var(--shadow-glow); }
+  .stages { position:relative; display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); padding-top:28px; margin:40px 0 0; list-style:none; padding-left:0; }
+  .stages::before { content:""; position:absolute; left:5%; right:5%; top:35px; height:1px; background:var(--border); }
+  .stages::after { content:""; position:absolute; left:5%; width:30%; top:35px; height:1px; background:linear-gradient(90deg, var(--silver-faint), var(--heat-warm)); }
+  .stages li { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .stages li > i { height:14px; display:flex; align-items:center; }
+  .stages li > b { font-family:var(--font-mono); font-weight:400; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--silver-mid); text-align:center; white-space:nowrap; }
+  .stages li.opt > b { color:var(--fg-3); }
+  .stages li.live > b { color:var(--heat-warm); }
+  .steps { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:32px; margin:56px 0 0; border-top:1px solid var(--border); padding:32px 0 0; list-style:none; }
+  .steps li { display:flex; flex-direction:column; gap:10px; position:relative; }
+  .steps .eyebrow.live { color:var(--heat-warm); }
+  .steps .eyebrow { min-height:2.9em; }
+  .tags, .steps li > .dot { display:none; }
+  .opt-note { display:none; }
+
+  /* Features */
+  .features { display:flex; flex-direction:column; gap:128px; }
+  .feature { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,4fr); gap:72px; align-items:center; }
+  .feature.flip { grid-template-columns:minmax(0,4fr) minmax(0,7fr); }
+  .feature.flip .shot { order:2; }
+  .feature .copy { display:flex; flex-direction:column; gap:16px; }
+  .feature h2 { font-size:40px; }
+  .shot { width:100%; height:auto; display:block; border-radius:8px; border:1px solid var(--border); }
+
+  /* Trust */
+  .trust h2 { font-size:40px; }
+  .four { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:32px; margin-top:40px; }
+  .four > div { display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--border); padding-top:22px; }
+  .four h3 { font-size:17px; }
+
+  /* Trackers and providers */
+  .tp-head { display:flex; flex-direction:column; gap:14px; max-width:720px; }
+  .tp-head h2 { font-size:40px; }
+  .tp-head p { font-size:18px; }
+  .two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:72px; margin-top:48px; }
+  .two > div { display:flex; flex-direction:column; gap:16px; }
+  .named { border-top:1px solid var(--border); margin:0; padding:0; list-style:none; }
+  .named li { display:flex; flex-direction:column; gap:4px; padding:18px 0; border-bottom:1px solid var(--border); }
+  .named strong { font-family:var(--font-serif); font-weight:900; font-size:26px; letter-spacing:-.01em; color:var(--silver-bright); line-height:1.15; }
+  .named span { font-size:15px; line-height:1.6; color:var(--fg-2); }
+
+  /* Download */
+  .download-head { display:flex; flex-direction:column; align-items:center; text-align:center; gap:20px; padding-top:16px; }
+  .download-head .brand img { width:36px; height:36px; }
+  .download-head .brand span { font-size:28px; }
+  .download-head h2 { font-size:64px; }
+  .download-head .cta { align-items:center; margin-top:8px; }
+  .start { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:72px; align-items:start; border-top:1px solid var(--border); padding-top:48px; margin-top:64px; }
+  .start-copy { display:flex; flex-direction:column; gap:36px; }
+  .start-copy > div { display:flex; flex-direction:column; gap:16px; }
+  .start ul, .start ol { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+  .start li { display:flex; gap:14px; align-items:baseline; font-size:16px; line-height:1.6; color:var(--fg-2); }
+  .start ul li::before { content:""; width:6px; height:6px; border-radius:9999px; background:var(--silver-mid); flex:0 0 auto; transform:translateY(-2px); }
+  .start ol { gap:14px; }
+  .start ol li > b { font-family:var(--font-mono); font-weight:400; font-size:12px; color:var(--heat-warm); flex:0 0 auto; }
+  code { font-family:var(--font-mono); font-size:.9em; color:var(--silver-bright); }
+
+  footer { margin-top:var(--gap-section); border-top:1px solid var(--border); }
+  .foot { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:28px 0 40px; }
+  .foot > div:first-child { display:flex; align-items:center; gap:10px; }
+  .foot img { width:20px; height:20px; display:block; }
+  .foot p { font-size:14px; line-height:1.65; color:var(--fg-2); }
+  .foot nav { display:flex; gap:20px; }
+
+  /* Tablet */
+  @media (max-width:1100px) {
+    .hero { grid-template-columns:1fr; gap:48px; padding-top:56px; }
+    .hero h1 { font-size:72px; }
+    .stages li > b { font-size:10px; letter-spacing:.06em; white-space:normal; }
+    .steps { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .feature, .feature.flip { gap:48px; }
+    .four { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:1000px) {
+    .feature, .feature.flip { grid-template-columns:1fr; gap:28px; }
+    .feature .shot, .feature.flip .shot { order:2; }
+    .feature .copy { max-width:640px; }
+    .start { grid-template-columns:1fr; gap:48px; }
+  }
+  /* Phone */
+  @media (max-width:760px) {
+    :root { --gap-section:96px; }
+    .wrap { padding:0 20px; }
+    header.top { padding:12px 0; }
+    .brand img { width:28px; height:28px; }
+    .brand span { font-size:22px; }
+    nav.links { gap:12px; }
+    nav.links .rel { display:none; }
+    .hero { gap:40px; padding-top:36px; }
+    .hero-copy { gap:20px; }
+    .hero h1 { font-size:48px; }
+    .lede { font-size:17px; }
+    .cta { align-items:stretch; width:100%; }
+    .dl { height:52px; width:100%; }
+    .need { text-align:center; }
+    .play { width:64px; height:64px; left:14px; bottom:14px; }
+    .play svg { width:24px; height:24px; }
+    .problem h2 { font-size:38px; }
+    .problem p { font-size:17px; }
+    .how-head h2 { font-size:36px; }
+    .legend, .stages { display:none; }
+    .steps { grid-template-columns:1fr; gap:28px; margin-top:32px; border-top:0; padding:0 0 0 28px; position:relative; }
+    .steps::before { content:""; position:absolute; left:6px; top:8px; bottom:8px; width:1px; background:var(--border); }
+    .steps li > .dot { display:block; position:absolute; left:-26px; top:3px; }
+    .steps li > .dot.live { left:-28px; top:1px; }
+    .steps p { font-size:16px; }
+    .steps .eyebrow { min-height:0; }
+    .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+    .tags span { display:inline-flex; align-items:center; height:24px; padding:0 8px; border-radius:2px; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--silver-mid); border:1px solid var(--border); }
+    .tags span.opt { color:var(--fg-3); border-style:dashed; }
+    .tags span.live { color:var(--heat-warm); border-color:var(--heat-border); }
+    .opt-note { display:block; margin-top:28px; }
+    .features { gap:72px; }
+    .feature, .feature.flip { grid-template-columns:1fr; gap:24px; }
+    .feature .shot, .feature.flip .shot { order:2; }
+    .feature h2, .trust h2, .tp-head h2 { font-size:30px; }
+    .body { font-size:16px; }
+    .four { grid-template-columns:1fr; gap:0; margin-top:28px; }
+    .four > div { padding:18px 0; }
+    .tp-head p { font-size:16px; }
+    .two { grid-template-columns:1fr; gap:48px; margin-top:32px; }
+    .named strong { font-size:22px; }
+    .download-head h2 { font-size:38px; }
+    .start { grid-template-columns:1fr; gap:40px; margin-top:48px; padding-top:40px; }
+    .foot { flex-direction:column; align-items:flex-start; gap:8px; padding:24px 0 32px; }
+    .foot > div:first-child { align-items:flex-start; }
+    .foot img { margin-top:3px; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./" aria-label="Forge home"><img src="icon.png" alt=""><span>Forge</span></a>
+    <nav class="links">
+      <a class="ext" href="https://github.com/Donnadieu/forge-desktop">Source code<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>
+      <a class="ext rel" href="https://github.com/Donnadieu/forge-desktop/releases">Releases<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>
+    </nav>
+  </header>
+
+  <main>
+  <div class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">Forge Desktop · for Mac</div>
+      <h1>Your own AI software agency.</h1>
+      <p class="lede">Hand it the work and press Start. AI coding agents plan, build, review and test each task, then bring you a pull request ready to merge.</p>
+      <div class="cta">
+        <a class="dl" href="https://github.com/Donnadieu/forge-desktop/releases/latest/download/Forge.dmg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download for Mac</a>
+        <div class="need">Free · Apple Silicon · macOS 14 or later</div>
+      </div>
+    </div>
+    <div class="player" id="player">
+      <video id="promo" src="forge-desktop-promo.mp4" poster="poster.jpg" preload="none" playsinline aria-label="Forge Desktop in one minute, with sound"></video>
+      <button class="play" id="play" type="button" aria-label="Play the Forge video, 1 minute 2 seconds"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg></button>
+      <div class="length" aria-hidden="true">1:02</div>
+    </div>
+  </div>
+
+  <section class="problem" aria-labelledby="problem">
+    <div class="eyebrow">The problem</div>
+    <h2 class="display" id="problem">More ideas than hours.</h2>
+    <p class="lede">The backlog keeps growing, and every task waits on you. You plan it, write it, review it and test it, one at a time. Forge does that work and brings back only the decision: merge, or ask for changes.</p>
+  </section>
+
+  <section aria-labelledby="how">
+    <div class="how-head">
+      <div>
+        <div class="eyebrow">How it works</div>
+        <h2 class="display" id="how">From Backlog to Done.</h2>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="dot"></i>Always on</span>
+        <span><i class="dot opt"></i>Optional, set in Workflow Studio</span>
+      </div>
+    </div>
+    <ol class="stages" aria-label="The pipeline">
+      <li><i><span class="dot"></span></i><b>Backlog</b></li>
+      <li class="opt"><i><span class="dot opt"></span></i><b>Triage</b></li>
+      <li><i><span class="dot"></span></i><b>Todo</b></li>
+      <li class="live"><i><span class="dot live"></span></i><b>In Progress</b></li>
+      <li class="opt"><i><span class="dot opt"></span></i><b>AI Review</b></li>
+      <li class="opt"><i><span class="dot opt"></span></i><b>QA</b></li>
+      <li class="opt"><i><span class="dot opt"></span></i><b>Human Review</b></li>
+      <li><i><span class="dot"></span></i><b>Rework</b></li>
+      <li class="opt"><i><span class="dot opt"></span></i><b>Merging</b></li>
+      <li><i><span class="dot"></span></i><b>Done</b></li>
+    </ol>
+    <ol class="steps">
+      <li><span class="dot"></span><div class="eyebrow">01 · Backlog, Triage</div><h3>Write the task</h3><p class="small">You write the tasks in your tracker.</p><div class="tags"><span>Backlog</span><span class="opt">Triage</span></div></li>
+      <li><span class="dot"></span><div class="eyebrow">02 · Todo</div><h3>Press Start</h3><p class="small">Forge's lead agent picks up what's ready.</p><div class="tags"><span>Todo</span></div></li>
+      <li><span class="dot live"></span><div class="eyebrow live">03 · In Progress</div><h3>Plan and build</h3><p class="small">It writes the code on its own branch and opens a pull request.</p><div class="tags"><span class="live">In Progress</span></div></li>
+      <li><span class="dot"></span><div class="eyebrow">04 · AI Review, QA</div><h3>Review and test</h3><p class="small">Other agents review the pull request and test it.</p><div class="tags"><span class="opt">AI Review</span><span class="opt">QA</span></div></li>
+      <li><span class="dot"></span><div class="eyebrow">05 · Human Review, Rework, Merging, Done</div><h3>Your turn</h3><p class="small">You read the pull request and press Merge, or ask for changes.</p><div class="tags"><span class="opt">Human Review</span><span>Rework</span><span class="opt">Merging</span><span>Done</span></div></li>
+    </ol>
+    <p class="note opt-note">Triage, AI Review, QA, Human Review and Merging are optional. Turn them off in Workflow Studio.</p>
+  </section>
+
+  <section class="features" aria-label="Features">
+    <div class="feature">
+      <img class="shot" src="screenshots/orchestrator.png" width="1200" height="800" loading="lazy" alt="The Orchestrator: running sessions, Your turn, Up next and Later">
+      <div class="copy">
+        <div class="eyebrow">01 · Orchestrator</div>
+        <h2 class="display">The Orchestrator</h2>
+        <p class="body">The main screen: everything your agents are working on right now. Four numbers up top: running, retrying, tokens today, runtime. Open a running session to follow an agent line by line. Start and Stop are always in reach.</p>
+      </div>
+    </div>
+    <div class="feature flip">
+      <img class="shot" src="screenshots/your-turn.png" width="1200" height="1100" loading="lazy" alt="Your turn: pull requests waiting, with Ask for changes, Merge and Merge all">
+      <div class="copy">
+        <div class="eyebrow">02 · Your turn</div>
+        <h2 class="display">Your turn</h2>
+        <p class="body">Pull requests waiting for you. Open the pull request, ask for changes, or Merge. Merge all when several wait. Up next and Later hold what comes after, with Start and Start all ready.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <img class="shot" src="screenshots/card.png" width="880" height="640" loading="lazy" alt="A card in progress: what the agent is doing, its helpers, activity and workpad">
+      <div class="copy">
+        <div class="eyebrow">03 · Card detail</div>
+        <h2 class="display">A card in progress</h2>
+        <p class="body">What the agent is doing now, the helpers it sent, recent activity, its running notes (the workpad), the branch, and links to the pull request and the card.</p>
+      </div>
+    </div>
+    <div class="feature flip">
+      <img class="shot" src="screenshots/workflow-studio.png" width="1200" height="800" loading="lazy" alt="Workflow Studio: optional stages and how many agents work at once">
+      <div class="copy">
+        <div class="eyebrow">04 · Workflow Studio</div>
+        <h2 class="display">Workflow Studio</h2>
+        <p class="body">Turn the optional stages on or off: Triage, AI Review, QA, Human Review, Merging. Set how many agents work at once.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <img class="shot" src="screenshots/harness-engineering.png" width="1200" height="800" loading="lazy" alt="Harness engineering: guardrails the agent suggests for your repo">
+      <div class="copy">
+        <div class="eyebrow">05 · Harness engineering</div>
+        <h2 class="display">Harness engineering</h2>
+        <p class="body">The last setup step. The agent reads your repo and suggests guardrails: a formatter, a linter, an agent guide, a file size limit, no keys in the code. Tick the ones you want. Forge makes one card for them, and it comes back to you as a pull request.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust" aria-labelledby="trust">
+    <h2 class="display" id="trust">On your Mac, under your name.</h2>
+    <div class="four">
+      <div><h3>A native Mac app</h3><p class="small">Never a browser page.</p></div>
+      <div><h3>Keys in your Keychain</h3><p class="small">Keys live in your Mac's Keychain, nowhere else.</p></div>
+      <div><h3>Your name on the commits</h3><p class="small">Commits go out under your name, signed, the way you chose in setup. Forge never changes your tracker without asking first.</p></div>
+      <div><h3>Gets you unstuck by itself</h3><p class="small">If an agent's sign-in runs out, Forge notices and opens the sign-in for you. A failed check always shows the one button that fixes it.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="tp">
+    <div class="tp-head">
+      <h2 class="display" id="tp">Your tracker. Your intelligence provider.</h2>
+      <p class="lede">The cards live in your tracker. The intelligence provider does the work.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="eyebrow">Trackers</div>
+        <ul class="named">
+          <li><strong>Linear</strong><span>Paste your key once.</span></li>
+          <li><strong>Basecamp</strong><span>A project's card table. Approve a short code in your browser.</span></li>
+          <li><strong>GitHub Issues</strong><span>A GitHub project whose Status field holds the columns. Approve a short code in your browser.</span></li>
+        </ul>
+        <p class="note">Forge offers to add any missing columns.</p>
+      </div>
+      <div>
+        <div class="eyebrow">Intelligence providers</div>
+        <ul class="named">
+          <li><strong>Claude Code</strong><span>Your Pro or Max plan, or an API key.</span></li>
+          <li><strong>Codex</strong><span>Browser sign-in or an OpenAI key.</span></li>
+          <li><strong>Kimi</strong><span>A Moonshot key.</span></li>
+          <li><strong>OpenRouter</strong><span>An OpenRouter key.</span></li>
+        </ul>
+        <p class="note">Each keeps as many accounts as you like. Switch one project to your work account without signing out of your own. Your own Claude Code and Codex logins stay as they are.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" aria-labelledby="dl">
+    <div class="download-head">
+      <a class="brand" href="./" aria-label="Forge home"><img src="icon.png" alt=""><span>Forge</span></a>
+      <h2 class="display" id="dl">Download Forge Desktop</h2>
+      <div class="cta">
+        <a class="dl" href="https://github.com/Donnadieu/forge-desktop/releases/latest/download/Forge.dmg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download for Mac</a>
+        <div class="need" id="version">Forge.dmg · Signed and notarized by Apple</div>
+      </div>
+    </div>
+    <div class="start">
+      <div class="start-copy">
+        <div>
+          <h3>What you need</h3>
+          <ul>
+            <li><span>A Mac with Apple Silicon and macOS 14 or newer</span></li>
+            <li><span>The GitHub CLI (<code>gh</code>) on the Mac</span></li>
+            <li><span>A tracker: Linear, Basecamp or GitHub Issues</span></li>
+            <li><span>One intelligence provider</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>How to start</h3>
+          <ol>
+            <li><b>01</b><span>Download Forge.dmg.</span></li>
+            <li><b>02</b><span>Drag Forge to Applications.</span></li>
+            <li><b>03</b><span>Follow the six setup screens: tracker, project, GitHub and who signs the commits, repo, intelligence provider, Harness engineering.</span></li>
+          </ol>
+          <p class="note">Forge saves each answer, so you can quit and pick up where you left off.</p>
+        </div>
+        <p class="note">Forge updates itself. It offers each new release, checks its signature, lets running agents wrap up, then swaps the app and reopens it.</p>
+      </div>
+      <img class="shot" src="screenshots/setup-agent.png" width="1200" height="800" loading="lazy" alt="Setup, step 5 of 6: choosing the intelligence provider">
+    </div>
+  </section>
+  </main>
+
+  <footer>
+    <div class="foot">
+      <div><img src="icon.png" alt=""><p>Forge Desktop is free and open source, under the Apache-2.0 license.</p></div>
+      <nav>
+        <a class="ext" href="https://github.com/Donnadieu/forge-desktop">Source code<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>
+        <a class="ext" href="https://github.com/Donnadieu/forge-desktop/releases">Releases<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg></a>
+      </nav>
+    </div>
+  </footer>
+</div>
+<script>
+  // The video: our own play button, then the browser's controls.
+  (function () {
+    var player = document.getElementById("player"), video = document.getElementById("promo"), play = document.getElementById("play");
+    play.addEventListener("click", function () {
+      player.classList.add("playing");
+      video.controls = true;
+      var p = video.play();
+      if (p && p.catch) p.catch(function () {});
+    });
+  })();
+  // The newest version number, from GitHub's latest release.
+  fetch("https://api.github.com/repos/Donnadieu/forge-desktop/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) {
+      if (j && /^v\d/.test(j.tag_name)) document.getElementById("version").textContent = "Forge.dmg · Version " + j.tag_name.slice(1) + " · Signed and notarized by Apple";
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>

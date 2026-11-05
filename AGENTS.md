@@ -27,6 +27,7 @@ Swift 6 toolchain (language mode 5) / SwiftUI + AppKit / macOS 14+, Apple Silico
 - [docs/HARNESS.md](docs/HARNESS.md): linters, the ratchet, hooks, CI, identity, how changes land
 - [docs/exec-plans/](docs/exec-plans/README.md): the plan in progress and the debt list
 - [engine/README.md](engine/README.md): where the engine comes from and how pulls are recorded
+- `site/`: the download page, https://donnadieu.github.io/forge-desktop/ (`.github/workflows/pages.yml`; it copies the screenshots and promo video in from `docs/` when it deploys)
 
 ## Rules that bite
 - Every rule in `tools/lint/forge-lint.py` prints a `FIX:`; follow it. List: `tools/lint/forge-lint.py --list`.

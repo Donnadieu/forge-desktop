@@ -44,14 +44,14 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/claude-env.ts | 05deefb0a43a | src/agent/claude-env.ts | unchanged |
 | src/agent/claude-usage.ts | 05deefb0a43a | src/agent/claude-usage.ts | unchanged |
 | src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`) |
-| src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name) |
+| src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name); a `turn/completed` whose turn failed (usage limit, quota) is a failed turn with its reason |
 | src/agent/codex-sandbox.ts | 05deefb0a43a | src/agent/codex-sandbox.ts | unchanged |
 | src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name); no OPENAI_API_KEY required (Codex can use its own sign-in) |
 | src/agent/compat.ts | 05deefb0a43a | src/agent/compat.ts | unchanged |
 | src/agent/index.ts | 05deefb0a43a | src/agent/index.ts | dropped the hermes runner and the container privilege drop |
 | src/agent/kimi-tree.ts | 05deefb0a43a | src/agent/kimi-tree.ts | unchanged |
 | src/agent/kimi-usage.ts | 05deefb0a43a | src/agent/kimi-usage.ts | unchanged |
-| src/agent/kimi.ts | 05deefb0a43a | src/agent/kimi.ts | dropped the container privilege drop and lent-home usage read |
+| src/agent/kimi.ts | 05deefb0a43a | src/agent/kimi.ts | dropped the container privilege drop and lent-home usage read; a turn with no events says what kimi printed (its quota or rate-limit error) |
 | src/agent/mcp-bridge.ts | 05deefb0a43a | src/agent/mcp-bridge.ts | comment reworded (no old project name); fills `${VAR}` placeholders from the agent's env (`expandEnv`) |
 | src/agent/run-once.ts | 05deefb0a43a | src/agent/run-once.ts | unchanged |
 | src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | `helper` and `waiting_for_helpers` events; `rate_limit` event |
@@ -79,22 +79,22 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/observability/secret-scan.ts | 05deefb0a43a | src/observability/secret-scan.ts | unchanged |
 | src/observability/secret-spec.json | 05deefb0a43a | src/observability/secret-spec.json | unchanged |
 | src/observability/secret-spec.ts | 05deefb0a43a | src/observability/secret-spec.ts | unchanged |
-| src/observability/types.ts | 05deefb0a43a | src/observability/types.ts | activity, helpers, recent lines |
+| src/observability/types.ts | 05deefb0a43a | src/observability/types.ts | activity, helpers, recent lines; usage limits (`limits`, `waitingForLimit`) |
 | src/orchestrator/backlog-promotion.ts | 7f02afe2a | src/orchestrator/backlog-promotion.ts | comments say "workflow file" and drop the other tracker's marker note; its tests came with it |
 | src/orchestrator/claim-gate.ts | 05deefb0a43a | src/orchestrator/claim-gate.ts | unchanged |
 | src/orchestrator/cost-ceiling.ts | 05deefb0a43a | src/orchestrator/cost-ceiling.ts | unchanged |
-| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`) |
-| src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit`; cards whose claim was refused rank last for 10 minutes (`claimRefused`) |
+| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`); records whose account the run uses (`limitKey`) |
+| src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit`; cards whose claim was refused rank last for 10 minutes (`claimRefused`); a card waiting for a usage limit holds no slot; cards of a limited account aren't started (`limited`) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`) |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`) |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
-| src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit` |
+| src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit`; releases only the reservation it owns (a usage-limit wait keeps the attempt number) |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
 | src/orchestrator/session-guard.ts | 05deefb0a43a | src/orchestrator/session-guard.ts | unchanged |
-| src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | activity, helpers, recent lines, usage windows |
-| src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events; passes `shouldStop` |
-| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits`; `backlogPromotion` from Forge 7f02afe2a; `agentLimit`, `agentForState`, `roleOf` (Forge Desktop: the Mac-wide ceiling and roles); `claimRefused` |
-| src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | a failed run that says why (a lapsed sign-in) goes on the retry queue with its reason, for every agent |
+| src/orchestrator/snapshot.ts | 05deefb0a43a | src/orchestrator/snapshot.ts | activity, helpers, recent lines, usage windows; usage limits |
+| src/orchestrator/turn-telemetry.ts | 05deefb0a43a | src/orchestrator/turn-telemetry.ts | the plain activity line, helpers and usage windows from agent events; passes `shouldStop`; a run that gets going ends its account's usage limit |
+| src/orchestrator/types.ts | 05deefb0a43a | src/orchestrator/types.ts | dropped factory build report, QA bound and known-issues fields; `helperWaitMs`; `activity`, `helpers`, `recent` on running cards; `rateLimits`; `backlogPromotion` from Forge 7f02afe2a; `agentLimit`, `agentForState`, `roleOf` (Forge Desktop: the Mac-wide ceiling and roles); `claimRefused`; `usageLimits`, `limitKey` |
+| src/orchestrator/worker-outcomes.ts | 05deefb0a43a | src/orchestrator/worker-outcomes.ts | a failed run that says why (a lapsed sign-in) goes on the retry queue with its reason, for every agent; a usage limit waits for its reset with the same attempt (never retried as a failure, never given up) |
 | src/orchestrator/workpad-parser.ts | 05deefb0a43a | src/orchestrator/workpad-parser.ts | unchanged |
 | src/orchestrator/workspace-gc.ts | 05deefb0a43a | src/orchestrator/workspace-gc.ts | unchanged |
 | src/orchestrator/workspace-lock-gate.ts | 05deefb0a43a | src/orchestrator/workspace-lock-gate.ts | unchanged |
@@ -108,7 +108,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/server/http-utils.ts | 05deefb0a43a | src/server/http-utils.ts | unchanged |
 | src/server/index.ts | 05deefb0a43a | src/server/index.ts | exports the local pieces only (the hosted router stays in Forge) |
 | src/server/orchestrator-controls.ts | 05deefb0a43a | src/server/orchestrator-controls.ts | IntendedStateRepo from ./types (local store, no database); Stop answers at once and drains in the background, intent saved as stopped right away |
-| src/server/state-json.ts | 05deefb0a43a | src/server/state-json.ts | dropped the hosted analytics transformer; activity, helpers, recent lines |
+| src/server/state-json.ts | 05deefb0a43a | src/server/state-json.ts | dropped the hosted analytics transformer; activity, helpers, recent lines; usage limits |
 | src/server/types.ts | 05deefb0a43a | src/server/types.ts | kept only the status types; IntendedStateRepo defined here (local store, no database) |
 | src/telemetry/infer-issue-type.ts | 05deefb0a43a | src/telemetry/infer-issue-type.ts | unchanged |
 | src/telemetry/types.ts | 05deefb0a43a | src/telemetry/types.ts | TicketStatus written out instead of read from the database schema |
@@ -145,6 +145,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
 | src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops |
+| src/agent/usage-limit.ts | new | | reads a usage, spend or rate limit (and its reset time) from Claude Code, Codex, OpenRouter and Kimi failure texts |
+| src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
 | src/orchestrator/shared-slots.ts | new | | the ceiling on agents across every engine on the Mac: each engine publishes its count in a shared folder |
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once |

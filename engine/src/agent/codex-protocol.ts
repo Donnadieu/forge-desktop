@@ -191,6 +191,16 @@ export async function handleMessage(
     const events: AgentEvent[] = [];
     const usage = extractUsage(msg);
     if (usage) events.push(usage);
+    // Forge Desktop: a failed turn (a usage limit, a quota) arrives here with `turn.status: "failed"` and its
+    // reason in `turn.error` (app-server v2 `TurnCompletedNotification`), not as `turn/failed`.
+    const turn = params.turn as
+      | { status?: string; error?: { message?: string } | null }
+      | undefined;
+    if (turn?.status === "failed") {
+      events.push({ type: "error", message: turn.error?.message || "Turn failed" });
+      events.push({ type: "done", success: false });
+      return events;
+    }
     events.push({ type: "done", success: true });
     return events;
   }

@@ -44,6 +44,7 @@ export function toRetryJson(r: {
   attempt: number;
   dueAt: string;
   error: string | null;
+  waitingForLimit?: boolean;
 }): Record<string, unknown> {
   return {
     issue_id: r.issueId,
@@ -51,6 +52,7 @@ export function toRetryJson(r: {
     attempt: r.attempt,
     due_at: r.dueAt,
     error: r.error,
+    ...(r.waitingForLimit ? { waiting_for_limit: true } : {}),
   };
 }
 
@@ -97,5 +99,15 @@ export function toStateJson(snap: StateSnapshot): Record<string, unknown> {
         } satisfies TerminalBuildOutcomeJson)
       : null,
     rate_limits: snap.rateLimits,
+    limits: (snap.limits ?? []).map((l) => ({
+      role: l.role,
+      kind: l.kind,
+      reason: l.reason,
+      message: l.message,
+      link: l.link,
+      resets_at: l.resetsAt,
+      until: l.until,
+      since: l.since,
+    })),
   };
 }

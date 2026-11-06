@@ -29,7 +29,10 @@ final class BoardLink {
 
     private func show(_ s: EngineState) {
         guard let model else { return }
-        if let id = projectID { model.states[id] = s }
+        if let id = projectID {
+            model.states[id] = s
+            LimitNotifier.shared.observe(project: id, state: s, model: model)
+        }
         if onScreen { model.engine = s }
     }
 

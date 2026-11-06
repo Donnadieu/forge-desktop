@@ -25,6 +25,9 @@ struct OrchestratorScreen: View {
                 VStack(alignment: .leading, spacing: 24) {
                     header
                     if let problem { notice(problem) }
+                    ForEach(model.limitInfos, id: \.limit.role) { info in
+                        LimitBanner(info: info, switchTo: { other in act { await model.switchAccount(info, to: other) } }, open: model.openLink)
+                    }
                     StatsRow(state: state)
                     ProblemLine(text: model.moveProblem)
                     OrchestratorTables(model: model, state: state, open: $open, confirm: $confirm)
@@ -173,6 +176,8 @@ struct OrchestratorScreen: View {
     @ViewBuilder private var metaPill: some View {
         if problem != nil, problem != model.engineProblem {
             Pill(text: "Paused", tone: .amber, dot: Theme.heat)
+        } else if state?.isRunning == true, state?.limits?.isEmpty == false {
+            Pill(text: "Waiting for limit", tone: .amber, dot: Theme.heat)
         } else if state?.isRunning == true {
             Pill(text: "Live", tone: .heat, dot: Theme.heat, pulsing: true)
         } else if state?.status == "stopping" {
@@ -290,7 +295,8 @@ struct UsageLine: View {
                 ForEach(Array(limits.keys.sorted().enumerated()), id: \.element) { i, k in
                     if i > 0 { Text("·").foregroundStyle(Theme.textMuted) }
                     Text(Self.windowName(k)).foregroundStyle(Theme.textMuted)
-                    Text(limits[k]?.percent.map { "\($0)%" } ?? "in use").foregroundStyle(Theme.text)
+                    Text(limits[k]?.status == "rejected" ? "limit reached" : limits[k]?.percent.map { "\($0)%" } ?? "in use")
+                        .foregroundStyle(limits[k]?.status == "rejected" ? Theme.heat : Theme.text)
                 }
             }
             .font(Theme.mono(11))

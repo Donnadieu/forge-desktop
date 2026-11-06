@@ -31,6 +31,7 @@ export function buildEngineState(deps: EngineStateDeps): Record<string, unknown>
     retrying: snapshot.retrying,
     totals: snapshot.codex_totals,
     rate_limits: snapshot.rate_limits,
+    limits: snapshot.limits,
     usage: { last_24h: deps.local.usageSince(dayAgo), all_time: deps.local.usageSince() },
   };
 }

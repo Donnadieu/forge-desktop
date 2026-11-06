@@ -562,6 +562,20 @@ describe("KimiAdapter", () => {
     });
   });
 
+  it("a turn with no events says what kimi printed: its quota or rate-limit error (Forge Desktop)", async () => {
+    // kimi-cli 0.80 print mode prints a provider error as a plain line (`Error code: <status> - <body>`).
+    const line =
+      "Error code: 429 - {'error': {'message': 'Your account 1234<ak-5678> request reached TPM rate limit, current:120000, limit:100000', 'type': 'rate_limit_reached_error'}}";
+    spawnMock.mockReturnValue(makeChild([line], { exitCode: 1, stderr: "some warning" }));
+    const adapter = new KimiAdapter();
+    const handle = await adapter.startSession({ prompt: "x", workspacePath: "/tmp/ws" });
+    const collected = await drainRunTurn(adapter, handle, "p");
+    expect(collected).toContainEqual({
+      type: "error",
+      message: `Kimi turn produced no events: ${line}`,
+    });
+  });
+
   describe("fail-loud contract diagnostics", () => {
     /** A minimal Logger stub capturing warn() calls. */
     function makeLogger() {

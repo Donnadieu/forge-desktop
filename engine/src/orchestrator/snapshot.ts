@@ -12,6 +12,7 @@ import {
   type RunningEntry,
   type WorkspaceLockedEntry,
 } from "./types.js";
+import { limitList } from "./usage-limits.js";
 
 function buildRunningSnapshot(entry: RunningEntry, now: number): RunningSessionSnapshot {
   const elapsedMs = now - entry.startedAt;
@@ -50,6 +51,7 @@ function buildRetrySnapshot(entry: RetryEntry, now: number): RetrySnapshot {
     attempt: entry.attempt,
     dueAt: new Date(Date.now() + Math.max(dueInMs, 0)).toISOString(),
     error: entry.error,
+    ...(entry.limitKey !== undefined ? { waitingForLimit: true } : {}),
   };
 }
 
@@ -142,6 +144,16 @@ export function buildStateSnapshot(
     progress,
     terminalBuildOutcome: state.terminalBuildOutcome,
     rateLimits: Object.keys(state.rateLimits).length ? { ...state.rateLimits } : null,
+    limits: limitList(state).map((l) => ({
+      role: l.key,
+      kind: l.kind,
+      reason: l.reason,
+      message: l.message,
+      link: l.link,
+      resetsAt: l.resetsAt,
+      until: new Date(l.untilMs).toISOString(),
+      since: new Date(l.sinceMs).toISOString(),
+    })),
   };
 }
 

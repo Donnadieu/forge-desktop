@@ -25,8 +25,10 @@ export function refetchAndDispatch(
   checkState: boolean,
 ): void {
   const go = async (): Promise<void> => {
+    // The reservation this retry owns: a usage-limit wait re-parks the card with the same attempt number.
+    const mine = deps.state.retryAttempts.get(issueId);
     try {
-      const identifier = deps.state.retryAttempts.get(issueId)?.identifier;
+      const identifier = mine?.identifier;
       // A killed worker is still exiting: hold this retry's reservation until
       // it has, rather than start a second session in its workspace (FRG-4086).
       const settling = deps.state.settling.get(issueId)?.exited;
@@ -70,7 +72,7 @@ export function refetchAndDispatch(
       // so we never clobber a *newer* reservation: if the dispatched worker
       // already failed and scheduled the next attempt, that entry must survive.
       const reservation = deps.state.retryAttempts.get(issueId);
-      if (reservation && reservation.attempt === attempt) {
+      if (reservation && (mine ? reservation === mine : reservation.attempt === attempt)) {
         cancelRetry(deps.state, issueId);
       }
     }

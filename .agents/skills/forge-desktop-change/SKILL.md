@@ -114,6 +114,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   (`state.claimRefused`, like workspace-locked cards). Any new reason to refuse a card must also rank it last,
   or it starves the queue the same way.
 
+- A usage limit (Claude's 5-hour or spend limit, Codex's usage limit, a quota) is not a failure: retrying it every
+  minute burnt the retry queue, then the card fell off it and failed every 30 s with no reason shown.
+  `orchestrator/usage-limits.ts` parks the card until the reset with the same attempt and no slot; the texts are read
+  in `agent/usage-limit.ts`, one recorded line per provider in its test. Add a provider's new limit text there, never
+  a retry rule.
+- Codex's app-server reports a failed turn as `turn/completed` with `turn.status: "failed"` and `turn.error`, not
+  `turn/failed`: reading every `turn/completed` as success hid Codex's usage limits.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

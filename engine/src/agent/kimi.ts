@@ -193,6 +193,7 @@ export class KimiAdapter implements AgentAdapter {
 
     let meaningfulEventCount = 0;
     let usageEmitted = 0;
+    const plainLines: string[] = [];
 
     try {
       if (child.stdout) {
@@ -203,7 +204,11 @@ export class KimiAdapter implements AgentAdapter {
             try {
               raw = JSON.parse(line) as Record<string, unknown>;
             } catch {
-              raw = null; // skip non-JSON lines
+              // Not an event. kimi-cli prints a provider error (a quota, a rate limit) here as plain text:
+              // keep the last few so a turn that produced nothing says why (Forge Desktop).
+              raw = null;
+              plainLines.push(line.trim());
+              if (plainLines.length > 5) plainLines.shift();
             }
             if (raw) {
               for (const e of this.mapLine(raw, state)) {
@@ -258,11 +263,14 @@ export class KimiAdapter implements AgentAdapter {
       // would wrongly flip turnSuccess to false in the runner.
       if (meaningfulEventCount === 0 && usageEmitted === 0) {
         const stderr = Buffer.concat(stderrChunks).toString().trim();
+        const said = plainLines.join("\n");
         yield {
           type: "error",
-          message: stderr
-            ? `Kimi turn produced no events. stderr: ${stderr.slice(0, 2000)}`
-            : "Kimi turn produced no events — likely auth or config error",
+          message: said
+            ? `Kimi turn produced no events: ${said.slice(0, 2000)}`
+            : stderr
+              ? `Kimi turn produced no events. stderr: ${stderr.slice(0, 2000)}`
+              : "Kimi turn produced no events — likely auth or config error",
         };
       }
 

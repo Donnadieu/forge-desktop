@@ -7,10 +7,18 @@
  */
 
 import type { AgentEvent } from "../agent/types.js";
+import { detectUsageLimit } from "../agent/usage-limit.js";
 import type { WorkerCallbacks } from "../worker/runner.js";
 import { addUsageTokens } from "../worker/usage.js";
 import { applyHelperEvent, plainActivity } from "./activity.js";
 import type { OrchestratorCallbacks, OrchestratorState, RunningEntry } from "./types.js";
+import { clearLimit } from "./usage-limits.js";
+
+/** A tool call, or text that isn't the limit message itself (Claude Code prints that as its reply). */
+function gotGoing(event: AgentEvent): boolean {
+  if (event.type === "tool_use") return true;
+  return event.type === "text" && event.content.trim() !== "" && !detectUsageLimit(event.content);
+}
 
 export function makeWorkerCallbacks(
   state: OrchestratorState,
@@ -40,6 +48,9 @@ export function makeWorkerCallbacks(
       }
       const runEntry = ownEntry(issueId);
       if (runEntry) applyEventToEntry(runEntry, event);
+      // The account answered with work, not a limit: its usage limit is over (usage-limits.ts).
+      if (runEntry && state.usageLimits.size > 0 && gotGoing(event))
+        clearLimit(state, runEntry.limitKey);
       callbacks.onEvent?.(issueId, event);
     },
     onTurnStart: (issueId, turn) => {

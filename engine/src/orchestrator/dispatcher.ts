@@ -18,7 +18,12 @@ export function inFlightCount(state: OrchestratorState): number {
   for (const issueId of state.settling.keys()) {
     if (!state.retryAttempts.has(issueId)) settling++;
   }
-  return state.running.size + state.claimed.size + state.retryAttempts.size + settling;
+  // Forge Desktop: a card waiting for its account's usage limit holds no slot (orchestrator/usage-limits.ts).
+  let waitingForLimit = 0;
+  for (const r of state.retryAttempts.values()) if (r.limitKey !== undefined) waitingForLimit++;
+  return (
+    state.running.size + state.claimed.size + state.retryAttempts.size - waitingForLimit + settling
+  );
 }
 
 /**
@@ -28,7 +33,8 @@ export function inFlightCount(state: OrchestratorState): number {
  * should block it.
  */
 export function inFlightCountExcluding(state: OrchestratorState, issueId: string): number {
-  return inFlightCount(state) - (state.retryAttempts.has(issueId) ? 1 : 0);
+  const own = state.retryAttempts.get(issueId);
+  return inFlightCount(state) - (own && own.limitKey === undefined ? 1 : 0);
 }
 
 /**
@@ -181,6 +187,8 @@ export function selectIssuesToDispatch(
     terminal_states: string[];
     max_concurrent_agents: number;
     max_concurrent_agents_by_state?: Record<string, number>;
+    /** Forge Desktop: the card's account is at a usage limit, so it isn't started (usage-limits.ts). */
+    limited?: (issue: NormalizedIssue) => boolean;
   },
 ): NormalizedIssue[] {
   const sorted = sortIssuesForDispatch(candidates, config.active_states);
@@ -200,6 +208,7 @@ export function selectIssuesToDispatch(
 
   for (const issue of sorted) {
     if (baseInFlight + selected.length >= config.max_concurrent_agents) break;
+    if (config.limited?.(issue)) continue;
     if (shouldDispatchIssue(issue, state, config)) {
       selected.push(issue);
     }

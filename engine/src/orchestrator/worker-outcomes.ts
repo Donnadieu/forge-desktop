@@ -15,6 +15,7 @@ import type {
   OrchestratorState,
   RunningEntry,
 } from "./types.js";
+import { clearLimit, waitIfLimited } from "./usage-limits.js";
 
 export interface WorkerOutcomeDeps {
   state: OrchestratorState;
@@ -287,6 +288,13 @@ export function handleWorkerComplete(
   deps.state.completed.add(issueId);
 
   const { identifier } = entry;
+  if (result.success) clearLimit(deps.state, entry.limitKey);
+  // A usage limit: the card waits for the reset with the same attempt, and is never given up on.
+  const resume = (id: string): void => deps.refetchAndDispatch(id, attempt, true);
+  if (!result.success && waitIfLimited(deps.state, entry, result.error, resume)) {
+    deps.callbacks.onComplete?.(issueId, result, entry.issue, true);
+    return;
+  }
   const retryCallback = (id: string): void => deps.refetchAndDispatch(id, attempt + 1, true);
   const isContinuation = hitMaxTurns || (result.preserveWorkspace && result.success);
   // A failed run is retried with backoff when its workspace was kept (single-turn agents) or
@@ -380,6 +388,9 @@ export function handleWorkerError(
   deps.state.running.delete(issueId);
   deps.callbacks.onError?.(issueId, err);
 
+  const run = { issueId, identifier, attempt, limitKey: entry?.limitKey };
+  const resume = (id: string): void => deps.refetchAndDispatch(id, attempt, true);
+  if (waitIfLimited(deps.state, run, err.message, resume)) return;
   if (attempt < deps.config.maxRetryAttempts) {
     scheduleRetry(
       deps.state,

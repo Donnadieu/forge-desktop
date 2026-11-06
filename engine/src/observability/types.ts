@@ -30,6 +30,8 @@ export interface RetrySnapshot {
   attempt: number;
   dueAt: string;
   error: string | null;
+  /** Forge Desktop: waiting for its account's usage limit to reset, not retrying a failure. */
+  waitingForLimit?: boolean;
 }
 
 /**
@@ -121,4 +123,18 @@ export interface StateSnapshot {
   /** Serialized mirror of OrchestratorState.terminalBuildOutcome; see there for rationale. */
   terminalBuildOutcome?: TerminalBuildOutcome;
   rateLimits: unknown;
+  /**
+   * Forge Desktop: accounts at a usage, spend or rate limit. `role` is the role's index (-1 = the project's own
+   * provider); `until` is when waiting cards try again.
+   */
+  limits?: Array<{
+    role: number;
+    kind: string;
+    reason: string;
+    message: string;
+    link: string | null;
+    resetsAt: string | null;
+    until: string;
+    since: string;
+  }>;
 }

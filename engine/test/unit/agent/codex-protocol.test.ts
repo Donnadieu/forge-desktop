@@ -285,6 +285,29 @@ describe("handleMessage", () => {
     expect(result).toEqual([{ type: "done", success: true }]);
   });
 
+  it("maps a failed turn/completed (a usage limit) to error + done(false) (Forge Desktop)", async () => {
+    // app-server v2: the turn's status and error ride on turn/completed (codex-rs 0.153 TurnCompletedNotification).
+    const message =
+      "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 11:05 PM.";
+    const result = await handleMessage(session, {
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "t1",
+        turn: {
+          id: "u1",
+          items: [],
+          status: "failed",
+          error: { message, codexErrorInfo: "usageLimitExceeded" },
+        },
+      },
+    } as CodexRpcMessage);
+    expect(result).toEqual([
+      { type: "error", message },
+      { type: "done", success: false },
+    ]);
+  });
+
   it("maps turn/failed to error + done events", async () => {
     const result = await handleMessage(session, {
       jsonrpc: "2.0",

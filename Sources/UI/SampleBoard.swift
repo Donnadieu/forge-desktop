@@ -128,6 +128,35 @@ enum SampleBoard {
         return s
     }
 
+    /// The work account hit its spend limit at 8:13 PM: three cards wait for 11:40 PM, one agent still works.
+    static var limited: EngineState {
+        var s = state
+        s.running = [running(second)]
+        var c4 = card(4, "Log every fill to a CSV file", "AI Review")
+        c4.agent = nil
+        let cards = [
+            held, second, c4, card(2, "Retry the exchange call when it times out", "Human Review", pr: true),
+            card(6, "Show the open positions on startup", "Todo"), card(9, "Cap each order at 2% of the balance", "Todo"),
+            card(7, "Paper-trading mode", "Backlog"),
+        ]
+        s.board = board(cards)
+        // 11:40 PM today (tomorrow's once that has passed), as in the evening it happened.
+        var reset = Calendar.current.date(bySettingHour: 23, minute: 40, second: 0, of: Date()) ?? Date()
+        if reset < Date() { reset = reset.addingTimeInterval(86400) }
+        let text =
+            "You've hit your individual spend limit · ask your admin to raise it at https://claude.ai/admin-settings/usage · your 5-hour limit resets 11:40pm (America/New_York) (API status 429)"
+        s.retrying = ["AIT-3", "AIT-4", "AIT-6"].map { .init(issue_identifier: $0, attempt: 1, due_at: nil, error: text, waiting_for_limit: true) }
+        let iso = ISO8601DateFormatter()
+        s.limits = [
+            .init(
+                role: -1, kind: "spend", reason: "spend limit, ask your admin to raise it", message: text,
+                link: "https://claude.ai/admin-settings/usage", resets_at: iso.string(from: reset), until: iso.string(from: reset),
+                since: ago(180))
+        ]
+        s.rate_limits = ["five_hour": .init(percent: nil, resetsAt: nil, status: "rejected")]
+        return s
+    }
+
     /// The agent's sign-in lapsed: cards wait to try again with the reason.
     static var signedOut: EngineState {
         var s = state

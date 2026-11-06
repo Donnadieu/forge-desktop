@@ -45,6 +45,7 @@ enum ScreenRender {
             if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
             if shot.scene == "ask-new" { model.ask = .new }
             if shot.scene == "fleet" { AppModel.sampleRunning(model) }
+            if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }
             if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
             let ok = render(
                 RootView(model: model), size: NSSize(width: 1200, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))

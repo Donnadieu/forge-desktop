@@ -175,6 +175,7 @@ export async function dispatchIssue(
     recent: [],
     host: null,
     turnTimings: [],
+    limitKey: deps.config.roleOf?.(issue.state) ?? -1,
   };
   // While the tracker-reported build stays active we keep one continuous
   // Runtime clock for the whole build, even if individual workers finish and

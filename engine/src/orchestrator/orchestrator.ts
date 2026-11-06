@@ -23,6 +23,7 @@ import {
   type OrchestratorConfig,
   type OrchestratorState,
 } from "./types.js";
+import { forgetStaleLimits, limitActive } from "./usage-limits.js";
 import {
   completeSettledFromTracker,
   recordKilledTicket,
@@ -380,10 +381,12 @@ export class Orchestrator {
     const dispatchCandidates = candidates;
 
     await refreshWorkspaceLocks(this.dispatchIssueDeps(), dispatchCandidates);
+    forgetStaleLimits(this.state);
     const toDispatch = selectIssuesToDispatch(dispatchCandidates, this.state, {
       active_states: this.config.trackerConfig.active_states,
       terminal_states: this.config.trackerConfig.terminal_states,
       max_concurrent_agents: effectiveAgentLimit(this.config, inFlightCount(this.state)),
+      limited: (issue) => limitActive(this.state, this.config.roleOf?.(issue.state) ?? -1),
     });
     for (const issue of toDispatch) {
       await this.dispatchIssue(issue);

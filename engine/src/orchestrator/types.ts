@@ -1,5 +1,6 @@
 import type { Logger } from "pino";
 import type { AgentAdapter, AgentEvent } from "../agent/types.js";
+import type { LimitKind } from "../agent/usage-limit.js";
 import type { TerminalBuildOutcome } from "../observability/types.js";
 import type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
 import type { NormalizedIssue, ProgressCounts, TrackerConfig } from "../tracker/types.js";
@@ -188,6 +189,8 @@ export interface RunningEntry {
   host: string | null;
   /** Per-turn telemetry, populated by orchestrator's onTurnStart / onTurnEnd / onEvent consumers. */
   turnTimings: TurnTimingEntry[];
+  /** Forge Desktop: whose account this run uses, for usage limits (the role's index, -1 = the project's own). */
+  limitKey?: number;
 }
 
 export interface RetryEntry {
@@ -198,6 +201,11 @@ export interface RetryEntry {
   delayType: "continuation" | "failure";
   error: string | null;
   timerId: ReturnType<typeof setTimeout>;
+  /**
+   * Forge Desktop: waiting for its account's usage limit to reset (orchestrator/usage-limits.ts). It holds no
+   * agent slot and used no retry; it turns into an ordinary reservation when the wait ends.
+   */
+  limitKey?: number;
 }
 
 export interface TicketOutcomeEntry {
@@ -304,6 +312,25 @@ export interface OrchestratorState {
    * can't take the free slot every poll and starve the cards behind it.
    */
   claimRefused: Map<string, number>;
+  /** Forge Desktop: accounts that hit a usage, spend or rate limit, by limit key (orchestrator/usage-limits.ts). */
+  usageLimits: Map<number, LimitState>;
+}
+
+/** An account that hit a usage, spend or rate limit, and when Forge tries it again. */
+export interface LimitState {
+  /** The role's index whose account is limited; -1 = the project's own provider. */
+  key: number;
+  kind: LimitKind;
+  reason: string;
+  /** The provider's own words. */
+  message: string;
+  link: string | null;
+  /** When the provider said it resets (ISO 8601), or null. */
+  resetsAt: string | null;
+  /** `Date.now()` when waiting cards try again (the reset, or a check when no reset was given). */
+  untilMs: number;
+  /** `Date.now()` when this limit was first seen. */
+  sinceMs: number;
 }
 
 /** An issue refused dispatch because its workspace lock has a live holder. */
@@ -350,6 +377,7 @@ export function createInitialState(): OrchestratorState {
     dispatchHoldLogged: new Set(),
     workspaceLocked: new Map(),
     claimRefused: new Map(),
+    usageLimits: new Map(),
   };
 }
 

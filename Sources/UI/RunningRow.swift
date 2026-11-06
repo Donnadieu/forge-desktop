@@ -6,6 +6,8 @@ struct RunningRow: View {
     let card: EngineState.Card
     let run: EngineState.RunningCard?
     @Binding var expanded: Bool
+    /// Its account hit a usage limit: the card waits for the reset instead of an agent.
+    var waitingForLimit = false
     let open: () -> Void
 
     private var live: Bool { run != nil }
@@ -34,8 +36,14 @@ struct RunningRow: View {
                     .frame(width: 128, alignment: .leading)
                 Text(run?.turn_count.map(String.init) ?? "—").font(Theme.mono(11, .medium)).foregroundStyle(Theme.text)
                     .frame(width: 56, alignment: .leading)
-                Text(doing).font(Theme.sans(13)).foregroundStyle(Theme.textSec).lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if waitingForLimit && !live {
+                        LimitPill()
+                    } else {
+                        Text(doing).font(Theme.sans(13)).foregroundStyle(Theme.textSec).lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Text(helpers).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 96, alignment: .leading)
                 Text(elapsed).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 80, alignment: .leading)
                 Text(run?.attempt.map(String.init) ?? card.agent.map { "\($0.attempt)" } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)

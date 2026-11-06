@@ -8,7 +8,7 @@ struct StatsRow: View {
     var body: some View {
         HStack(spacing: 12) {
             stat(value: state.map { "\($0.running.count)" }, label: "Running", note: runningNote, heat: (state?.running.count ?? 0) > 0)
-            stat(value: state.map { "\($0.retrying?.count ?? 0)" }, label: "Retrying", note: retryNote)
+            stat(value: state.map { "\($0.retryingFailures)" }, label: "Retrying", note: retryNote)
             stat(value: state.map { _ in UsageLine.short(tokens) }, label: "Tokens today", note: tokenNote)
             stat(value: state.map { _ in runtime }, label: "Runtime", note: runtimeNote)
         }
@@ -40,7 +40,8 @@ struct StatsRow: View {
     }
 
     private var waiting: Int {
-        let busy = Set(state?.running.map(\.issue_identifier) ?? [])
+        // Cards held by a usage limit wait for the reset, not for an agent.
+        let busy = Set(state?.running.map(\.issue_identifier) ?? []).union(state?.waitingForLimit ?? [])
         return OrchestratorTables.inFlightCards(state).filter { !busy.contains($0.identifier) }.count
     }
     private var runningNote: String {
@@ -50,7 +51,10 @@ struct StatsRow: View {
         return waiting > 0 ? "\(waiting) more waiting for an agent" : "nothing waiting"
     }
     private var retryNote: String {
-        let n = state?.retrying?.count ?? 0
+        let n = state?.retryingFailures ?? 0
+        let limited = state?.waitingForLimit.count ?? 0
+        // Cards held by a usage limit aren't failing: they say so on their own rows.
+        if limited > 0 { return n == 0 ? "\(limited) waiting for a limit" : "\(n) failing, \(limited) for a limit" }
         return n == 0 ? "retry queue empty" : "\(n) waiting to try again"
     }
     private var tokens: Int { (state?.usage?.last_24h?.inputTokens ?? 0) + (state?.usage?.last_24h?.outputTokens ?? 0) }
@@ -196,7 +200,10 @@ struct OrchestratorTables: View {
             .background(Theme.wash1)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
             ForEach(Array(cards.enumerated()), id: \.element.id) { i, c in
-                RunningRow(card: c, run: state?.running.first { $0.issue_identifier == c.identifier }, expanded: expandedBinding(c.id)) {
+                RunningRow(
+                    card: c, run: state?.running.first { $0.issue_identifier == c.identifier }, expanded: expandedBinding(c.id),
+                    waitingForLimit: state?.waitingForLimit.contains(c.identifier) == true
+                ) {
                     open = c
                 }
                 .overlay(alignment: .top) { if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) } }
@@ -248,7 +255,9 @@ struct OrchestratorTables: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if ready {
+            if state?.waitingForLimit.contains(c.identifier) == true {
+                LimitPill()
+            } else if ready {
                 Pill(text: "Ready", stage: "Todo")
                 Button("Start") { move([c], to: "Todo") }.buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
             } else {

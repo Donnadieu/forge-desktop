@@ -15,6 +15,8 @@ struct EngineState: Decodable, Sendable, Equatable {
     var usage: Usage?
     var totals: Totals?
     var rate_limits: [String: RateLimit]?
+    /// Accounts at a usage, spend or rate limit (engine orchestrator/usage-limits.ts); their cards wait for it.
+    var limits: [Limit]? = nil
 
     struct RunningCard: Decodable, Sendable, Equatable {
         var issue_id: String?
@@ -40,6 +42,21 @@ struct EngineState: Decodable, Sendable, Equatable {
         var attempt: Int?
         var due_at: String?
         var error: String?
+        /// Waiting for its account's usage limit to reset, not retrying a failure.
+        var waiting_for_limit: Bool? = nil
+    }
+
+    /// An account that hit a usage, spend or rate limit. `role` is the role's index (`SetupChoices.roleAccounts`),
+    /// -1 for the project's own provider; `until` is when the waiting cards go again.
+    struct Limit: Decodable, Sendable, Equatable {
+        var role: Int
+        var kind: String
+        var reason: String
+        var message: String?
+        var link: String?
+        var resets_at: String?
+        var until: String
+        var since: String
     }
 
     struct Poll: Decodable, Sendable, Equatable {

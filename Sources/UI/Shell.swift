@@ -113,12 +113,13 @@ struct Notice<Fix: View>: View {
     let title: String
     var detail: String?
     var mono = false
+    var icon = "exclamationmark.triangle"
     @ViewBuilder var fix: () -> Fix
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "exclamationmark.triangle").font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.heat)
+                Image(systemName: icon).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.heat)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     if let detail {

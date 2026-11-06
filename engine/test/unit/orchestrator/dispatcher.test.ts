@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLAIM_REFUSED_BACKOFF_MS,
+  claimRefusedRecently,
+  noteClaimRefused,
   selectIssuesToDispatch,
   shouldDispatchIssue,
   sortIssuesForDispatch,
@@ -289,6 +292,59 @@ describe("selectIssuesToDispatch", () => {
     });
     expect(selected).toHaveLength(1);
     expect(selected[0].id).toBe("merging");
+  });
+
+  it("gives the free slot to the next card when a later-stage card is held by someone else", () => {
+    const state = createInitialState();
+    noteClaimRefused(state, "held");
+    const issues = [
+      makeIssue({ id: "todo", state: "Todo" }),
+      makeIssue({ id: "held", state: "In Progress" }),
+    ];
+    const selected = selectIssuesToDispatch(issues, state, {
+      active_states: ["Todo", "In Progress"],
+      terminal_states: ["Done"],
+      max_concurrent_agents: 1,
+    });
+    expect(selected.map((i) => i.id)).toEqual(["todo"]);
+  });
+
+  it("still tries a held card when a slot is spare", () => {
+    const state = createInitialState();
+    noteClaimRefused(state, "held");
+    const issues = [
+      makeIssue({ id: "held", state: "In Progress" }),
+      makeIssue({ id: "todo", state: "Todo" }),
+    ];
+    const selected = selectIssuesToDispatch(issues, state, {
+      active_states: ["Todo", "In Progress"],
+      terminal_states: ["Done"],
+      max_concurrent_agents: 2,
+    });
+    expect(selected.map((i) => i.id)).toEqual(["todo", "held"]);
+  });
+
+  it("gives a held card its normal rank back once the backoff has passed", () => {
+    const state = createInitialState();
+    noteClaimRefused(state, "held", Date.now() - CLAIM_REFUSED_BACKOFF_MS - 1);
+    expect(claimRefusedRecently(state, "held")).toBe(false);
+    const issues = [
+      makeIssue({ id: "todo", state: "Todo" }),
+      makeIssue({ id: "held", state: "In Progress" }),
+    ];
+    const selected = selectIssuesToDispatch(issues, state, {
+      active_states: ["Todo", "In Progress"],
+      terminal_states: ["Done"],
+      max_concurrent_agents: 1,
+    });
+    expect(selected.map((i) => i.id)).toEqual(["held"]);
+  });
+
+  it("drops expired refusals when a new one is noted", () => {
+    const state = createInitialState();
+    noteClaimRefused(state, "old", Date.now() - CLAIM_REFUSED_BACKOFF_MS - 1);
+    noteClaimRefused(state, "new");
+    expect([...state.claimRefused.keys()]).toEqual(["new"]);
   });
 });
 

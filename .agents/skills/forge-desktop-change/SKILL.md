@@ -107,6 +107,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   the person opened there is never touched. Its real-process test runs on macOS only (Linux may hand
   orphans to a subreaper instead of pid 1).
 
+- Dispatch fills only the free slots, in stage order (furthest along first), and a refused claim ends that card's
+  turn without trying the next one. A card someone else holds in a later column (another person's In Progress
+  card) therefore took the only free slot every poll and the Todo cards never ran: one agent short of the limit,
+  with `ticket claim refused` every 30 s in the log. Refused cards now rank last for 10 minutes
+  (`state.claimRefused`, like workspace-locked cards). Any new reason to refuse a card must also rank it last,
+  or it starves the queue the same way.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

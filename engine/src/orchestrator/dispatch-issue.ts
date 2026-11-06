@@ -10,6 +10,7 @@ import { runWorker, type WorkerConfig, type WorkerResult } from "../worker/runne
 import { canDispatch, type InodePressureState } from "../workspace/inode-pressure.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
 import { claimForDispatch } from "./claim-gate.js";
+import { noteClaimRefused } from "./dispatcher.js";
 import { hasNoLiveWork, liveSessionReason, logDispatchSuppressed } from "./session-guard.js";
 import { makeWorkerCallbacks } from "./turn-telemetry.js";
 import {
@@ -118,7 +119,15 @@ export async function dispatchIssue(
   // Make the claim visible in the tracker before any work starts (FRG-1988).
   // No-op with the master `custom_workflows` flag off.
   const claim = await claimForDispatch(deps.tracker, deps.config, issue);
-  if (!claim.dispatch) return;
+  if (!claim.dispatch) {
+    // Someone else holds the card: rank it last for a while so the free slot
+    // goes to the next card. A claim error is transient and isn't remembered.
+    if (claim.reason === "already-claimed" || claim.reason === "lost-race") {
+      noteClaimRefused(deps.state, issue.id);
+    }
+    return;
+  }
+  deps.state.claimRefused.delete(issue.id);
   if (deps.isStopped() || deps.isDraining()) return;
   // Re-check synchronously before claiming: a concurrent retry or poll may
   // have registered this issue while the tracker calls above were in flight.

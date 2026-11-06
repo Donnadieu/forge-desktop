@@ -297,6 +297,13 @@ export interface OrchestratorState {
    * and is listed in the state snapshot.
    */
   workspaceLocked: Map<string, WorkspaceLockedEntry>;
+  /**
+   * Issue id → `Date.now()` when its claim was last refused because someone
+   * else holds the card. Those issues rank last for dispatch for a while
+   * (`CLAIM_REFUSED_BACKOFF_MS`), so a card held by another person or agent
+   * can't take the free slot every poll and starve the cards behind it.
+   */
+  claimRefused: Map<string, number>;
 }
 
 /** An issue refused dispatch because its workspace lock has a live holder. */
@@ -342,6 +349,7 @@ export function createInitialState(): OrchestratorState {
     terminalBuildOutcome: undefined,
     dispatchHoldLogged: new Set(),
     workspaceLocked: new Map(),
+    claimRefused: new Map(),
   };
 }
 

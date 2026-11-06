@@ -7,6 +7,7 @@ vi.mock("../../../src/worker/runner.js", () => ({
 }));
 
 import { type DispatchIssueDeps, dispatchIssue } from "../../../src/orchestrator/dispatch-issue.js";
+import { selectIssuesToDispatch } from "../../../src/orchestrator/dispatcher.js";
 import { createInitialState, type OrchestratorState } from "../../../src/orchestrator/types.js";
 import { MemoryTracker } from "../../../src/tracker/memory.js";
 import type { NormalizedIssue } from "../../../src/tracker/types.js";
@@ -131,5 +132,74 @@ describe("dispatchIssue — ticket claim (FRG-1988)", () => {
     );
 
     expect(state.running.size).toBe(0);
+    // A claim error is transient: the card keeps its rank.
+    expect(state.claimRefused.size).toBe(0);
+  });
+
+  it("remembers a card someone else holds, not one it claimed", async () => {
+    const tracker = new MemoryTracker([makeIssue()]);
+    const state = createInitialState();
+    const config = { customWorkflows: true, logger: { warn: vi.fn(), info: vi.fn() } };
+
+    await dispatchIssue(
+      makeDeps(state, tracker, { ...config, claimOptions: { assignee: "agent-2" } }),
+      makeIssue(),
+    );
+    expect(state.running.size).toBe(1);
+    expect(state.claimRefused.size).toBe(0);
+
+    const other = createInitialState();
+    await dispatchIssue(
+      makeDeps(other, tracker, { ...config, claimOptions: { assignee: "agent-1" } }),
+      makeIssue(),
+    );
+    expect(other.running.size).toBe(0);
+    expect(other.claimRefused.has("issue-1")).toBe(true);
+  });
+
+  it("a card held by someone else no longer takes the only free slot every poll", async () => {
+    // The ConstructEase stall: a card another person holds sits in a later
+    // column, so it ranks first; with one free slot it was tried and refused
+    // every poll and the Todo card behind it never ran.
+    const held: NormalizedIssue = {
+      ...makeIssue(),
+      id: "held",
+      identifier: "BC-1",
+      state: "In Progress",
+    };
+    const todo: NormalizedIssue = { ...makeIssue(), id: "todo", identifier: "BC-2", state: "Todo" };
+    const tracker = new MemoryTracker([held, todo]);
+    await tracker.claimIssue(
+      { issueId: "held", assignee: "someone-else" },
+      { activeStates: ["Todo", "In Progress"] },
+    );
+    const state = createInitialState();
+    const deps = makeDeps(state, tracker, {
+      customWorkflows: true,
+      claimOptions: { assignee: "forge" },
+      logger: { warn: vi.fn(), info: vi.fn() },
+      trackerConfig: {
+        kind: "memory",
+        project_slug: "x",
+        active_states: ["Todo", "In Progress"],
+        terminal_states: ["Done"],
+      },
+    });
+    const select = () =>
+      selectIssuesToDispatch([held, todo], state, {
+        active_states: ["Todo", "In Progress"],
+        terminal_states: ["Done"],
+        max_concurrent_agents: 1,
+      });
+
+    // First poll: the held card ranks first and its claim is refused.
+    expect(select().map((i) => i.id)).toEqual(["held"]);
+    for (const issue of select()) await dispatchIssue(deps, issue);
+    expect(state.running.size).toBe(0);
+    expect(state.claimRefused.has("held")).toBe(true);
+
+    // Next poll: the free slot goes to the Todo card.
+    for (const issue of select()) await dispatchIssue(deps, issue);
+    expect([...state.running.keys()]).toEqual(["todo"]);
   });
 });

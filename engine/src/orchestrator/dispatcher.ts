@@ -142,6 +142,35 @@ function hasNonTerminalBlockers(
 }
 
 /**
+ * How long a card whose claim was refused (someone else holds it) ranks last.
+ * After that it gets one try at its normal rank, so a card the other holder
+ * gave back is picked up again without waiting for the whole queue.
+ */
+export const CLAIM_REFUSED_BACKOFF_MS = 10 * 60 * 1000;
+
+/** Remember that `issueId`'s claim was refused, dropping marks that expired. */
+export function noteClaimRefused(
+  state: OrchestratorState,
+  issueId: string,
+  now = Date.now(),
+): void {
+  for (const [id, at] of state.claimRefused) {
+    if (now - at >= CLAIM_REFUSED_BACKOFF_MS) state.claimRefused.delete(id);
+  }
+  state.claimRefused.set(issueId, now);
+}
+
+/** Whether `issueId`'s claim was refused within the backoff window. */
+export function claimRefusedRecently(
+  state: OrchestratorState,
+  issueId: string,
+  now = Date.now(),
+): boolean {
+  const at = state.claimRefused.get(issueId);
+  return at !== undefined && now - at < CLAIM_REFUSED_BACKOFF_MS;
+}
+
+/**
  * Select issues to dispatch from candidates.
  */
 export function selectIssuesToDispatch(
@@ -157,8 +186,13 @@ export function selectIssuesToDispatch(
   const sorted = sortIssuesForDispatch(candidates, config.active_states);
   // Issues whose workspace another live process holds go last (FRG-4527): they
   // are re-checked at the start of every tick, but cannot starve the rest.
-  const locked = (issue: NormalizedIssue) => state.workspaceLocked.has(issue.id);
-  sorted.sort((a, b) => Number(locked(a)) - Number(locked(b)));
+  // Cards someone else holds (claim refused recently) go last too, for the same
+  // reason: tried every poll at their stage's rank, they took the only free slot
+  // and the cards behind them never ran.
+  const now = Date.now();
+  const last = (issue: NormalizedIssue) =>
+    state.workspaceLocked.has(issue.id) || claimRefusedRecently(state, issue.id, now);
+  sorted.sort((a, b) => Number(last(a)) - Number(last(b)));
   const selected: NormalizedIssue[] = [];
   // `inFlightCount` is loop-invariant: selected issues aren't registered in
   // `state` until after this function returns, so only `selected.length` grows.

@@ -150,7 +150,9 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 - "All workspaces" (`UI/AllWorkspacesScreen.swift`) shows every running workspace's cards in one Orchestrator, with a
   Workspace column; a row opens that project.
 - Roles (`Core/Roles.swift`): Plans, Builds, Reviews and Tests can each have their own provider account and model
-  (`SetupChoices.roles`); stages no role takes use the project's own. The workflow file lists them under
+  (`SetupChoices.roles`, per project); stages no role takes use the project's own (its default, setup 5). They are
+  picked on Workflow Studio, one picker on each role's first stage (`UI/StageRoles.swift`, `StageRole.cell`; Rework
+  follows In Progress); setup 5 keeps only providers, accounts and the default model. The workflow file lists them under
   `agent.roles` and each role's account reaches the engine under `FORGE_ROLE_<n>_`, so two accounts never share a
   variable; the engine picks the agent by the card's stage and a card moving to another role's stage ends its run so
   that role's agent picks it up (`engine/src/agent/roles.ts`).

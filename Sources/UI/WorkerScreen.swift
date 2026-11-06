@@ -24,8 +24,6 @@ struct WorkerScreen: View {
     @State private var signingIn: AIAccount?
     /// The account waiting for the person's yes to clear it.
     @State private var clearing: AIAccount?
-    /// Stages with their own account and model (RolesPanel).
-    @State private var roles: [RoleChoice] = []
     @StateObject private var signIn = AgentSignIn()
 
     /// The provider's name on screen, whichever way it signs in.
@@ -64,15 +62,18 @@ struct WorkerScreen: View {
                     ) { newAccountForm }
                     .frame(maxWidth: 640)
                 }
-                HStack(spacing: 12) {
-                    Text("Model").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                    Picker("", selection: $agentModel) {
-                        ForEach(provider.models, id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 12) {
+                        Text("Default model").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                        Picker("", selection: $agentModel) {
+                            ForEach(provider.models, id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
                     }
-                    .labelsHidden()
-                    .fixedSize()
+                    Text("Each stage can use another provider, account or model in Workflow Studio.")
+                        .font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
                 }
-                if !model.store.accounts.isEmpty { RolesPanel(model: model, roles: $roles) }
                 if works { GoodLine(text: "\(chosen?.name ?? provider.name) answered. It's ready to work.") }
                 if let problem {
                     Notice(
@@ -155,13 +156,6 @@ struct WorkerScreen: View {
         selected = a?.id ?? accounts.first?.id ?? AIAccount.addingID
         agentModel = model.choices.model.flatMap { m in provider.models.contains(m) ? m : nil } ?? provider.models[0]
         works = model.preview && model.choices.workerChecked && a != nil
-        roles = model.choices.roles ?? []
-        if model.preview, model.sample.scene == "roles" {
-            roles = [
-                RoleChoice(role: .builds, accountID: "sample-codex"),
-                RoleChoice(role: .reviews, accountID: "sample-work", model: "claude-opus-5"),
-            ]
-        }
         guard model.preview, let scene = model.sample.scene else { return }
         if scene.hasPrefix("signed-out") {
             problem = "\(provider.name) said: Failed to authenticate: OAuth session expired and could not be refreshed"
@@ -245,8 +239,7 @@ struct WorkerScreen: View {
         model.choices.model = agentModel.isEmpty ? nil : agentModel
         model.choices.workerChecked = true
         // A role whose account was cleared meanwhile is dropped.
-        let kept = roles.filter { model.store.account($0.accountID) != nil }
-        model.choices.roles = kept.isEmpty ? nil : kept
+        model.choices.roles = model.choices.roles.flatMap { model.choices.keptRoles($0, store: model.store) }
         model.next()
     }
 }

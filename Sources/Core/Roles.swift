@@ -26,11 +26,48 @@ enum StageRole: String, Codable, CaseIterable, Sendable {
     }
 }
 
+extension StageRole {
+    /// The role that works a stage, if any.
+    static func of(_ stage: String) -> StageRole? { allCases.first { $0.stages.contains(stage) } }
+
+    /// What Workflow Studio shows beside a stage: a picker on a role's first stage, "Same as <first>" on its others,
+    /// "Default provider" on the other agent stages, "you" on the person's, nothing at the end.
+    enum Cell: Equatable {
+        case picker(StageRole)
+        case follows(String)
+        case usesDefault, you, none
+    }
+
+    static func cell(_ stage: String) -> Cell {
+        if let r = of(stage) { return r.stages.first == stage ? .picker(r) : .follows(r.stages[0]) }
+        switch Pipeline.who(stage) {
+        case "agent": return .usesDefault
+        case "you": return .you
+        default: return .none
+        }
+    }
+
+    /// How many roles differ between two lists (unsaved changes on Workflow Studio).
+    static func changes(_ a: [RoleChoice], _ b: [RoleChoice]) -> Int {
+        allCases.filter { r in a.first { $0.role == r } != b.first { $0.role == r } }.count
+    }
+}
+
 /// One role's provider: the account it uses (its provider comes with it) and its model ("" or nil = the usual).
 struct RoleChoice: Codable, Equatable, Sendable {
     var role: StageRole
     var accountID: String
     var model: String?
+
+    /// Workflow Studio's picker picks account and model in one list: each entry is "<account id>\t<model>".
+    static func pickKey(_ accountID: String, _ model: String) -> String { accountID + "\t" + model }
+
+    /// The role a picker entry stands for, or nil for "Default provider" ("").
+    static func picked(_ key: String, role: StageRole) -> RoleChoice? {
+        let parts = key.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 2, !parts[0].isEmpty else { return nil }
+        return RoleChoice(role: role, accountID: parts[0], model: parts[1].isEmpty ? nil : parts[1])
+    }
 }
 
 extension IntelligenceProvider {
@@ -52,6 +89,12 @@ extension SetupChoices {
             guard let c = mine.first(where: { $0.role == r }), let a = store.account(c.accountID) else { return nil }
             return (c, a)
         }
+    }
+
+    /// The roles worth keeping: ones whose account still exists (a cleared account's role falls back to the default).
+    func keptRoles(_ list: [RoleChoice], store: SetupStore) -> [RoleChoice]? {
+        let kept = list.filter { store.account($0.accountID) != nil }
+        return kept.isEmpty ? nil : kept
     }
 
     /// The prefix a role's account variables reach the engine under: `FORGE_ROLE_<n>_`.

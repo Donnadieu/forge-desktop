@@ -148,6 +148,7 @@ extension Checks {
         check(
             "a role's key is passed only under its prefix", env?["FORGE_ROLE_0_OPENAI_API_KEY"] == "secret-codex-1" && env?["OPENAI_API_KEY"] == nil)
         check("no roles, nothing added", EngineSettings.roleLines(SetupChoices(), store: s).isEmpty)
+        roleStudioChecks(check, c, s)
         let missing = (try? EngineSettings.roleEnv(c, store: s, defaultVars: []) { _ in nil }) == nil
         check("a role on a key Forge lost stops the start with a plain line", missing)
 
@@ -191,5 +192,36 @@ extension Checks {
         )
         for p in s.projects { print("  engine folder of \(p.id): \(p.folder ?? "Forge's own")") }
         return s.version >= 2 && s.current != nil ? 0 : 1
+    }
+
+    /// Roles on Workflow Studio (moved from setup 5): one picker per role on its first stage, and the roles saved
+    /// before the move still read the same.
+    static func roleStudioChecks(_ check: (String, Bool) -> Void, _ c: SetupChoices, _ s: SetupStore) {
+        check("a role's picker sits on its first stage", StageRole.cell("In Progress") == .picker(.builds) && StageRole.cell("QA") == .picker(.tests))
+        check("Rework follows In Progress", StageRole.cell("Rework") == .follows("In Progress"))
+        check(
+            "other agent stages use the default, the person's say you",
+            StageRole.cell("Todo") == .usesDefault && StageRole.cell("Merging") == .usesDefault && StageRole.cell("Human Review") == .you
+                && StageRole.cell("Backlog") == .you && StageRole.cell("Done") == .none)
+        let pickers = Pipeline.names.filter { StageRole.allCases.map(StageRole.Cell.picker).contains(StageRole.cell($0)) }
+        check("every role has one picker", pickers == ["Triage", "In Progress", "AI Review", "QA"])
+        let opus = RoleChoice(role: .reviews, accountID: "claude-1", model: "claude-opus-5")
+        check(
+            "a picker entry gives back its account and model",
+            RoleChoice.picked(RoleChoice.pickKey("claude-1", "claude-opus-5"), role: .reviews) == opus)
+        check("Codex's usual model is saved as no model", RoleChoice.picked(RoleChoice.pickKey("codex-1", ""), role: .builds)?.model == nil)
+        check("Default provider is no role", RoleChoice.picked("", role: .builds) == nil)
+        let before = c.roles ?? []
+        check("unsaved role changes are counted per role", StageRole.changes(before, before) == 0 && StageRole.changes(before, [opus]) == 2)
+        check("a cleared account's role is dropped on save", c.keptRoles(before, store: s)?.count == 2 && c.keptRoles([], store: s) == nil)
+        // Roles saved by 0.2.18-0.2.21 (from setup 5) live in the project's setup.json: same field, read unchanged.
+        let v0221 =
+            #"{"linearUser":"a","columnsReady":true,"repoChecked":true,"workerChecked":true,"repoReady":true,"accountID":"claude-1","#
+            + #""roles":[{"role":"builds","accountID":"codex-1"},{"role":"reviews","accountID":"claude-1","model":"claude-opus-5"}]}"#
+        let old = try? JSONDecoder().decode(SetupChoices.self, from: Data(v0221.utf8))
+        check("roles saved before the move still load", old?.roleAccounts(s).map(\.choice.role) == [.builds, .reviews])
+        var w = old ?? SetupChoices()
+        WorkflowSettings(w).apply(to: &w)
+        check("Workflow Studio's per-workspace settings leave a project's roles alone", w.roles == old?.roles)
     }
 }

@@ -86,6 +86,11 @@ Roles are groups of pipeline stages, so they line up with the board Omar already
 | Tests | QA |
 | Every other stage | whatever no other role takes (Merging, and every stage when it's the only row) |
 
+Where they're picked (Nov 5, after the build; Omar picked Direction A, Claude Design project 5cb71ba1): on Workflow
+Studio, one picker on each role's first stage row (Triage, In Progress, AI Review, QA; Rework says "Same as In
+Progress"), with the default provider shown once in the side panel. Setup 5 keeps providers, accounts and the default
+model only.
+
 Omar's example "Claude for coding and AI review, Codex for execution" reads as: Builds = Codex, Reviews = Claude
 Code (open question 3).
 

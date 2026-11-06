@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The Workflow Studio screen: which columns cards go through (optional ones turn off) and how many agents work at
-/// once. Saving rewrites the workflow file and restarts the engine.
+/// The Workflow Studio screen: which columns cards go through (optional ones turn off), who works each stage (its
+/// role's provider, account and model), and how many agents work at once. Saving rewrites the workflow file and
+/// restarts the engine.
 struct WorkflowScreen: View {
     @ObservedObject var model: AppModel
     @State private var off: Set<String> = []
@@ -13,13 +14,19 @@ struct WorkflowScreen: View {
     @State private var restarting = false
     /// Agents at once across every running workspace on this Mac (`SetupStore.agentCeiling`).
     @State private var ceiling = SetupStore.defaultCeiling
+    /// Stages with their own provider, account and model (`SetupChoices.roles`, per project).
+    @State private var roles: [RoleChoice] = []
 
     private var saved: (off: Set<String>, agents: Int) { (Set(model.choices.stagesOff ?? []), max(1, model.choices.agentsAtOnce ?? 1)) }
     private var savedMoves: (triage: Bool, todo: Bool) { (model.choices.sendNewToTriage ?? false, model.choices.startReady ?? false) }
     private var savedCeiling: Int { model.store.agentCeiling ?? SetupStore.defaultCeiling }
     private var changes: Int {
         saved.off.symmetricDifference(off).count + (saved.agents == agents ? 0 : 1) + (savedMoves.triage == toTriage ? 0 : 1)
-            + (savedMoves.todo == toTodo ? 0 : 1) + (savedCeiling == ceiling ? 0 : 1)
+            + (savedMoves.todo == toTodo ? 0 : 1) + (savedCeiling == ceiling ? 0 : 1) + roleChanges
+    }
+
+    private var roleChanges: Int {
+        StageRole.changes(model.choices.roles ?? [], roles)
     }
 
     var body: some View {
@@ -33,7 +40,7 @@ struct WorkflowScreen: View {
                 VStack(alignment: .leading, spacing: 0) {
                     PageHeader(
                         eyebrow: "Forge · Workflow Studio", title: "Workflow Studio",
-                        lead: "Which stages your cards go through. Turn off the ones you don't need.")
+                        lead: "Which stages your cards go through, and who works each one. Turn off the ones you don't need.")
                     HStack(alignment: .top, spacing: 40) {
                         stageList.frame(maxWidth: .infinity)
                         sidePanel.frame(width: 320)
@@ -50,6 +57,13 @@ struct WorkflowScreen: View {
             more = agents > 4
             (toTriage, toTodo) = savedMoves
             ceiling = savedCeiling
+            roles = model.choices.roles ?? []
+            if model.preview, model.sample.scene == "roles" {
+                roles = [
+                    RoleChoice(role: .builds, accountID: "sample-codex"),
+                    RoleChoice(role: .reviews, accountID: "sample-work", model: "claude-opus-5"),
+                ]
+            }
             if model.preview, model.sample.scene == "qa-off" { off.insert("QA") }
             if model.preview, model.sample.scene == "restarting" { restarting = true }
             if model.preview, model.sample.scene == "moves-on" { (toTriage, toTodo) = (true, true) }
@@ -72,7 +86,7 @@ struct WorkflowScreen: View {
                         if isOff { Text(Pipeline.skipLine(c.name, off: Array(off))).font(Theme.mono(11)).foregroundStyle(Theme.textSec) }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    Chip(text: Pipeline.who(c.name), tone: .quiet).opacity(isOff ? 0.4 : 1).frame(width: 48, alignment: .leading)
+                    worker(c.name).opacity(isOff ? 0.4 : 1).disabled(isOff).frame(width: 290, alignment: .leading)
                     HStack {
                         Spacer(minLength: 0)
                         if optional {
@@ -91,10 +105,33 @@ struct WorkflowScreen: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.rLg))
     }
 
+    /// Who works this stage, on its own row.
+    @ViewBuilder private func worker(_ stage: String) -> some View {
+        switch StageRole.cell(stage) {
+        case .picker(let r): StageWorkerPicker(model: model, roles: $roles, role: r)
+        case .follows(let first): Text("Same as \(first)").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+        case .usesDefault: Text("Default provider").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+        case .you: Chip(text: "you", tone: .quiet)
+        case .none: EmptyView()
+        }
+    }
+
     // MARK: Agents at once, and what the engine sees
 
     private var sidePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "Default provider")
+            HStack(alignment: .top) {
+                DefaultProviderLine(model: model)
+                Spacer()
+                Button("Change", action: changeDefault).buttonStyle(ForgeButton(kind: .ghost, icon: "arrow.up.right"))
+                    .disabled(restarting)
+            }
+            Text(
+                "Works every stage of \(model.choices.projectName ?? "this project") that has no provider of its own. Accounts are added in Settings."
+            )
+            .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             SectionLabel(text: "Agents at once")
             Segmented(
                 options: [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "+")],
@@ -216,11 +253,19 @@ struct WorkflowScreen: View {
         return "Restarting the engine… \(busy.count) agent\(busy.count == 1 ? " is" : "s are") wrapping up \(busy.joined(separator: ", ")) first."
     }
 
+    /// Setup 5 (the default provider), coming back here on Continue.
+    private func changeDefault() {
+        model.change(4)
+        model.returnTo = AppModel.workflowScreen
+    }
+
     private func save() {
         model.choices.stagesOff = Pipeline.optionalColumns.filter { off.contains($0) }
         model.choices.agentsAtOnce = max(1, agents)
         model.choices.sendNewToTriage = toTriage
         model.choices.startReady = toTodo
+        // A role whose account was cleared meanwhile is dropped.
+        model.choices.roles = model.choices.keptRoles(roles, store: model.store)
         let ceilingChanged = savedCeiling != max(1, ceiling)
         model.store.agentCeiling = max(1, ceiling) == SetupStore.defaultCeiling ? nil : max(1, ceiling)
         model.save()

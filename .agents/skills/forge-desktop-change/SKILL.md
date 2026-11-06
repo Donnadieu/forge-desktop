@@ -180,6 +180,9 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   carried in `SetupChoices.carried()` and `SetupStore.choices(for:)`, or switching projects drops it.
 - Pieces every screen shares (the top bar's workspace chip) read the model from `\.forgeModel` in the environment;
   `RootView` sets it. A popover can't be drawn by `--render-screens`: render its view on its own (`13-workspace-switcher`).
+- Roles (`SetupChoices.roles`) belong to the project, while Workflow Studio's other answers (`WorkflowSettings`) belong to
+  the workspace: Workflow Studio shows and saves the on-screen project's roles and says so in its side panel. Don't move
+  roles into `WorkflowSettings` without carrying the per-project ones over.
 - Test a migration on a copy of the real folder: `FORGE_HOME=<copy> Forge --workspaces-check` (reads only whether
   Keychain items exist, never a secret).
 

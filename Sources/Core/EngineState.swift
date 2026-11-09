@@ -17,6 +17,8 @@ struct EngineState: Decodable, Sendable, Equatable {
     var rate_limits: [String: RateLimit]?
     /// Accounts at a usage, spend or rate limit (engine orchestrator/usage-limits.ts); their cards wait for it.
     var limits: [Limit]? = nil
+    /// The disk's free space and the cards the engine stopped for filling it (engine workspace/runaway-guard.ts).
+    var disk: Disk? = nil
 
     struct RunningCard: Decodable, Sendable, Equatable {
         var issue_id: String?
@@ -57,6 +59,21 @@ struct EngineState: Decodable, Sendable, Equatable {
         var resets_at: String?
         var until: String
         var since: String
+    }
+
+    struct Disk: Decodable, Sendable, Equatable {
+        /// Under 10% free: no new card starts.
+        var low_space: Bool
+        var free_pct: Int?
+        var stopped: [Stopped]
+
+        struct Stopped: Decodable, Sendable, Equatable {
+            var issue_identifier: String
+            var grew_gb: Double
+            /// "folder" (grew more than 5 GB in one run) or "disk" (grew most while the disk was nearly full).
+            var why: String
+            var at: String
+        }
     }
 
     struct Poll: Decodable, Sendable, Equatable {

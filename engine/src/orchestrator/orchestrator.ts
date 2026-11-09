@@ -8,6 +8,7 @@ import type { NormalizedIssue, TrackerAdapter } from "../tracker/types.js";
 import { checkInodePressure, createInodePressureState } from "../workspace/inode-pressure.js";
 import { LeftoverSweeper } from "../workspace/leftover-sweep.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
+import { type DiskSnapshot, RunawayGuard } from "../workspace/runaway-guard.js";
 import { BacklogPromoter } from "./backlog-promotion.js";
 import { enforceCostCeiling } from "./cost-ceiling.js";
 import { type DispatchIssueDeps, dispatchIssue as runDispatchIssue } from "./dispatch-issue.js";
@@ -76,6 +77,8 @@ export class Orchestrator {
   private readonly inodePressure = createInodePressureState();
   // Dev servers left running by runs that ended without their engine (leftover-sweep.ts).
   private readonly leftovers = new LeftoverSweeper();
+  // Stops a card whose run fills the disk (runaway-guard.ts).
+  private readonly runaway = new RunawayGuard();
   private startupSweepPromise: Promise<void> | null = null;
   // Periodic + disk-pressure reaper for terminal-ticket workspaces; see
   // workspace-periodic-sweep.ts. Built lazily so updateConfig() can't desync it.
@@ -106,6 +109,7 @@ export class Orchestrator {
     // path (re-stamped on the idle→active transition), and while idle Runtime
     // reads 0 regardless — so a stopped→running transition has nothing to reset.
     this.stopped = false;
+    this.runaway.release();
     // Latch: the startup sweep runs exactly once per orchestrator lifetime,
     // before the first dispatch. The tick loop awaits the promise so dispatch
     // cannot outrun the reap pass.
@@ -180,6 +184,10 @@ export class Orchestrator {
       this.state.settling.clear();
       this.draining = false;
     }
+  }
+  /** Forge Desktop: the disk's free space and the cards the runaway guard stopped. */
+  getDisk(): DiskSnapshot {
+    return this.runaway.snapshot();
   }
   getState(): Readonly<OrchestratorState> {
     return this.state;
@@ -326,6 +334,18 @@ export class Orchestrator {
     if (workspaceRoot) {
       void checkInodePressure({ workspaceRoot, logger: this.config.logger }, this.inodePressure);
       void this.leftovers.maybeSweep(workspaceRoot, this.config.logger);
+      void this.runaway.maybeCheck({
+        workspaceRoot,
+        logger: this.config.logger,
+        running: () =>
+          [...this.state.running.values()].map((e) => ({
+            issueId: e.issueId,
+            identifier: e.identifier,
+            stage: e.issue.state,
+            path: e.workspacePath,
+          })),
+        stop: (issueId) => this.killWorker(issueId, "cancelled"),
+      });
     }
     const reconcileResult = await reconcileRunningIssues(this.state, this.tracker, {
       active_states: this.config.trackerConfig.active_states,
@@ -379,6 +399,7 @@ export class Orchestrator {
       }
     }
     this.checkEmptyPolls(candidates);
+    this.runaway.forgetMoved(candidates);
     const dispatchCandidates = candidates;
 
     await refreshWorkspaceLocks(this.dispatchIssueDeps(), dispatchCandidates);
@@ -387,7 +408,9 @@ export class Orchestrator {
       active_states: this.config.trackerConfig.active_states,
       terminal_states: this.config.trackerConfig.terminal_states,
       max_concurrent_agents: effectiveAgentLimit(this.config, inFlightCount(this.state)),
-      limited: (issue) => limitActive(this.state, this.config.roleOf?.(issue.state) ?? -1),
+      limited: (issue) =>
+        this.runaway.holds(issue.id) ||
+        limitActive(this.state, this.config.roleOf?.(issue.state) ?? -1),
     });
     for (const issue of toDispatch) {
       await this.dispatchIssue(issue);

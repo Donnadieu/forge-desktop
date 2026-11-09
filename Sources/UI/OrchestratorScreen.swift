@@ -28,6 +28,7 @@ struct OrchestratorScreen: View {
                     ForEach(model.limitInfos, id: \.limit.role) { info in
                         LimitBanner(info: info, switchTo: { other in act { await model.switchAccount(info, to: other) } }, open: model.openLink)
                     }
+                    if let disk = state?.disk { DiskNotice(disk: disk) }
                     StatsRow(state: state)
                     ProblemLine(text: model.moveProblem)
                     OrchestratorTables(model: model, state: state, open: $open, confirm: $confirm)

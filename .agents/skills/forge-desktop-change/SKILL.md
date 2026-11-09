@@ -130,6 +130,11 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   (`tracker/marks.ts`) when the workspace keeps Forge invisible. A new place the engine or a prompt writes to
   people goes through it too, and its words must not name Forge.
 
+- The disk gate (`workspace/inode-pressure.ts`) only refuses to START cards under 10% free; a running agent once wrote a
+  78 GB file in three minutes (`exec > f 2>&1` then `cat f`, copying the file into itself) and every card stopped with
+  nothing on screen. `workspace/runaway-guard.ts` stops such a run and the app shows why (`disk` in the engine state).
+  Anything that can stop dispatch must reach the screen the same way, never only the log.
+
 ### Sessions
 - Snapshots (`git commit-tree` in `sessions/git.ts`) must pass `--no-gpg-sign`: the person's global config may sign
   every commit, which would sign (and maybe prompt for) a private snapshot on every turn.

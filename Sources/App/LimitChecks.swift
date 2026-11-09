@@ -15,6 +15,18 @@ extension Checks {
         check("the engine's limits and waiting cards decode", decoded?.limits?.first?.kind == "spend" && decoded?.waitingForLimit == ["AIT-3"])
         let old = #"{"status":"running","running":[],"retrying":[{"issue_identifier":"AIT-3","attempt":2}]}"#
         check("an engine from before limits still decodes, with no limits", (try? EngineState.decode(Data(old.utf8)))?.limits == nil)
+        let full =
+            #"{"status":"running","running":[],"disk":{"low_space":true,"free_pct":4,"stopped":[{"issue_identifier":"BC-1","grew_gb":78,"why":"folder","at":"2026-11-09T17:02:00.000Z"}]}}"#
+        let disk = (try? EngineState.decode(Data(full.utf8)))?.disk
+        check("the engine's disk state decodes", disk?.stopped.first?.grew_gb == 78 && disk?.free_pct == 4)
+        check(
+            "a stopped card names the card, the size and how to run it again",
+            disk.flatMap(DiskNotice.words).map { $0.title.contains("BC-1: its folder grew by 78 GB") && $0.detail.contains("press Stop, then Start") }
+                == true)
+        check(
+            "a nearly full disk alone says new cards wait",
+            DiskNotice.words(.init(low_space: true, free_pct: 4, stopped: []))?.title.contains("4% free") == true
+                && DiskNotice.words(.init(low_space: false, free_pct: 40, stopped: [])) == nil)
         check("cards waiting for a limit aren't counted as retrying", s.retryingFailures == 0 && s.waitingForLimit.count == 3)
 
         guard let limit = s.limits?.first else { return check("the sample has a limit", false) }

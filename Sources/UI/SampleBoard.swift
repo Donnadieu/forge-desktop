@@ -157,6 +157,14 @@ enum SampleBoard {
         return s
     }
 
+    /// A QA run filled the disk: the engine stopped it and new cards wait for space.
+    static var diskFull: EngineState {
+        var s = state
+        s.running = Array(s.running.prefix(1))
+        s.disk = .init(low_space: true, free_pct: 4, stopped: [.init(issue_identifier: "AIT-6", grew_gb: 78, why: "folder", at: ago(600))])
+        return s
+    }
+
     /// The agent's sign-in lapsed: cards wait to try again with the reason.
     static var signedOut: EngineState {
         var s = state

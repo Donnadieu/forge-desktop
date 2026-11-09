@@ -50,6 +50,7 @@ extension ScreenRender {
             Shot(name: "7-orchestrator-stopped", screen: board, choices: ready, engine: SampleBoard.stopped),
             Shot(name: "9-orchestrator-stop-not-sent", screen: board, choices: ready, engine: SampleBoard.state, scene: "stop-not-sent"),
             Shot(name: "9-orchestrator-signed-out", screen: board, choices: ready, engine: SampleBoard.signedOut),
+            Shot(name: "9-orchestrator-disk-full", screen: board, choices: ready, engine: SampleBoard.diskFull),
             Shot(name: "9-orchestrator-linear-limit", screen: board, choices: ready, engine: SampleBoard.problem),
             Shot(name: "9-orchestrator-usage-limit", screen: board, choices: ready, engine: SampleBoard.limited, height: 1250),
             Shot(

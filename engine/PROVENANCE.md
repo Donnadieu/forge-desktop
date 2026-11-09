@@ -8,7 +8,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   Tests for code left behind were dropped (the container privilege drop, the hermes runner, the
   factory QA bound and build completion, boot scripts). Two skills tests wait for step 9
   (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts` and
-  `test/unit/workspace/leftover-sweep.test.ts` are new. `test/unit/sessions/` and its stand-in agent
+  `test/unit/workspace/leftover-sweep.test.ts` and `test/unit/workspace/runaway-guard.test.ts` are new. `test/unit/sessions/` and its stand-in agent
   (`test/fixtures/sessions/fake-claude.mjs`) are new.
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
@@ -87,7 +87,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`); records whose account the run uses (`limitKey`); hands-on callbacks per run (waiting for the person keeps the run from looking stalled) |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit`; cards whose claim was refused rank last for 10 minutes (`claimRefused`); a card waiting for a usage limit holds no slot; cards of a limited account aren't started (`limited`) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent; `takeWheel` / `handBack` (hands-on.ts) |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent; `takeWheel` / `handBack` (hands-on.ts); the runaway guard (`workspace/runaway-guard.ts`) runs each poll, its stopped cards aren't started, Start releases them |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
 | src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit`; releases only the reservation it owns (a usage-limit wait keeps the attempt number) |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
@@ -142,6 +142,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/inode-pressure.ts | 05deefb0a43a | src/workspace/inode-pressure.ts | unchanged |
 | src/workspace/lock.ts | 05deefb0a43a | src/workspace/lock.ts | stale-lock reclaim takes turns through a `.reclaiming` gate (fixes a race where two acquirers both held the lock) |
 | src/workspace/manager.ts | 05deefb0a43a | src/workspace/manager.ts | dropped remote (SSH) workspaces and the container ownership hand-off; `acquireLock` stops a card's leftover processes after taking the lock and before releasing it |
+| src/workspace/runaway-guard.ts | new | | stops a card whose folder grew more than 5 GB in one run, or the one that grew most when the disk is under 10% free; holds it until it moves or Start is pressed |
 | src/workspace/leftover-sweep.ts | new | | stops dev servers left running in card workspaces: at a run's start and end, and every 3 minutes for cards no live run holds |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
@@ -151,7 +152,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
 | src/orchestrator/shared-slots.ts | new | | the ceiling on agents across every engine on the Mac: each engine publishes its count in a shared folder |
 | src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once; `POST /api/v1/cards/<id>/message` steers a running card; `POST /api/v1/cards/<id>/stop-turn` and `/hand-back` |
-| src/server/engine-state.ts | new | | the one state object the app shows |
+| src/server/engine-state.ts | new | | the one state object the app shows (with the disk's free space and the cards the runaway guard stopped) |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |

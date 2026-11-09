@@ -32,6 +32,7 @@ export function buildEngineState(deps: EngineStateDeps): Record<string, unknown>
     totals: snapshot.codex_totals,
     rate_limits: snapshot.rate_limits,
     limits: snapshot.limits,
+    disk: deps.orchestrator.getDisk(),
     usage: { last_24h: deps.local.usageSince(dayAgo), all_time: deps.local.usageSince() },
   };
 }

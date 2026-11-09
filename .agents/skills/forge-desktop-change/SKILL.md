@@ -133,6 +133,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 ### Sessions
 - Snapshots (`git commit-tree` in `sessions/git.ts`) must pass `--no-gpg-sign`: the person's global config may sign
   every commit, which would sign (and maybe prompt for) a private snapshot on every turn.
+  Linux CI has no git identity and can't guess an email, so commit-tree fails there while it passes on a Mac: give it a
+  placeholder identity only when `git var GIT_COMMITTER_IDENT` fails.
+- `Forge --transcript-check` timings on GitHub's Mac runners are about 4x a desk Mac: the check scales its budget when
+  `CI` is set.
 - A worktree's `.git` is a file: find merge or rebase state with `git rev-parse --absolute-git-dir`, never `<folder>/.git/`.
 - `git checkout <sha> -- .` fails on an empty tree: check `git ls-tree` first.
 - Claude Code (2.1.319) sends `AskUserQuestion` and `ExitPlanMode` as `can_use_tool` requests even in

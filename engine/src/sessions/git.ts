@@ -189,14 +189,22 @@ export async function snapshot(folder: string, ref: string): Promise<string | nu
     const add = await git(folder, ["add", "-A", "."], env);
     if (!add.ok) return null;
     const tree = (await git(folder, ["write-tree"], env)).out.trim();
-    const commit = await git(folder, [
-      "commit-tree",
-      tree,
-      "-p",
-      head,
-      "-m",
-      `forge snapshot ${ref}`,
-    ]);
+    // A private snapshot is never signed (the person's config may sign every commit, and a key could prompt) and
+    // never pushed. Without a git identity on this Mac, commit-tree refuses: give it a placeholder only then.
+    const who = await git(folder, ["var", "GIT_COMMITTER_IDENT"]);
+    const anon = { GIT_AUTHOR_NAME: "Forge snapshot", GIT_AUTHOR_EMAIL: "snapshot" };
+    const commit = await git(
+      folder,
+      ["commit-tree", "--no-gpg-sign", tree, "-p", head, "-m", `forge snapshot ${ref}`],
+      who.ok
+        ? undefined
+        : {
+            ...process.env,
+            ...anon,
+            GIT_COMMITTER_NAME: anon.GIT_AUTHOR_NAME,
+            GIT_COMMITTER_EMAIL: anon.GIT_AUTHOR_EMAIL,
+          },
+    );
     const sha = commit.out.trim();
     if (!commit.ok || !sha) return null;
     await git(folder, ["update-ref", ref, sha]);

@@ -7,8 +7,11 @@ import SwiftUI
 @MainActor
 enum TranscriptCheck {
     static let turns = 12_000
-    static let openBudget = 0.5
-    static let fullBudget = 1.5
+    /// GitHub's shared Mac runners draw about 4x slower than a Mac on a desk: the budget is for the person's Mac, so CI
+    /// (which sets `CI`) gets 4x the time and still catches a list that stops reusing rows (that is 20x and more).
+    static let slack = ProcessInfo.processInfo.environment["CI"] == nil ? 1.0 : 4.0
+    static let openBudget = 0.5 * slack
+    static let fullBudget = 1.5 * slack
     static let memoryBudgetMB = 300.0
 
     static func run() -> Int32 {

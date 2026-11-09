@@ -8,7 +8,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   Tests for code left behind were dropped (the container privilege drop, the hermes runner, the
   factory QA bound and build completion, boot scripts). Two skills tests wait for step 9
   (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts` and
-  `test/unit/workspace/leftover-sweep.test.ts` are new.
+  `test/unit/workspace/leftover-sweep.test.ts` are new. `test/unit/sessions/` and its stand-in agent
+  (`test/fixtures/sessions/fake-claude.mjs`) are new.
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
   command, run the project the way its README says). The app writes the settings block above it.
@@ -144,7 +145,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/leftover-sweep.ts | new | | stops dev servers left running in card workspaces: at a run's start and end, and every 3 minutes for cards no live run holds |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead |
 | src/agent/usage-limit.ts | new | | reads a usage, spend or rate limit (and its reset time) from Claude Code, Codex, OpenRouter and Kimi failure texts |
 | src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
@@ -169,4 +170,16 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/workflow-check.ts | new | | checks a hand-edited workflow file: YAML, tabs, unknown keys with a suggestion, wrong kinds, by line |
 | src/check-workflow.ts | new | | `check-workflow.js`: the app's check before it saves an edited workflow file (adds the `{{ … }}` check) |
 | src/worker/branch.ts | new | | the card's branch: Workflow Studio's prefix plus the card id, else the tracker's; a card in flight keeps its branch |
+| src/sessions/types.ts | new | | sessions: what a session, chat, turn and event are (docs/design/sessions.md) |
+| src/sessions/store.ts | new | | the sessions host's SQLite file: sessions, chats, turns, events, the outbox |
+| src/sessions/claude-chat.ts | new | | one chat's long-lived `claude -p` (stream-json both ways): steer by writing mid-turn, interrupt, live model and permission mode, questions and plans routed back, resume |
+| src/sessions/recorder.ts | new | | Claude Code's lines as the chat's events: text as it's written, folded tool calls with one-line summaries, results cut to a preview, questions, plans and permissions |
+| src/sessions/chats.ts | new | | every chat's turns: start, steer, queue, stop, answer, settings; a snapshot before and after each turn; recovery after a restart |
+| src/sessions/checkpoints.ts | new | | per-turn changes, going back to before a turn (files and the agent's transcript cut there) |
+| src/sessions/git.ts | new | | the session's folder (a worktree on its own branch from `origin/<base>`), snapshots to private refs, the diff against the base, the gh account that reaches the repo |
+| src/sessions/github.ts | new | | the session's pull request, its review threads (GraphQL `reviewThreads`) and the merge |
+| src/sessions/host.ts | new | | the sessions host: make, list, archive, restore and merge sessions; changes, pull request, review comments, revert |
+| src/sessions/conductor.ts | new | | import from Conductor: its database read immutable, open workspaces as sessions in place, chats with their history and Claude Code session ids |
+| src/sessions/api.ts | new | | the sessions host's local API (127.0.0.1, launch token, HTTP + live WebSocket) |
+| src/sessions/main.ts | new | | the sessions host's entry (`FORGE_ENGINE_MODE=sessions`) |
 | Nov 9, 2026 (what others see) | | | `config/schema.ts` gains `marks`; `worker/runner.ts` takes the branch from `branch.ts`; `worker/helper-wait.ts` says "This run stopped"; `orchestrator/workpad-parser.ts` reads `## Workpad` and the older heading; the three `mcp/` servers refuse marked writes when invisible and GitHub/Basecamp send the plain user agent (also `tracker/basecamp.ts`, `tracker/github.ts`); `workspace/copy-assets.ts` installs the guard; `index.ts` wires it; `workflow/*.md` and the skills lose the words agents could repeat |

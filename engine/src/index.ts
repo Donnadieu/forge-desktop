@@ -36,6 +36,7 @@ import { SharedSlots } from "./orchestrator/shared-slots.js";
 import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
+import { runSessionsHost } from "./sessions/main.js";
 import { openLocalStore } from "./store/local-store.js";
 import { marksNote, resolveMarks } from "./tracker/marks.js";
 import type { TrackerConfig } from "./tracker/types.js";
@@ -256,7 +257,8 @@ async function main(): Promise<void> {
   logger.info({ port: api.port }, "Forge engine ready");
 }
 
-main().catch((err) => {
+// FORGE_ENGINE_MODE=sessions: the sessions host (chats with agents) instead of a board engine.
+(process.env.FORGE_ENGINE_MODE === "sessions" ? runSessionsHost() : main()).catch((err) => {
   process.stderr.write(
     `Forge engine could not start: ${err instanceof Error ? err.message : err}\n`,
   );

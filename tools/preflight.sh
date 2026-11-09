@@ -54,6 +54,10 @@ for _ in $(seq 1 40); do kill -0 "$PID" 2>/dev/null || break; sleep 0.25; done
 if kill -0 "$PID" 2>/dev/null; then kill -9 "$PID" 2>/dev/null; bad "the app ignored SIGTERM" "the SIGTERM handler must quit through AppDelegate.quitSoon()"; else ok "the app quits on SIGTERM"; fi
 rm -f "$OUT"
 if "$BIN" --engine-check; then ok "the engine starts, answers only with its token, is watched and stops"; else bad "engine check failed" "see the ✗ lines above; the engine log is in the scratch folder it names"; fi
+SCRATCH=$(mktemp -d -t forge-sessions)
+if FORGE_HOME="$SCRATCH" FORGE_CLAUDE_COMMAND="$PWD/engine/test/fixtures/sessions/fake-claude.mjs" "$BIN" --sessions-check; then ok "a chat runs end to end: steer, queue, stop, turns read back"; else bad "sessions check failed" "see the ✗ lines above; its log is in $SCRATCH/logs"; fi
+rm -rf "$SCRATCH"
+if "$BIN" --transcript-check 2>/dev/null; then ok "a 12,000-turn chat and a 5,000-line diff stay in budget"; else bad "the long-chat budget failed" "see docs/design/sessions.md section 7"; fi
 
 echo; echo "Guardrails"
 if python3 tools/lint/forge-lint.py --prove >/dev/null; then ok "every lint rule blocks its planted violation"; else bad "a lint rule let its canary through" "run tools/lint/forge-lint.py --prove"; fi

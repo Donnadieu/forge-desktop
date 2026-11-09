@@ -173,6 +173,30 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   --workspaces-check` runs it on a copy of Forge's folder (`FORGE_HOME`).
 - The design: [design/workspaces-design.md](design/workspaces-design.md).
 
+## Sessions (chats with agents)
+
+- The design: [design/sessions.md](design/sessions.md); the plan: [exec-plans/active/sessions.md](exec-plans/active/sessions.md).
+- One sessions host per Mac: the same bundled engine started with `FORGE_ENGINE_MODE=sessions` (`EngineHost.sessions`,
+  folder `sessions/` with `sessions.sqlite`, Forge's clones in `repos/`, every session's folder in `folders/`). Same
+  127.0.0.1 port, launch token and live WebSocket as a board engine (`engine/src/sessions/api.ts`); the app talks to it
+  through `Core/SessionsClient.swift` and keeps its state in `UI/SessionsModel.swift`.
+- A session is a git worktree on its own branch from `origin/<base>`, hung off the person's own checkout when the
+  workspace knows one (`SessionRepo.local`, `~/Repos/<name>` is found by itself) or Forge's clone; `.env*` files git
+  ignores come along. The branch prefix is the GitHub login that can push to the repo (`gh auth token -u`, never a switch
+  of gh's active account), which also reaches the agent as `GH_TOKEN`.
+- A chat is one long-lived `claude -p` process speaking stream-json both ways, run with this Mac's own Claude Code
+  sign-in (as Conductor did, so imported chats resume). A message written while a turn runs steers it; Stop is the
+  `interrupt` control request; the model and permission mode change live; questions (`AskUserQuestion`), plans
+  (`ExitPlanMode`) and, with "Ask before changes", permissions come back as `can_use_tool` requests the screen answers.
+- Every event is stored before the app hears about it; text being written reaches the app at most every 50 ms. Each turn
+  is bracketed by snapshots of the folder (private refs `refs/forge/checkpoints/…`, never signed); going back to before a
+  turn restores the files and cuts Claude Code's transcript there, so the agent forgets it.
+- Import from Conductor reads its database immutable and brings the open workspaces over in place, with their chats'
+  history (Conductor kept Claude Code's own lines) and session ids.
+- The transcript is a native `List` (it reuses rows) of one row per turn, 50 turns loaded at a time; `Forge
+  --transcript-check` holds the budget (a 12,000-turn chat opens in under 0.5 s) and `Forge --sessions-check` runs a
+  chat end to end against the real host with a stand-in agent. Both run in preflight.
+
 ## Intelligence providers and their accounts
 
 - `Core/Accounts.swift` keeps `store.json`: trackers, projects (each on one tracker and mapped to one repo) and

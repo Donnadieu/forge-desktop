@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
 
     /// Render mode: views draw sample data and never touch Linear, Basecamp, GitHub or the Keychain.
     let preview: Bool
+    /// The Sessions screen's chats (SessionsModel.swift).
+    let sessions: SessionsModel
     var sample = Sample()
     /// Each project's link to its engine (AppModel+Fleet.swift); `link` is the one on screen.
     var links: [String: BoardLink] = [:]
@@ -93,6 +95,7 @@ final class AppModel: ObservableObject {
 
     init(preview: Bool = false, choices: SetupChoices? = nil, screen: Int? = nil) {
         self.preview = preview
+        self.sessions = SessionsModel(preview: preview)
         var c = choices ?? (preview ? SetupChoices() : SetupChoices.load())
         self.store = preview ? Self.sampleStore(&c) : SetupStore.load(migrating: &c)
         self.choices = c
@@ -116,6 +119,8 @@ final class AppModel: ObservableObject {
     static let allWorkspacesScreen = 10
     /// Workflow Studio's "Edit workflow file": the real WORKFLOW.md, checked before it saves.
     static let workflowFileScreen = 11
+    /// Sessions: the chats you have with agents in the workspace on screen (docs/design/sessions.md).
+    static let sessionsScreen = 12
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
@@ -158,7 +163,7 @@ final class AppModel: ObservableObject {
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.workflowFileScreen, s))
+        screen = max(0, min(Self.sessionsScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
         if screen != Self.harnessScreen { harnessOffer = nil }
     }

@@ -11,15 +11,22 @@ import Security
 /// - Stopped by draining: SIGTERM lets running agents finish (the engine's drain window), then SIGKILL.
 actor EngineHost {
     static let shared = EngineHost(home: Paths.home, logs: Paths.logs)
+    /// The sessions host: the same engine in its sessions mode (chats with agents), one per Mac.
+    static let sessions = EngineHost(
+        home: Paths.home.appendingPathComponent("sessions"), logs: Paths.logs.appendingPathComponent("sessions"), sessions: true)
 
     /// This engine's folder: its workflow file, its store and its card folders.
     let home: URL
     /// Where its log goes.
     let logs: URL
 
-    init(home: URL, logs: URL) {
+    /// Runs the engine's sessions mode (no workflow file, no board).
+    let sessionsMode: Bool
+
+    init(home: URL, logs: URL, sessions: Bool = false) {
         self.home = home
         self.logs = logs
+        self.sessionsMode = sessions
     }
 
     nonisolated var workflow: URL { home.appendingPathComponent("WORKFLOW.md") }
@@ -97,8 +104,9 @@ actor EngineHost {
 
     private func launch() async throws -> Connection {
         let (node, script) = try EngineHost.locate()
-        guard FileManager.default.fileExists(atPath: workflow.path) else { throw Failure.noWorkflow }
+        guard sessionsMode || FileManager.default.fileExists(atPath: workflow.path) else { throw Failure.noWorkflow }
         try? FileManager.default.createDirectory(at: logs, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         let token = EngineHost.newToken()
         let p = Process()
         p.executableURL = URL(fileURLWithPath: node)
@@ -111,6 +119,7 @@ actor EngineHost {
         // The engine keeps its workflow and store here; the app's own commands (token renewal) still use Forge's.
         env["FORGE_ENGINE_HOME"] = home.path
         env["FORGE_LOG_FILE"] = logs.appendingPathComponent("engine.log").path
+        if sessionsMode { env["FORGE_ENGINE_MODE"] = "sessions" }
         p.environment = env
         p.currentDirectoryURL = home
         let out = Pipe()

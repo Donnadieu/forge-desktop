@@ -130,6 +130,16 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   (`tracker/marks.ts`) when the workspace keeps Forge invisible. A new place the engine or a prompt writes to
   people goes through it too, and its words must not name Forge.
 
+### Sessions
+- Snapshots (`git commit-tree` in `sessions/git.ts`) must pass `--no-gpg-sign`: the person's global config may sign
+  every commit, which would sign (and maybe prompt for) a private snapshot on every turn.
+- A worktree's `.git` is a file: find merge or rebase state with `git rev-parse --absolute-git-dir`, never `<folder>/.git/`.
+- `git checkout <sha> -- .` fails on an empty tree: check `git ls-tree` first.
+- Claude Code (2.1.319) sends `AskUserQuestion` and `ExitPlanMode` as `can_use_tool` requests even in
+  `bypassPermissions`; answer a question with `updatedInput.answers` = {question: label}. Approving a plan switches the
+  session to `default`, so set the permission mode back or the next Bash call asks.
+- Test chats with `engine/test/fixtures/sessions/fake-claude.mjs` (`FORGE_CLAUDE_COMMAND`), never a real `claude`.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

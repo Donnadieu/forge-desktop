@@ -12,7 +12,7 @@ const SRC = join(import.meta.dirname, "../../src");
  * Layer 1 (Infrastructure): workspace, agent (impls), tracker (impls), mcp (Linear tools for agents),
  *   store (the engine's local SQLite file)
  * Layer 2 (Execution): worker
- * Layer 3 (Coordination): orchestrator, then server (the local API the app talks to)
+ * Layer 3 (Coordination): orchestrator, then server (the local API the app talks to), sessions (chats)
  * Layer 4 (Entry): src/index.ts
  */
 const ALLOWED_DEPS: Record<string, string[]> = {
@@ -28,6 +28,8 @@ const ALLOWED_DEPS: Record<string, string[]> = {
   worker: ["agent", "tracker", "workspace", "telemetry"],
   orchestrator: ["agent", "tracker", "workspace", "worker", "observability", "telemetry", "config"],
   server: ["orchestrator", "observability", "config", "store"],
+  // The sessions host (chats with agents): beside the orchestrator, sharing the process tree, logger and API helpers.
+  sessions: ["process", "observability", "server"],
 };
 
 /** Forge's web platform. None of it comes over (docs/ARCHITECTURE.md, "Never in the engine"). */

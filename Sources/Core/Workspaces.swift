@@ -18,6 +18,11 @@ struct Workspace: Codable, Equatable, Identifiable, Sendable {
     var running: Bool?
     /// Workflow Studio's settings for its projects.
     var workflow: WorkflowSettings?
+    /// Repos its sessions can work on besides its projects' (chats need no tracker).
+    var repos: [SessionRepo]?
+    /// What a new chat starts with (nil = Opus 5.5 · 1M on high effort).
+    var sessionModel: String?
+    var sessionEffort: String?
 
     static let colors = ["heat", "green", "cream", "grey", "red", "gold"]
 
@@ -30,6 +35,15 @@ struct Workspace: Codable, Equatable, Identifiable, Sendable {
         if capitals.count >= 2 { return String(capitals.prefix(2)) }
         return word.isEmpty ? "W" : String(word.prefix(2)).uppercased()
     }
+}
+
+/// A repo a workspace's sessions work on: `owner/name`, the person's own checkout if they have one (session folders
+/// then hang off it as git worktrees, and its `.env` files come along), and the branch new sessions start from.
+struct SessionRepo: Codable, Equatable, Sendable, Identifiable {
+    var repo: String
+    var local: String?
+    var base: String?
+    var id: String { repo }
 }
 
 /// Workflow Studio's answers, kept per workspace (`setup.json` holds the running workspace's).

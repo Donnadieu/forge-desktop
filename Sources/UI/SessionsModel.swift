@@ -1,0 +1,323 @@
+import Foundation
+import SwiftUI
+
+/// One chat's transcript as the screen shows it: the latest turns first loaded, older ones on demand, and every
+/// live change applied in place. Only the turn being written changes; finished turns stay as they are.
+@MainActor
+final class Transcript: ObservableObject {
+    let chatID: String
+    @Published private(set) var turns: [Sessions.Turn] = []
+    @Published private(set) var total = 0
+    @Published var loading = false
+    var hasOlder: Bool { (turns.first?.seq ?? 1) > 1 && turns.count < total }
+
+    init(chatID: String, turns: [Sessions.Turn] = [], total: Int? = nil) {
+        self.chatID = chatID
+        self.turns = turns
+        self.total = total ?? turns.count
+    }
+
+    func load(_ client: SessionsClient?) async {
+        guard let client, !loading else { return }
+        loading = true
+        defer { loading = false }
+        if let t = try? await client.turns(chat: chatID) {
+            turns = t.turns
+            total = t.total
+        }
+    }
+
+    func loadOlder(_ client: SessionsClient?) async {
+        guard let client, !loading, hasOlder, let first = turns.first?.seq else { return }
+        loading = true
+        defer { loading = false }
+        if let t = try? await client.turns(chat: chatID, before: first) {
+            turns = t.turns + turns
+            total = t.total
+        }
+    }
+
+    func apply(_ t: Sessions.Turn) {
+        if let i = turns.firstIndex(where: { $0.id == t.id }) {
+            var next = t
+            next.events = turns[i].events
+            turns[i] = next
+        } else {
+            turns.append(t)
+            total += 1
+        }
+    }
+
+    func apply(_ e: Sessions.Event) {
+        guard let i = turns.lastIndex(where: { $0.id == e.turnId }) else { return }
+        if let j = turns[i].events.firstIndex(where: { $0.id == e.id }) {
+            turns[i].events[j] = e
+        } else {
+            turns[i].events.append(e)
+        }
+    }
+
+    func dropFrom(seq: Int) {
+        turns.removeAll { $0.seq >= seq }
+        total = turns.count
+    }
+}
+
+/// The Sessions screen's model: the sessions host's connection, the sessions, which one is open, each chat's
+/// transcript, and every action the screen offers. In render mode it holds sample data and never starts the host.
+@MainActor
+final class SessionsModel: ObservableObject {
+    @Published var sessions: [Sessions.Session] = []
+    @Published var selected: String?
+    /// The chat shown for each session (its tab).
+    @Published var activeChat: [String: String] = [:]
+    /// A second chat shown side by side (any session's).
+    @Published var splitChat: String?
+    @Published var composing = false
+    @Published var problem: String?
+    @Published var busy = false
+    @Published var changes: [String: [Sessions.FileChange]] = [:]
+    @Published var pullRequests: [String: Sessions.PullRequest] = [:]
+    @Published var openDiff: (session: String, path: String, text: String)?
+    @Published var showChanges = true
+    @Published var reviewSheet: ReviewSheet?
+    @Published var importSheet: Sessions.ConductorPreview?
+    @Published var drafts: [String: String] = [:]
+    @Published var pickerOpen = false
+    @Published var connected = false
+
+    struct ReviewSheet: Equatable {
+        var session: String
+        var number: Int
+        var threads: [Sessions.ReviewThread]
+        var picked: Set<String>
+    }
+
+    let preview: Bool
+    private(set) var client: SessionsClient?
+    private var live: URLSessionWebSocketTask?
+    private var transcripts: [String: Transcript] = [:]
+
+    init(preview: Bool) {
+        self.preview = preview
+        if preview { SampleSessions.fill(self) }
+    }
+
+    var current: Sessions.Session? { sessions.first { $0.id == selected } }
+
+    func sessions(in workspace: String?) -> [Sessions.Session] {
+        sessions.filter { !$0.archived && (workspace == nil || $0.workspaceId == workspace || $0.workspaceId == "default") }
+    }
+
+    func chat(_ id: String?) -> Sessions.Chat? {
+        guard let id else { return nil }
+        return sessions.lazy.flatMap(\.chats).first { $0.id == id }
+    }
+
+    func activeChat(of s: Sessions.Session) -> Sessions.Chat? {
+        chat(activeChat[s.id]) ?? s.chats.first
+    }
+
+    func session(of chat: Sessions.Chat) -> Sessions.Session? { sessions.first { $0.id == chat.sessionId } }
+
+    func transcript(_ chatID: String) -> Transcript {
+        if let t = transcripts[chatID] { return t }
+        let t = Transcript(chatID: chatID)
+        transcripts[chatID] = t
+        if !preview { Task { await t.load(client) } }
+        return t
+    }
+
+    func setTranscript(_ t: Transcript) { transcripts[t.chatID] = t }
+
+    // MARK: connection
+
+    func connect() async {
+        guard !preview, client == nil else { return }
+        do {
+            let c = try await EngineHost.sessions.ensureStarted()
+            let cl = SessionsClient(port: c.port, token: c.token)
+            client = cl
+            sessions = try await cl.sessions()
+            connected = true
+            problem = nil
+            live = cl.live(
+                onFrame: { [weak self] f in Task { @MainActor in self?.apply(f) } },
+                onClose: { [weak self] in
+                    Task { @MainActor in
+                        self?.client = nil
+                        self?.connected = false
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                        await self?.connect()
+                    }
+                })
+        } catch {
+            problem = "Forge couldn't start its sessions: \(error)"
+        }
+    }
+
+    func apply(_ f: Sessions.Frame) {
+        switch f {
+        case .sessions(let all): sessions = all
+        case .session(let s):
+            if let i = sessions.firstIndex(where: { $0.id == s.id }) { sessions[i] = s } else { sessions.insert(s, at: 0) }
+        case .chat(let c):
+            guard let i = sessions.firstIndex(where: { $0.id == c.sessionId }) else { return }
+            if let j = sessions[i].chats.firstIndex(where: { $0.id == c.id }) {
+                var next = c
+                next.turns = next.turns ?? sessions[i].chats[j].turns
+                sessions[i].chats[j] = next
+            } else {
+                sessions[i].chats.append(c)
+            }
+        case .turn(let t): transcripts[t.chatId]?.apply(t)
+        case .event(let e): transcripts[e.chatId]?.apply(e)
+        case .reverted(let chat, let seq): transcripts[chat]?.dropFrom(seq: seq)
+        }
+    }
+
+    // MARK: actions
+
+    private func act(_ f: @escaping (SessionsClient) async throws -> Void) {
+        guard let client else { return }
+        Task {
+            do { try await f(client) } catch { problem = "\(error)" }
+        }
+    }
+
+    func open(_ s: Sessions.Session) {
+        selected = s.id
+        composing = false
+        if s.unread { act { try await $0.read(session: s.id) } }
+        refreshSide(s.id)
+    }
+
+    func refreshSide(_ id: String) {
+        guard let client else { return }
+        Task {
+            if let files = try? await client.changes(session: id) { changes[id] = files }
+            if let pr = try? await client.pullRequest(session: id) { pullRequests[id] = pr } else { pullRequests[id] = nil }
+        }
+    }
+
+    func send(_ chat: Sessions.Chat, text: String, queue: Bool) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        drafts[chat.id] = ""
+        act { try await $0.send(chat: chat.id, text: t, queue: queue) }
+    }
+
+    func stop(_ chat: Sessions.Chat) { act { try await $0.stop(chat: chat.id) } }
+
+    func answer(_ chat: Sessions.Chat, _ e: Sessions.Event, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil) {
+        act { try await $0.answer(chat: chat.id, event: e.id, allow: allow, answers: answers, feedback: feedback) }
+    }
+
+    func set(_ chat: Sessions.Chat, model: String? = nil, effort: String? = nil, planMode: Bool? = nil, ask: Bool? = nil) {
+        var b: [String: Any] = [:]
+        if let model { b["model"] = model }
+        if let effort { b["effort"] = effort }
+        if let planMode { b["planMode"] = planMode }
+        if let ask { b["askBeforeChanges"] = ask }
+        act { try await $0.settings(chat: chat.id, b) }
+    }
+
+    func revert(_ chat: Sessions.Chat, turn: Sessions.Turn) { act { try await $0.revert(chat: chat.id, turn: turn.id) } }
+
+    func newChat(in s: Sessions.Session, title: String = "Chat", message: String = "") {
+        let base = activeChat(of: s)
+        act {
+            try await $0.newChat(
+                session: s.id, model: base?.model ?? Sessions.defaultModel, effort: base?.effort ?? Sessions.defaultEffort, title: title,
+                message: message)
+        }
+    }
+
+    /// Review: a new chat in the same folder reviews the branch's changes.
+    func review(_ s: Sessions.Session) { newChat(in: s, title: "Review", message: Sessions.Prompt.review) }
+
+    func create(workspace: String, repo: SessionRepo, message: String, model: String, effort: String, done: @escaping (Bool) -> Void) {
+        guard let client else { return done(false) }
+        busy = true
+        problem = nil
+        Task {
+            defer { busy = false }
+            do {
+                let s = try await client.create([
+                    "workspaceId": workspace, "repo": repo.repo, "local": repo.local ?? "", "base": repo.base ?? "main",
+                    "prefix": "auto", "message": message, "model": model, "effort": effort,
+                ])
+                if let s {
+                    apply(.session(s))
+                    open(s)
+                }
+                done(true)
+            } catch {
+                problem = "\(error)"
+                done(false)
+            }
+        }
+    }
+
+    func showDiff(_ s: Sessions.Session, _ path: String) {
+        guard let client else { return }
+        Task { if let d = try? await client.diff(session: s.id, path: path) { openDiff = (s.id, path, d) } }
+    }
+
+    func pullReviewComments(_ s: Sessions.Session) {
+        guard let client else { return }
+        Task {
+            do {
+                let threads = try await client.reviewThreads(session: s.id)
+                let fresh = threads.filter { !$0.resolved && !$0.outdated }
+                reviewSheet = ReviewSheet(session: s.id, number: s.prNumber ?? 0, threads: threads, picked: Set(fresh.map(\.id)))
+            } catch { problem = "\(error)" }
+        }
+    }
+
+    /// Puts the ticked review comments into the chat's message box, so the person can add a line before sending.
+    func addReviewComments(to chat: Sessions.Chat) {
+        guard let sheet = reviewSheet else { return }
+        let picked = sheet.threads.filter { sheet.picked.contains($0.id) }
+        let block = ReviewBlock.text(number: sheet.number, picked)
+        let draft = drafts[chat.id] ?? ""
+        drafts[chat.id] = draft.isEmpty ? block : draft + "\n\n" + block
+        reviewSheet = nil
+    }
+
+    func merge(_ s: Sessions.Session) { act { try await $0.merge(session: s.id) } }
+    func archive(_ s: Sessions.Session) {
+        act { try await $0.archive(session: s.id) }
+        if selected == s.id { selected = nil }
+    }
+
+    func openImport() {
+        guard let client else { return }
+        Task {
+            do { importSheet = try await client.conductor() } catch { problem = "\(error)" }
+        }
+    }
+
+    func runImport(targets: [String: String], workspace: String) {
+        guard let client else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try await client.importConductor(targets: targets, workspace: workspace)
+                importSheet = nil
+                sessions = (try? await client.sessions()) ?? sessions
+            } catch { problem = "\(error)" }
+        }
+    }
+}
+
+/// Review comments as one block in the message box: file:line, reviewer, what they said, link.
+enum ReviewBlock {
+    static func text(number: Int, _ threads: [Sessions.ReviewThread]) -> String {
+        let items = threads.map { t in
+            "- \(t.place) (\(t.author)): \(t.body.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " "))\n  \(t.url)"
+        }
+        return "Review comments on PR #\(number):\n" + items.joined(separator: "\n")
+    }
+}

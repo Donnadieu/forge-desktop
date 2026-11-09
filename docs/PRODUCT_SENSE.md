@@ -30,6 +30,10 @@ unassigned cards to Triage (two at a time) and cards marked ready to Todo. Both 
 else: no per-stage agents, models or colours yet.
 **Workspaces** group trackers, projects, repos and intelligence providers; the chip in the top bar lists them and
 switches (switching stops the running one). Sign-ins belong to the Mac and any workspace can use them.
+**Sessions** (beside the Orchestrator in the top bar) are the chats you have with agents in the workspace: New
+session picks a repo and the first message; the chat streams, folds tool calls, takes a steer mid-turn, stops, goes
+back to before a turn; the right panel shows the changes and the pull request (Create PR, Fix errors, Pull review
+comments, Merge). Conductor's open workspaces come over in one step.
 **Settings** shows the workspace on screen, in setup's order: trackers, projects and repos, intelligence provider and
 account, then GitHub and signing; each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.
@@ -39,7 +43,8 @@ Card, column, agent, repo, board, workflow, key, tracker (never "cards" for wher
 provider (what does the work for a project: Claude Code, Codex, Kimi, OpenRouter; never "agent" there), "Orchestrator" as the main screen's name, and
 "Harness engineering" as the name of getting a repo ready for agents (its Settings tile and setup step),
 workspace (a group of trackers, projects, repos and intelligence providers; never the engine's card folders),
-connection (one sign-in to a tracker).
+connection (one sign-in to a tracker), session (one piece of work on one repo: its folder, branch, chats, changes and
+pull request), chat, steer.
 Never: orchestrator as an engine word, MCP, harness on its own,
 sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
 

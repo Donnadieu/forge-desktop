@@ -13,9 +13,13 @@ struct TopBar<Right: View>: View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
                 AnvilMark().sized(32)
-                Text(AppInfo.name).font(Theme.display(20)).foregroundStyle(Theme.text)
+                Text(AppInfo.name).font(Theme.display(20)).foregroundStyle(Theme.text).fixedSize()
                 if let model { WorkspaceChip(model: model).padding(.leading, 8) }
-                Text(suffix.uppercased()).font(Theme.mono(11, .medium)).tracking(1.5).foregroundStyle(Theme.textSec).padding(.leading, 8)
+                if let model, ScreenSwitch.screens.contains(suffix) {
+                    ScreenSwitch(model: model, shown: suffix).padding(.leading, 8)
+                } else {
+                    Text(suffix.uppercased()).font(Theme.mono(11, .medium)).tracking(1.5).foregroundStyle(Theme.textSec).padding(.leading, 8)
+                }
             }
             Spacer(minLength: 16)
             right()
@@ -31,6 +35,34 @@ struct TopBar<Right: View>: View {
 
 extension TopBar where Right == EmptyView {
     init(suffix: String) { self.init(suffix: suffix) { EmptyView() } }
+}
+
+/// The Orchestrator | Sessions switch in the top bar: the board Forge works on its own, or the chats you have
+/// with agents (docs/design/sessions.md, Direction A).
+struct ScreenSwitch: View {
+    static let screens = ["Orchestrator", "Sessions"]
+    @ObservedObject var model: AppModel
+    let shown: String
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Self.screens, id: \.self) { name in
+                Button {
+                    model.go(name == "Sessions" ? AppModel.sessionsScreen : AppModel.boardScreen)
+                } label: {
+                    Text(name.uppercased()).font(Theme.mono(10, .medium)).tracking(1)
+                        .foregroundStyle(name == shown ? Theme.text : Theme.textMuted)
+                        .padding(.horizontal, 8).frame(height: 26)
+                        .background(name == shown ? Theme.surfaceHover : .clear)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.bg))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.rMd))
+        .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+        .fixedSize()
+    }
 }
 
 /// `.atmosphere`: a soft cream glow at the top of the canvas and a faint heat glow at the bottom.

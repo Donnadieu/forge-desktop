@@ -73,6 +73,12 @@ enum Checks {
         if let i = args.firstIndex(of: "--github-check") {
             return SetupProbe.github(repo: i + 1 < args.count ? args[i + 1] : nil)
         }
+        if args.contains("--sessions-check") {
+            return SessionsCheck.run()
+        }
+        if args.contains("--transcript-check") {
+            return TranscriptCheck.run()
+        }
         if let i = args.firstIndex(of: "--render-screens"), i + 1 < args.count {
             return ScreenRender.run(into: args[i + 1])
         }

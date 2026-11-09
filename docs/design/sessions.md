@@ -164,8 +164,11 @@ One long-lived process per chat, as the engine's runner does today: `claude -p -
 
 Queue: a message sent while a turn runs is **steered by default** (Omar's Conductor habit: Enter steers). ⌥Enter
 queues it for after the turn instead. Every outgoing message is written to the outbox before it's sent; every event is
-written before the app is told; on restart the host replays the outbox and resumes each chat that was mid-turn, and that
-turn is marked "Interrupted, resumed".
+written before the app is told; on restart the host sends what's still queued (resuming the chat) and marks a turn that
+was running "Forge closed while the agent worked. Send a message to carry on." (built: it doesn't send a turn on its own).
+
+Built (Nov 9): chats run with this Mac's own Claude Code sign-in, as Conductor did, so imported chats resume in place;
+picking a Forge account per chat is later.
 
 ### Codex and Kimi
 - **Codex** (already on the app-server protocol in the engine): steer = `turn/steer`, stop = `turn/interrupt`, resume =

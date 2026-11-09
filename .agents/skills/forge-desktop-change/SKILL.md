@@ -77,6 +77,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - README release links must be absolute URLs: `docs-map` flags `../../releases`.
 - `mise` can't record trust for `.mise.toml` in sandboxed shells; `tools/engine.sh` falls back to
   mise's installed Node 22 directly.
+- Verifying a release zip: always extract with `ditto -x -k build/Forge.zip <dir>`, never plain
+  `unzip`. Plain `unzip` mangles the signed app bundle's symlinks/resource forks and makes
+  `spctl`/`codesign --verify --deep --strict` falsely report "a sealed resource is missing or
+  invalid" on a perfectly good, correctly notarized zip (seen on the real v0.2.24 release asset:
+  `ditto` extraction verified fine, `unzip` extraction of the exact same file did not). The in-app
+  updater (`Updater.swift`) already extracts with `ditto`, so a plain-`unzip` "corrupted zip" report
+  is a verification-tool bug, not a packaging bug — don't repackage or re-release on that evidence
+  alone; re-check with `ditto` first.
 
 ### Worktrees
 - `.env` is git-ignored: copy it into a new worktree before committing.

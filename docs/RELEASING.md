@@ -14,7 +14,11 @@ Forge ships outside the Mac App Store: Developer ID signed, notarized by Apple, 
    It makes `build/Forge.zip` (what the in-app updater downloads) and `build/Forge.dmg` (first install).
    `tools/sign-app.sh` signs the bundled Node first, with V8's JIT entitlements, then the app.
    `tools/package-app.sh` fails the build unless Apple answers `status: Accepted`.
-3. Check it like a download: unzip `build/Forge.zip` somewhere new, add a `com.apple.quarantine`
+3. Check it like a download: extract `build/Forge.zip` somewhere new with
+   `ditto -x -k build/Forge.zip <dir>` (never plain `unzip` — it mangles the app bundle's
+   symlinks/resource forks and makes `spctl`/`codesign` falsely report "a sealed resource is
+   missing or invalid" on a perfectly good zip; the in-app updater already extracts with `ditto`,
+   so this is a verification-tool bug, not a packaging one), add a `com.apple.quarantine`
    attribute, then `spctl -a -vv -t exec Forge.app` must say `source=Notarized Developer ID` and
    `xcrun stapler validate Forge.app` must pass. `Forge.app/Contents/MacOS/Forge --engine-check`
    must pass on that copy (proves the signed Node still runs).

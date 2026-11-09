@@ -1,6 +1,7 @@
 # Sessions: design
 
-Status: **design, not built.** Omar's request (Nov 9, 2026): bring the way he works in Conductor into Forge Desktop
+Status: **design, not built. Omar picked Direction A, "Chat first" (Nov 9), plus B's "Open session" button on the
+Orchestrator's running row (section 9).** Omar's request (Nov 9, 2026): bring the way he works in Conductor into Forge Desktop
 instead of building a separate app, because Conductor is shutting down after joining Meta (cloud off Nov 20, 2026; the
 Mac app stops early 2027). Screens in Claude Design (link in section 9), pictures in `docs/design/sessions/`.
 
@@ -270,10 +271,14 @@ today's Orchestrator and card detail ([before 1](sessions/00-before-orchestrator
 | 5 | [a5](sessions/a5-pull-review-comments.png) Pull PR review comments (sheet) | [b5](sessions/b5-pull-review-comments.png) Pull PR review comments (composer tray) |
 | 6 | [a6](sessions/a6-import-conductor.png) Import from Conductor (sheet) | [b6](sessions/b6-import-conductor.png) Import from Conductor (page) |
 
+**Picked: Direction A** (a1 to a6), the three-pane Sessions screen. From Direction B only the "Open session" button
+in the Orchestrator's expanded Running sessions row ([b3 inset](sessions/b3-card-session-open-from-orchestrator.png))
+comes along: it opens that card's session in the Sessions screen (a3). The rest of B is not built.
+
 Claude Design project: https://claude.ai/design/p/f4c92c06-8b0e-46d1-a6b9-cd2b0499b4d9 (file and tokens per frame in
 `TOKENS-USED.md`). All frames in one PDF: [sessions/sessions-design.pdf](sessions/sessions-design.pdf).
 
-## 10. Build order (after Omar picks a direction)
+## 10. Build order (Direction A)
 
 1. **Spike** (no screen change): the 12,000-turn transcript and 5,000-line diff budget test (section 7), and the
    sessions host answering `POST /sessions` + one streamed Claude Code turn with steer and stop. Go or no-go on `List`.

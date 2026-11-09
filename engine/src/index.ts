@@ -215,6 +215,11 @@ async function main(): Promise<void> {
       if (result.ok) void orchestrator.triggerPoll();
       return result;
     },
+    steer: (id, text) => {
+      const ok = orchestrator.steer(id, text);
+      logger.info({ issueId: id, ok }, "The person steered a card");
+      return ok;
+    },
     start: () => controls.startOrchestrator(null),
     stop: () => controls.stopOrchestrator(null),
     refresh: () => {

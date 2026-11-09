@@ -39,15 +39,25 @@ struct EngineClient: Sendable {
     /// The person moves a card (Start, Merge, Ask for changes). Returns the engine's plain-words
     /// problem when the move was refused, nil when it worked.
     func move(card: String, to: String) async throws -> String? {
+        try await post(card: card, "move", ["to": to])
+    }
+
+    /// The person's message to the agent working a card: it steers the turn in flight. Nil when it was sent.
+    func message(card: String, text: String) async throws -> String? {
+        try await post(card: card, "message", ["text": text])
+    }
+
+    /// POSTs to `/api/v1/cards/<id>/<what>`; the engine's plain-words problem when refused, nil when it worked.
+    private func post(card: String, _ what: String, _ body: [String: String]) async throws -> String? {
         let safe = card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card
-        var r = request("/api/v1/cards/\(safe)/move", method: "POST")
+        var r = request("/api/v1/cards/\(safe)/\(what)", method: "POST")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        r.httpBody = try JSONSerialization.data(withJSONObject: ["to": to])
+        r.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: r)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if (200..<300).contains(code) { return nil }
         let problem = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["problem"] as? String
-        return problem ?? "Forge couldn't move the card (\(code))."
+        return problem ?? (what == "move" ? "Forge couldn't move the card (\(code))." : "Forge couldn't reach the card's agent (\(code)).")
     }
 
     struct Workpad: Decodable, Sendable, Equatable {

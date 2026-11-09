@@ -18,7 +18,7 @@ struct ChatColumn: View {
             if session.origin == "card", chat?.working == true {
                 HStack(spacing: 8) {
                     PulseDot(color: Theme.heat, pulsing: true, size: 6)
-                    Text("Forge is working this card. Anything you send steers it. Stop to take the wheel.")
+                    Text("Forge is working this card. Anything you send steers its agent right away.")
                         .font(Theme.sans(12)).foregroundStyle(Theme.text)
                     Spacer()
                 }

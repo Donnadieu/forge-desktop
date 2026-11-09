@@ -9,6 +9,7 @@
  *   POST /api/v1/refresh look at the board now instead of at the next poll
  *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
  *   POST /api/v1/cards/<id>/move     `{"to": "<column>"}`: the person moves a card (Start, Merge, Ask for changes)
+ *   POST /api/v1/cards/<id>/message  `{"text": "..."}`: the person steers the card's running agent
  *   WS   /api/v1/live    pushes the state whenever it changes
  *
  * New in Forge Desktop. Replaces Forge's hosted router.
@@ -31,6 +32,8 @@ export interface LocalApiDeps {
   workpad?: (cardId: string) => Promise<unknown>;
   /** The person moves a card to another column (board buttons). */
   move?: (cardId: string, to: string) => Promise<{ ok: boolean; problem?: string }>;
+  /** The person steers a running card from its session (`{"text": "..."}`). */
+  steer?: (cardId: string, text: string) => boolean;
   logger?: Logger;
   /** How often the API checks for a changed state to push (ms). */
   pushCheckMs?: number;
@@ -61,6 +64,21 @@ async function readTo(req: IncomingMessage): Promise<string | null> {
   try {
     const to = (JSON.parse(body) as { to?: unknown }).to;
     return typeof to === "string" && to.length > 0 && to.length <= 64 ? to : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The `text` of a JSON body up to 64 KB; null when it's missing or too big. */
+async function readText(req: IncomingMessage): Promise<string | null> {
+  let body = "";
+  for await (const chunk of req) {
+    body += chunk;
+    if (body.length > 65_536) return null;
+  }
+  try {
+    const text = (JSON.parse(body) as { text?: unknown }).text;
+    return typeof text === "string" && text.trim() ? text : null;
   } catch {
     return null;
   }
@@ -119,6 +137,19 @@ export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
           const result = await deps.move(move[1], to);
           jsonResponse(res, result.ok ? 200 : 409, result);
           return notify();
+        }
+        const message = /^\/api\/v1\/cards\/([A-Za-z0-9-]{1,64})\/message$/.exec(path);
+        if (message && deps.steer) {
+          if (!post) return methodNotAllowed(res, "POST");
+          const text = await readText(req);
+          if (!text)
+            return jsonResponse(res, 400, { ok: false, problem: "Write something first." });
+          return deps.steer(message[1], text)
+            ? jsonResponse(res, 200, { ok: true })
+            : jsonResponse(res, 409, {
+                ok: false,
+                problem: "No agent is working this card right now.",
+              });
         }
         return notFound(res);
       }

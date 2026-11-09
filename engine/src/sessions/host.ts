@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { CardWatcher } from "./cards.js";
 import { Chats, contextWindow } from "./chats.js";
 import { cutTranscript, restore } from "./checkpoints.js";
 import {
@@ -55,6 +56,7 @@ export function titleFrom(message: string): string {
 
 export class SessionsHost {
   readonly chats: Chats;
+  readonly cards: CardWatcher;
   private prs = new Map<string, PullRequest | null>();
   private tokens = new Map<string, string | null>();
 
@@ -68,6 +70,7 @@ export class SessionsHost {
       notify: o.notify,
       touched: (id) => this.touched(id),
     });
+    this.cards = new CardWatcher(store, o.notify, (id) => this.touched(id));
   }
 
   private async token(login: string | null): Promise<string | null> {

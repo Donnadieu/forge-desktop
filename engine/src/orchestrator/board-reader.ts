@@ -19,7 +19,14 @@ export interface BoardColumn {
     BoardCard & {
       /** One plain line about what the agent is doing, when an agent holds the card. */
       activity: string | null;
-      agent: { started_at: string; turn: number; attempt: number } | null;
+      agent: {
+        started_at: string;
+        turn: number;
+        attempt: number;
+        /** The agent's session and folder, so the app can show the card's session. */
+        session_id: string | null;
+        folder: string | null;
+      } | null;
       helpers: Array<{ id: string; description: string; running: boolean }>;
       recent: Array<{ at: string; line: string }>;
     }
@@ -149,7 +156,13 @@ export class BoardReader {
         ...card,
         activity: run ? run.activity || "Working" : null,
         agent: run
-          ? { started_at: run.startedAt, turn: run.turnCount, attempt: run.attempt }
+          ? {
+              started_at: run.startedAt,
+              turn: run.turnCount,
+              attempt: run.attempt,
+              session_id: run.sessionId,
+              folder: run.workspacePath,
+            }
           : null,
         helpers: run?.helpers ?? [],
         recent: run?.recent ?? [],

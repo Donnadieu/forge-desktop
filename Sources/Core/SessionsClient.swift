@@ -57,6 +57,11 @@ struct SessionsClient: Sendable {
 
     func sessions() async throws -> [Sessions.Session] { try await get("/api/v1/sessions", as: List.self).sessions }
 
+    /// The cards running now in every engine; the host follows each one's agent as a card session.
+    func watchCards(_ cards: [[String: String]]) async throws {
+        _ = try await call("/api/v1/cards/watch", method: "POST", body: ["cards": cards])
+    }
+
     func create(_ body: [String: Any]) async throws -> Sessions.Session? {
         try JSONDecoder().decode(Created.self, from: try await call("/api/v1/sessions", method: "POST", body: body, timeout: 900)).session
     }

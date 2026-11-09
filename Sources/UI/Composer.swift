@@ -94,7 +94,7 @@ struct Composer: View {
 
     private var placeholder: String {
         let who = session.origin == "card" ? "Steer \(session.title.split(separator: " ").first ?? "")…" : "Message the agent…"
-        return who + (chat.working ? "  Enter steers · ⌥Enter queues" : "")
+        return who + (chat.working && session.origin != "card" ? "  Enter steers · ⌥Enter queues" : "")
     }
 
     private var text: Binding<String> {
@@ -117,27 +117,33 @@ struct Composer: View {
                     }
             }
             HStack(spacing: 8) {
-                Menu {
-                    Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
-                    Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
-                    Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
-                        sessions.set(chat, ask: !chat.askBeforeChanges)
+                if session.origin != "card" {
+                    Menu {
+                        Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
+                        Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
+                        Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
+                            sessions.set(chat, ask: !chat.askBeforeChanges)
+                        }
+                    } label: {
+                        Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textSec)
                     }
-                } label: {
-                    Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textSec)
+                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                    .frame(width: 30, height: 30)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+                } else {
+                    Pill(text: "Steering the card's agent", tone: .ghost)
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                .frame(width: 30, height: 30)
-                .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
                 if chat.planMode { Pill(text: "Plan mode", tone: .info) }
                 if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
                 Spacer(minLength: 8)
-                ModelChip(model: chat.model, effort: chat.effort, short: compact) { m, e in
-                    sessions.set(chat, model: m != chat.model ? m : nil, effort: e != chat.effort ? e : nil)
+                if session.origin != "card" {
+                    ModelChip(model: chat.model, effort: chat.effort, short: compact) { m, e in
+                        sessions.set(chat, model: m != chat.model ? m : nil, effort: e != chat.effort ? e : nil)
+                    }
+                    .fixedSize()
                 }
-                .fixedSize()
                 ContextMeter(percent: chat.contextPercent, short: compact).fixedSize()
-                if chat.working {
+                if chat.working, session.origin != "card" {
                     Button("Stop") { sessions.stop(chat) }
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
                         .keyboardShortcut(.delete, modifiers: [.command, .shift])

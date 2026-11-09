@@ -12,6 +12,10 @@ export interface AgentAdapter {
    *  until the turn completes. Only needed for persistent-session adapters.
    *  Falls back to startSession + streamEvents if not implemented. */
   runTurn?(handle: SessionHandle, prompt: string): AsyncIterable<AgentEvent>;
+
+  /** Forge Desktop: the person sends a message into a running session; it steers the turn in flight.
+   *  False when the session isn't running (or the agent can't take a message mid-turn). */
+  steer?(sessionId: string, text: string): boolean;
 }
 
 export interface StartSessionParams {

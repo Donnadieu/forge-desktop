@@ -14,6 +14,7 @@
  *   GET  /api/v1/chats/<id>/turns?before=&limit= turns with their events, newest last
  *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue}
  *   POST /api/v1/chats/<id>/stop | answer | settings | revert
+ *   POST /api/v1/cards/watch                     {cards: [...]}: the cards running now, followed as card sessions
  *   GET  /api/v1/conductor                       what an import from Conductor would bring
  *   POST /api/v1/conductor/import                {targets: {repo: workspaceId}, workspace}
  *   WS   /api/v1/live                            session, chat, turn and event changes
@@ -102,6 +103,26 @@ export async function startSessionsApi(deps: {
       broadcast({ type: "sessions", sessions: h.list() });
       return jsonResponse(res, 200, { ok: true, ...r });
     }
+    if (path === "/api/v1/cards/watch" && post) {
+      const b = await body(req);
+      const cards = Array.isArray(b.cards) ? (b.cards as Body[]) : [];
+      const ids = h.cards.watch(
+        cards
+          .filter((c) => s(c.key) && s(c.folder) && s(c.sessionId))
+          .map((c) => ({
+            key: s(c.key),
+            workspaceId: s(c.workspaceId, "default"),
+            identifier: s(c.identifier),
+            title: s(c.title),
+            folder: s(c.folder),
+            sessionId: s(c.sessionId),
+            branch: s(c.branch),
+            repo: s(c.repo),
+            model: s(c.model, "opus"),
+          })),
+      );
+      return jsonResponse(res, 200, { ok: true, sessions: ids });
+    }
     const sm = /^\/api\/v1\/sessions\/([\w-]{1,80})\/([a-z-]+)$/.exec(path);
     if (sm) {
       const [, id, action] = sm;
@@ -149,6 +170,11 @@ export async function startSessionsApi(deps: {
           const b = await body(req);
           if (!s(b.text).trim())
             return jsonResponse(res, 400, { ok: false, problem: "Write something first." });
+          if (id.startsWith("card-"))
+            return jsonResponse(res, 409, {
+              ok: false,
+              problem: "A card's agent takes messages through its own engine.",
+            });
           await h.chats.send(id, s(b.text), b.mode === "queue" ? "queue" : "steer");
           return jsonResponse(res, 200, { ok: true });
         }

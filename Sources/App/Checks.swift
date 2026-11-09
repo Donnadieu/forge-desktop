@@ -223,6 +223,7 @@ enum Checks {
         workspaceChecks(check)
         workflowFileChecks(check)
         limitChecks(check)
+        sessionChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

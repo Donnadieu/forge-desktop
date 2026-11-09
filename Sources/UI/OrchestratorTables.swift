@@ -202,7 +202,8 @@ struct OrchestratorTables: View {
             ForEach(Array(cards.enumerated()), id: \.element.id) { i, c in
                 RunningRow(
                     card: c, run: state?.running.first { $0.issue_identifier == c.identifier }, expanded: expandedBinding(c.id),
-                    waitingForLimit: state?.waitingForLimit.contains(c.identifier) == true
+                    waitingForLimit: state?.waitingForLimit.contains(c.identifier) == true,
+                    openSession: c.agent?.session_id == nil && !model.preview ? nil : { model.openCardSession(project: model.viewedProject, card: c) }
                 ) {
                     open = c
                 }

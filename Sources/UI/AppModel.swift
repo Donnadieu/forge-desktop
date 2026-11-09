@@ -101,6 +101,7 @@ final class AppModel: ObservableObject {
         self.choices = c
         self.screen = screen ?? c.nextScreen
         useSignIns(github: true)
+        connectCardSessions()
     }
 
     static let screenTitles = ["Tracker", "Project", "GitHub", "Repo", "Intelligence provider", "Harness engineering", "Orchestrator"]

@@ -32,6 +32,7 @@ final class BoardLink {
         if let id = projectID {
             model.states[id] = s
             LimitNotifier.shared.observe(project: id, state: s, model: model)
+            model.watchCardSessions()
         }
         if onScreen { model.engine = s }
     }
@@ -115,6 +116,12 @@ final class BoardLink {
                 return
             }
         }
+    }
+
+    /// Steers the agent working a card (from the card's session). Nil when sent, else the problem in plain words.
+    func message(card: String, text: String) async -> String? {
+        guard let client else { return "This project's engine isn't running." }
+        do { return try await client.message(card: card, text: text) } catch { return "Forge's engine didn't answer: \(error)" }
     }
 
     func workpad(card: String) async -> EngineClient.Workpad? {

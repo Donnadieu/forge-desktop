@@ -97,6 +97,11 @@ final class SessionsModel: ObservableObject {
     private(set) var client: SessionsClient?
     private var live: URLSessionWebSocketTask?
     private var transcripts: [String: Transcript] = [:]
+    /// Card sessions: the session's id to the card's project and card, so a message goes to that card's engine.
+    var cardTargets: [String: (project: String, card: String)] = [:]
+    /// Set by the app: sends a message to a card's running agent; returns the problem, nil when sent.
+    var steerCard: (@MainActor (String, String, String) async -> String?)?
+    private var lastWatch: [[String: String]] = []
 
     init(preview: Bool) {
         self.preview = preview
@@ -204,7 +209,23 @@ final class SessionsModel: ObservableObject {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
         drafts[chat.id] = ""
+        if let target = cardTargets[chat.sessionId] {
+            Task {
+                if let problem = await steerCard?(target.project, target.card, t) {
+                    self.problem = problem
+                    drafts[chat.id] = t
+                }
+            }
+            return
+        }
         act { try await $0.send(chat: chat.id, text: t, queue: queue) }
+    }
+
+    /// Tells the host which cards run now (only when that changed).
+    func watch(_ cards: [[String: String]]) {
+        guard !preview, let client, cards != lastWatch else { return }
+        lastWatch = cards
+        Task { try? await client.watchCards(cards) }
     }
 
     func stop(_ chat: Sessions.Chat) { act { try await $0.stop(chat: chat.id) } }

@@ -32,6 +32,10 @@ describe("local API", () => {
         calls.push(`move ${id} ${to}`);
         return to === "Done" ? { ok: false, problem: "no" } : { ok: true };
       },
+      steer: (id, text) => {
+        calls.push(`steer ${id} ${text}`);
+        return id === "abc-1";
+      },
       pushCheckMs: 20,
     });
     return `http://127.0.0.1:${api.port}`;
@@ -63,6 +67,26 @@ describe("local API", () => {
       expect(r.ok).toBe(true);
     }
     expect(calls).toEqual(["start", "stop", "refresh"]);
+  });
+
+  it("steers a running card's agent, and says so when none runs it", async () => {
+    const calls: string[] = [];
+    const base = await boot({ n: 1 }, calls);
+    const auth = { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" };
+    const send = (id: string, body: string) =>
+      fetch(`${base}/api/v1/cards/${id}/message`, { method: "POST", headers: auth, body });
+    expect((await send("abc-1", JSON.stringify({ text: "use the old API" }))).status).toBe(200);
+    const idle = await send("abc-2", JSON.stringify({ text: "hello" }));
+    expect(idle.status).toBe(409);
+    expect(await idle.json()).toEqual({
+      ok: false,
+      problem: "No agent is working this card right now.",
+    });
+    expect((await send("abc-1", JSON.stringify({ text: "  " }))).status).toBe(400);
+    expect(
+      (await fetch(`${base}/api/v1/cards/abc-1/message`, { method: "POST", body: "{}" })).status,
+    ).toBe(401);
+    expect(calls).toEqual(["steer abc-1 use the old API", "steer abc-2 hello"]);
   });
 
   it("moves a card when asked, and refuses a move without a column", async () => {

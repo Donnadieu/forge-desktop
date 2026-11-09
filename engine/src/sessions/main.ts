@@ -35,6 +35,7 @@ export async function runSessionsHost(): Promise<void> {
     if (stopping) return;
     stopping = true;
     logger.info({ signal }, "Forge sessions host stopping");
+    host.cards.close();
     await host.chats.closeAll();
     await api.close();
     store.close();

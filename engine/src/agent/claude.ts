@@ -176,6 +176,16 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     return { id: sessionId, pid: child.pid ?? undefined, abortController };
   }
 
+  /** The person's message, written into the running process: Claude Code reads it at its next step. */
+  steer(sessionId: string, text: string): boolean {
+    const s = this.sessions.get(sessionId);
+    if (!s || s.process.killed || hasExited(s.process) || !s.process.stdin) return false;
+    s.process.stdin.write(
+      `${JSON.stringify({ type: "user", message: { role: "user", content: text } })}\n`,
+    );
+    return true;
+  }
+
   async *streamEvents(handle: SessionHandle): AsyncIterable<AgentEvent> {
     const session = this.sessions.get(handle.id);
     if (!session || !session.process.stdout) {

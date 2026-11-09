@@ -463,6 +463,14 @@ export class Orchestrator {
     cancelRetry(this.state, issueId);
   }
 
+  /** Forge Desktop: the person steers a running card from its session; false when no agent runs it. */
+  steer(issueId: string, text: string): boolean {
+    const entry = this.state.running.get(issueId);
+    if (!entry?.sessionId) return false;
+    const agent = this.config.agentForState?.(entry.issue.state) ?? this.agent;
+    return agent.steer?.(entry.sessionId, text) ?? false;
+  }
+
   private killAndRetry(
     issueId: string,
     delayType: "continuation" | "failure",

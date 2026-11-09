@@ -8,6 +8,8 @@ struct RunningRow: View {
     @Binding var expanded: Bool
     /// Its account hit a usage limit: the card waits for the reset instead of an agent.
     var waitingForLimit = false
+    /// Opens the card's session on the Sessions screen (nil when its agent has no session to show).
+    var openSession: (() -> Void)? = nil
     let open: () -> Void
 
     private var live: Bool { run != nil }
@@ -77,6 +79,14 @@ struct RunningRow: View {
         .padding(.top, 12).padding(.bottom, 16).padding(.trailing, 16)
         .padding(.leading, 16 + 24 + 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottomTrailing) {
+            if let openSession, live {
+                Button("Open session", action: openSession)
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "bubble.left.and.text.bubble.right"))
+                    .help("Read the agent's whole conversation and steer it")
+                    .padding(12)
+            }
+        }
         .background(Theme.wash1)
         .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
     }

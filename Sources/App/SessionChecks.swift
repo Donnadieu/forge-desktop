@@ -27,5 +27,15 @@ extension Checks {
         let target = model.sessions.cardTargets["card-linear-proj-1-abc-1"]
         check("a message on a card's session goes to that card's engine", target?.project == "linear:proj-1" && target?.card == "abc-1")
         check("chats the person started don't go to a card", model.sessions.cardTargets["s1"] == nil)
+
+        var w = Workspace(id: "w1", name: "Personal")
+        w.repos = [SessionRepo(repo: "Donnadieu/forge-desktop", local: "/Users/x/Repos/forge-desktop", base: "main")]
+        w.sessionModel = "opus[1m]"
+        w.sessionEffort = "high"
+        let round = (try? JSONEncoder().encode(w)).flatMap { try? JSONDecoder().decode(Workspace.self, from: $0) }
+        check("a workspace keeps its session repos and the model new sessions start with", round == w)
+        let old = #"{"id":"w0","name":"Old"}"#
+        let before = try? JSONDecoder().decode(Workspace.self, from: Data(old.utf8))
+        check("a workspace saved before sessions still opens, with no repos", before != nil && before?.repos == nil)
     }
 }

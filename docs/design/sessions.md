@@ -235,6 +235,10 @@ Target, from Omar's data: a chat of 11,663 messages scrolls smoothly, opens in u
    actor, cached by turn id and content hash. Rows never measure themselves with `GeometryReader`.
 5. **Streaming at 20 frames a second.** Text deltas gather in the host-feed actor and reach the screen at most every
    50 ms, touching only the live turn's `@Observable` model.
+**Spike result (Nov 9): `List` is a go.** `Forge --transcript-check` on Omar's Mac: a 12,000-turn chat opens (newest
+50 turns) in 0.23 s, draws with every turn loaded in 0.40 s, adds 160 MB; a 5,000-line diff draws in 0.10 s. No
+`NSTableView` fallback needed. The check runs in preflight and CI (CI's shared Macs get 4x the time).
+
 6. **Folded by default.** Tool calls show one line ("Edited orders/validate.py +12 −3", "Ran tests · 42 passed"); the
    body loads when opened. A tool output over 200 lines shows its first 40 and "Show all 1,284 lines", which opens in an
    `NSTextView` (built for big text). Thinking is one folded line.

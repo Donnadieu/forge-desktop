@@ -60,5 +60,5 @@ Conductor-style chats inside a workspace. Design, decisions and screens: [design
 
 ### Ship
 - [x] 8.1 ARCHITECTURE.md, PRODUCT_SENSE.md (words on screen) and the playbook's Lessons updated
-- [ ] 8.2 Every new screen rendered and compared with its Claude Design frame; contact sheet in the PR
+- [x] 8.2 Every new screen rendered and compared with its Claude Design frame; contact sheet in the PR (renders in design/sessions/built/)
 - [ ] 8.3 Release (only after Omar's yes)

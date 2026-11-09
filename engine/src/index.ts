@@ -21,6 +21,7 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createWorkerAgent, scrubMcpServerEnvs } from "./agent/index.js";
 import { defaultAgentEnv, RoleRouter, roleEnv } from "./agent/roles.js";
 import { validateRequiredEnv } from "./config/env-validator.js";
@@ -36,11 +37,13 @@ import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
 import { openLocalStore } from "./store/local-store.js";
+import { marksNote, resolveMarks } from "./tracker/marks.js";
 import type { TrackerConfig } from "./tracker/types.js";
 import { createTrackerFromConfig } from "./tracker-factory.js";
 import { loadSkillsManifest } from "./worker/prompt-renderer.js";
 import { stopLeftoverServers } from "./workspace/leftover-sweep.js";
 import { WorkspaceManager } from "./workspace/manager.js";
+import { guardCommand } from "./workspace/marks-guard.js";
 
 async function main(): Promise<void> {
   const token = process.env.FORGE_API_TOKEN ?? "";
@@ -59,6 +62,8 @@ async function main(): Promise<void> {
   validateRequiredEnv(config);
   logger.info({ workflowPath, tracker: config.tracker.kind }, "Forge engine starting");
 
+  // What others see: the pull request label, the branch prefix and "Keep Forge invisible" (tracker/marks.ts).
+  const marks = resolveMarks(config.marks);
   const tracker = createTrackerFromConfig(config, process.env, logger);
   const trackerConfig: TrackerConfig = {
     kind: config.tracker.kind,
@@ -103,6 +108,7 @@ async function main(): Promise<void> {
     hooks: config.workspace.hooks,
     hookTimeoutMs: config.workspace.hooks.timeout_ms,
     skillsDir,
+    marksGuard: marks.invisible ? guardCommand(dirname(fileURLToPath(import.meta.url))) : undefined,
     stopLeftovers: (root, card) => stopLeftoverServers(root, { only: card, logger }),
   });
   const local = openLocalStore(join(home, "forge.sqlite"));
@@ -133,12 +139,14 @@ async function main(): Promise<void> {
       maxRetryDelayMs: config.agent.max_retry_backoff_ms,
       retryBaseDelayMs: config.retry.base_delay_seconds * 1000,
       trackerConfig,
-      promptTemplate,
+      promptTemplate: promptTemplate + marksNote(marks),
+      branchPrefix: marks.branchPrefix,
       mcpServers: scrubMcpServerEnvs(
-        buildMcpServersConfig(config.tracker.kind, {
-          accountId: config.tracker.account_id,
-          endpoint: config.tracker.endpoint,
-        }),
+        buildMcpServersConfig(
+          config.tracker.kind,
+          { accountId: config.tracker.account_id, endpoint: config.tracker.endpoint },
+          { invisible: marks.invisible },
+        ),
         config.agent.env_denylist,
       ),
       skillsManifest: skillsDir ? loadSkillsManifest(skillsDir) : undefined,

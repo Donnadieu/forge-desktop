@@ -68,7 +68,7 @@ struct GitHubProjectsAPI: Sendable {
         r.timeoutInterval = 30
         r.setValue("Bearer \(try token())", forHTTPHeaderField: "Authorization")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        r.setValue("Forge Desktop (https://github.com/Donnadieu/forge-desktop)", forHTTPHeaderField: "User-Agent")
+        r.setValue(AppInfo.plainUserAgent, forHTTPHeaderField: "User-Agent")
         r.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables])
         let (data, response) = try await URLSession.shared.data(for: r)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0

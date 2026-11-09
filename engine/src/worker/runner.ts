@@ -5,6 +5,7 @@ import type { TokenTotals } from "../telemetry/types.js";
 import type { NormalizedIssue, TrackerAdapter, TrackerConfig } from "../tracker/types.js";
 import { lockHolderLogFields, WORKSPACE_LOCK_HELD } from "../workspace/lock.js";
 import type { WorkspaceManager } from "../workspace/manager.js";
+import { gitHasBranch, issueBranch } from "./branch.js";
 import { DEFAULT_HELPER_WAIT_MS, HelperWatch } from "./helper-wait.js";
 import { IssueStateChecker } from "./issue-state-checker.js";
 import { renderFirstTurnPrompt } from "./prompt-renderer.js";
@@ -29,6 +30,8 @@ export interface WorkerConfig {
   helperWaitMs?: number;
   /** Forge Desktop: which role a state belongs to. A card that moves to another role's stage ends this run. */
   roleOf?: (state: string) => number;
+  /** Forge Desktop: Workflow Studio's branch prefix (branch.ts); empty = the tracker's own branch name. */
+  branchPrefix?: string;
 }
 
 export interface WorkerResult {
@@ -121,18 +124,19 @@ export async function runWorker(
   }
   const { lock } = locked;
 
-  const issueEnv: Record<string, string> = {
-    ISSUE_ID: issue.id,
-    ISSUE_IDENTIFIER: issue.identifier,
-    ISSUE_TITLE: issue.title,
-    ISSUE_STATE: issue.state,
-    ISSUE_BRANCH: issue.branchName ?? `forge/${issue.identifier}`,
-  };
   let workspacePath: string;
   let mcpConfigPath: string | undefined;
+  let issueEnv: Record<string, string>;
   try {
     // 2. Create/reuse workspace; 3. write MCP config if needed; 4. run before_run hook
     workspacePath = await workspace.ensureWorkspace(issue);
+    issueEnv = {
+      ISSUE_ID: issue.id,
+      ISSUE_IDENTIFIER: issue.identifier,
+      ISSUE_TITLE: issue.title,
+      ISSUE_STATE: issue.state,
+      ISSUE_BRANCH: issueBranch(issue, config.branchPrefix ?? "", gitHasBranch(workspacePath)),
+    };
     if (config.mcpServers) {
       mcpConfigPath = await workspace.writeMcpConfig(workspacePath, config.mcpServers);
     }

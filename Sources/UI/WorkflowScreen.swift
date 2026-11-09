@@ -10,8 +10,11 @@ struct WorkflowScreen: View {
     @State private var toTriage = false
     @State private var toTodo = false
     @State private var more = false
-    @State private var showEngine = false
     @State private var restarting = false
+    /// What others see (WhatOthersSee.swift).
+    @State private var invisible = false
+    @State private var label = "forge"
+    @State private var prefix = ""
     /// Agents at once across every running workspace on this Mac (`SetupStore.agentCeiling`).
     @State private var ceiling = SetupStore.defaultCeiling
     /// Stages with their own provider, account and model (`SetupChoices.roles`, per project).
@@ -20,9 +23,14 @@ struct WorkflowScreen: View {
     private var saved: (off: Set<String>, agents: Int) { (Set(model.choices.stagesOff ?? []), max(1, model.choices.agentsAtOnce ?? 1)) }
     private var savedMoves: (triage: Bool, todo: Bool) { (model.choices.sendNewToTriage ?? false, model.choices.startReady ?? false) }
     private var savedCeiling: Int { model.store.agentCeiling ?? SetupStore.defaultCeiling }
+    private var savedMarks: (invisible: Bool, label: String, prefix: String) {
+        let on = model.choices.invisible ?? false
+        return (on, model.choices.prLabel ?? (on ? "" : "forge"), model.choices.branchPrefix ?? "")
+    }
     private var changes: Int {
         saved.off.symmetricDifference(off).count + (saved.agents == agents ? 0 : 1) + (savedMoves.triage == toTriage ? 0 : 1)
             + (savedMoves.todo == toTodo ? 0 : 1) + (savedCeiling == ceiling ? 0 : 1) + roleChanges
+            + (savedMarks.invisible == invisible ? 0 : 1) + (savedMarks.label == label ? 0 : 1) + (savedMarks.prefix == prefix ? 0 : 1)
     }
 
     private var roleChanges: Int {
@@ -58,6 +66,8 @@ struct WorkflowScreen: View {
             (toTriage, toTodo) = savedMoves
             ceiling = savedCeiling
             roles = model.choices.roles ?? []
+            (invisible, label, prefix) = savedMarks
+            if model.preview, model.sample.scene == "invisible" { (invisible, label, prefix) = (true, "", "omar/") }
             if model.preview, model.sample.scene == "roles" {
                 roles = [
                     RoleChoice(role: .builds, accountID: "sample-codex"),
@@ -160,27 +170,36 @@ struct WorkflowScreen: View {
             Text("Running workspaces share this Mac and your accounts' usage limits. Cards wait until an agent is free.")
                 .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
+            whatOthersSee
+            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             backlogMoves
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             Button {
-                withAnimation(.easeOut(duration: 0.2)) { showEngine.toggle() }
+                model.go(AppModel.workflowFileScreen)
             } label: {
                 HStack {
-                    Text("What the engine sees").font(Theme.sans(11)).foregroundStyle(showEngine ? Theme.textSec : Theme.textMuted)
+                    Text("Edit workflow file").font(Theme.sans(11)).foregroundStyle(Theme.textSec)
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).rotationEffect(.degrees(showEngine ? 90 : 0))
-                        .foregroundStyle(Theme.textMuted)
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textMuted)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            if showEngine || model.sample.scene == "qa-off" {
-                chips("active_states", Pipeline.activeColumns(off: Array(off)))
-                chips("columns", Pipeline.names)
-            }
+            .disabled(restarting || changes > 0)
+            .help(changes > 0 ? "Save or undo the changes here first." : "The file the engine reads, to edit by hand.")
         }
         .padding(20)
         .panel()
+    }
+
+    private var whatOthersSee: some View {
+        let sample: (card: String, branch: String) =
+            switch model.choices.board {
+            case .basecamp: ("BC-10471774790", "basecamp/bc-10471774790")
+            case .github: ("app#12", "github/app-12")
+            case .linear: ("ENG-12", "Linear's own branch name")
+            }
+        return WhatOthersSee(invisible: $invisible, label: $label, prefix: $prefix, sampleCard: sample.card, trackerBranch: sample.branch)
     }
 
     // MARK: Forge moves cards out of Backlog
@@ -210,13 +229,6 @@ struct WorkflowScreen: View {
             ForgeToggle(on: enabled ? on : .constant(false)).opacity(enabled ? 1 : 0.4).allowsHitTesting(enabled)
         }
         .opacity(enabled ? 1 : 0.6)
-    }
-
-    private func chips(_ key: String, _ values: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SectionLabel(text: key)
-            FlowChips(values: values)
-        }
     }
 
     // MARK: Bottom bar
@@ -266,6 +278,11 @@ struct WorkflowScreen: View {
         model.choices.startReady = toTodo
         // A role whose account was cleared meanwhile is dropped.
         model.choices.roles = model.choices.keptRoles(roles, store: model.store)
+        let on = invisible
+        let cleanLabel = label.trimmingCharacters(in: .whitespaces)
+        model.choices.invisible = on ? true : nil
+        model.choices.prLabel = cleanLabel == (on ? "" : "forge") ? nil : cleanLabel
+        model.choices.branchPrefix = prefix.isEmpty ? nil : prefix
         let ceilingChanged = savedCeiling != max(1, ceiling)
         model.store.agentCeiling = max(1, ceiling) == SetupStore.defaultCeiling ? nil : max(1, ceiling)
         model.save()
@@ -278,30 +295,6 @@ struct WorkflowScreen: View {
             }
             restarting = false
             model.go(AppModel.boardScreen)
-        }
-    }
-}
-
-/// Mono chips that wrap onto as many lines as they need.
-struct FlowChips: View {
-    let values: [String]
-
-    var body: some View {
-        var rows: [[String]] = [[]]
-        var width: CGFloat = 0
-        for v in values {
-            let w = CGFloat(v.count) * 6.6 + 24
-            if width + w > 270, !rows[rows.count - 1].isEmpty {
-                rows.append([])
-                width = 0
-            }
-            rows[rows.count - 1].append(v)
-            width += w
-        }
-        return VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: 8) { ForEach(row, id: \.self) { Chip(text: $0) } }
-            }
         }
     }
 }

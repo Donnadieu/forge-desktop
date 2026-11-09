@@ -38,5 +38,5 @@ is the job of `code-review` / `code-review-nuclear` in the AI Review stage.
 4. Re-run the scope's validation (`make all` or the targeted subset) and confirm
    it is still green. If anything goes red, revert that cleanup.
 5. Commit and push the simplifications with the `commit` skill (signed).
-6. Leave a one-line note in the `## Forge Workpad` `Notes` section summarizing
+6. Leave a one-line note in the `## Workpad` `Notes` section summarizing
    what was simplified (or "no simplifications needed").

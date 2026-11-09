@@ -150,6 +150,7 @@ export async function dispatchIssue(
     attempt,
     logger: deps.config.logger,
     roleOf: deps.config.roleOf,
+    branchPrefix: deps.config.branchPrefix,
   };
 
   // Register entry BEFORE starting worker so onEvent can find it immediately

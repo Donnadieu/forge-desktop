@@ -13,6 +13,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { redactSecretsDeep, redactSecretsFromString } from "../observability/secret-redact.js";
 import { createCommandTokenFn } from "../tracker/basecamp-token-provider.js";
+import { findMarks, marksRefusal, PLAIN_USER_AGENT } from "../tracker/marks.js";
 import { writeStderr } from "./handler-log.js";
 
 const GITHUB_TOOL = {
@@ -38,18 +39,24 @@ export interface GitHubCallResult {
 
 export async function callGitHub(
   args: { query: string; variables?: Record<string, unknown> },
-  opts: { endpoint: string; token: () => Promise<string> },
+  opts: { endpoint: string; token: () => Promise<string>; invisible?: boolean },
   fetchImpl: typeof fetch = fetch,
 ): Promise<GitHubCallResult> {
   if (typeof args.query !== "string" || !args.query.trim()) {
     return { success: false, error: "query is required" };
   }
+  // "Keep Forge invisible": a mutation that would show a mark never leaves (tracker/marks.ts).
+  const marks =
+    opts.invisible && /\bmutation\b/.test(args.query)
+      ? findMarks(`${args.query}\n${JSON.stringify(args.variables ?? {})}`)
+      : [];
+  if (marks.length > 0) return { success: false, error: marksRefusal("this issue write", marks) };
   const response = await fetchImpl(opts.endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${await opts.token()}`,
       "Content-Type": "application/json",
-      "User-Agent": "Forge Desktop (https://github.com/Donnadieu/forge-desktop)",
+      "User-Agent": PLAIN_USER_AGENT,
     },
     // Agent-written comments leave the box here: credential shapes are redacted.
     body: JSON.stringify({
@@ -76,6 +83,7 @@ export async function startServer(): Promise<void> {
   const endpoint = process.env.GITHUB_GRAPHQL_ENDPOINT || "https://api.github.com/graphql";
   const command = JSON.parse(process.env.GITHUB_TOKEN_COMMAND ?? "[]") as string[];
   if (command.length === 0) throw new Error("GITHUB_TOKEN_COMMAND is required");
+  const invisible = process.env.MARKS_INVISIBLE === "1";
   const read = createCommandTokenFn({ command });
   let cached: { token: string; until: number } | null = null;
   const token = async (): Promise<string> => {
@@ -102,10 +110,10 @@ export async function startServer(): Promise<void> {
     const args = request.params.arguments as { query: string; variables?: Record<string, unknown> };
     let result: GitHubCallResult;
     try {
-      result = await callGitHub(args, { endpoint, token });
+      result = await callGitHub(args, { endpoint, token, invisible });
       if (result.status === 401) {
         cached = null;
-        result = await callGitHub(args, { endpoint, token });
+        result = await callGitHub(args, { endpoint, token, invisible });
       }
     } catch (err) {
       result = { success: false, error: err instanceof Error ? err.message : String(err) };

@@ -16,9 +16,9 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   code-comment-style; every skill runs by name with no instructions that override it.
 - **Agent skills:** `skills/` holds eleven of Forge's `.agents/skills` at the same commit: triage,
   commit, push, pull, simplify, code-review (with code-review-nuclear, code-review-fix and the review
-  helpers it calls), qa-plan-forge, land, linear. Changed: qa-plan-forge and its template rewritten for
+  helpers it calls), qa-plan (Forge's qa-plan-forge, renamed Nov 9), land, linear. Changed: qa-plan and its template rewritten for
   any repo (Forge's own stack removed); push lost two Forge-only sections; linear's lifecycle defers to
-  the workflow (one `## Forge Workpad` comment, no summary comments); "GPG-signed" became "signed";
+  the workflow (one `## Workpad` comment, no summary comments); "GPG-signed" became "signed";
   three dead pointers to an `EDGE_CASE_TEMPLATE.md` Forge never had were removed.
   Forge's worker variant of linear (merge without Human Review) is not shipped.
   `skills/code-comment-style` is new here: the owner's own skill, copied verbatim.
@@ -163,3 +163,10 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/mcp/github-graphql-server.ts | new | | the agents' `github_graphql` tool: one GraphQL call each, the token from the app's `--github-token`, kept in memory |
 | src/tracker/github.ts | new | | GitHub Issues on a GitHub project: Status field = column; reads, claims (assignees), moves (adds the issue to the project first), comments |
 | src/tracker/github-queries.ts | new | | the GraphQL it sends, and how an issue becomes a card (labels, closing pull request, open blockers) |
+| src/tracker/marks.ts | new | | what others see: the marks check every guard uses, the plain user agent, the `marks` settings and the note after the lead's instructions (pull request label, Keep Forge invisible) |
+| src/workspace/marks-guard.ts | new | | Keep Forge invisible in a card's folder: Claude Code's PreToolUse hook and git's pre-push hook, checking pushes and `gh` writes |
+| src/marks-guard.ts | new | | the guard's entry, run by those two hooks |
+| src/config/workflow-check.ts | new | | checks a hand-edited workflow file: YAML, tabs, unknown keys with a suggestion, wrong kinds, by line |
+| src/check-workflow.ts | new | | `check-workflow.js`: the app's check before it saves an edited workflow file (adds the `{{ … }}` check) |
+| src/worker/branch.ts | new | | the card's branch: Workflow Studio's prefix plus the card id, else the tracker's; a card in flight keeps its branch |
+| Nov 9, 2026 (what others see) | | | `config/schema.ts` gains `marks`; `worker/runner.ts` takes the branch from `branch.ts`; `worker/helper-wait.ts` says "This run stopped"; `orchestrator/workpad-parser.ts` reads `## Workpad` and the older heading; the three `mcp/` servers refuse marked writes when invisible and GitHub/Basecamp send the plain user agent (also `tracker/basecamp.ts`, `tracker/github.ts`); `workspace/copy-assets.ts` installs the guard; `index.ts` wires it; `workflow/*.md` and the skills lose the words agents could repeat |

@@ -38,15 +38,21 @@ struct WorkflowSettings: Codable, Equatable, Sendable {
     var agentsAtOnce: Int?
     var sendNewToTriage: Bool?
     var startReady: Bool?
+    /// What others see (added in 0.2.23): see SetupChoices.
+    var invisible: Bool?
+    var prLabel: String?
+    var branchPrefix: String?
 
     init() {}
 
     init(_ c: SetupChoices) {
         (stagesOff, agentsAtOnce, sendNewToTriage, startReady) = (c.stagesOff, c.agentsAtOnce, c.sendNewToTriage, c.startReady)
+        (invisible, prLabel, branchPrefix) = (c.invisible, c.prLabel, c.branchPrefix)
     }
 
     func apply(to c: inout SetupChoices) {
         (c.stagesOff, c.agentsAtOnce, c.sendNewToTriage, c.startReady) = (stagesOff, agentsAtOnce, sendNewToTriage, startReady)
+        (c.invisible, c.prLabel, c.branchPrefix) = (invisible, prLabel, branchPrefix)
     }
 }
 

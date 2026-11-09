@@ -175,6 +175,18 @@ export const WorkflowConfigSchema = z.object({
       host: z.string().optional(),
     })
     .default({}),
+  // What others see (Forge Desktop, tracker/marks.ts): Workflow Studio's "Keep Forge invisible", the pull
+  // request label (absent = `forge`, or none when invisible) and the branch prefix (empty = the tracker's name).
+  marks: z
+    .object({
+      invisible: z.boolean().default(false),
+      pr_label: z.string().optional(),
+      branch_prefix: z
+        .string()
+        .regex(/^[A-Za-z0-9._/-]*$/, "a branch prefix may only hold letters, digits, . _ / and -")
+        .default(""),
+    })
+    .default({}),
   observability: z
     .object({
       dashboard_enabled: z.boolean().default(true),

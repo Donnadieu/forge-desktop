@@ -29,6 +29,7 @@ import {
   stageFor,
   VIEWER,
 } from "./github-queries.js";
+import { PLAIN_USER_AGENT } from "./marks.js";
 import type {
   BoardCard,
   ClaimIssueArgs,
@@ -64,7 +65,7 @@ export class GitHubGraphQLError extends Error {
   }
 }
 
-const USER_AGENT = "Forge Desktop (https://github.com/Donnadieu/forge-desktop)";
+const USER_AGENT = PLAIN_USER_AGENT;
 const MAX_PAGES = 40;
 
 interface Located {

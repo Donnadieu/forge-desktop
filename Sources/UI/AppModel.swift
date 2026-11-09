@@ -56,7 +56,7 @@ final class AppModel: ObservableObject {
         var githubUser: GitHub.User? = GitHub.User(login: "samrivera", name: "Sam Rivera", id: 1234567)
         var gpgKeys = [GitHub.GPGKey(id: "SAMPLEKEY", name: "Sam Rivera", email: "sam@example.com")]
         var workpad = """
-            ## Forge Workpad
+            ## Workpad
 
             ### Plan
             - [x] Reproduce: the login page accepts an empty password
@@ -114,6 +114,8 @@ final class AppModel: ObservableObject {
     static let projectsScreen = 9
     /// Every running workspace's cards in one Orchestrator.
     static let allWorkspacesScreen = 10
+    /// Workflow Studio's "Edit workflow file": the real WORKFLOW.md, checked before it saves.
+    static let workflowFileScreen = 11
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
@@ -156,7 +158,7 @@ final class AppModel: ObservableObject {
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.allWorkspacesScreen, s))
+        screen = max(0, min(Self.workflowFileScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
         if screen != Self.harnessScreen { harnessOffer = nil }
     }

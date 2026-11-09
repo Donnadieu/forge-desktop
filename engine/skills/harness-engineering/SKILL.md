@@ -25,7 +25,7 @@ Before starting, read these files in the repo (if they exist):
 
 This skill runs in two situations and the deliverable differs:
 
-- **A repo Forge just built.** The scaffolding below is authored as part of the
+- **A repo just built from cards.** The scaffolding below is authored as part of the
   build, alongside the code it describes.
 - **A repo that already exists** (an import, or an app being brought up to
   standard). Here the deliverable is a **single repo-hardening PR** — one review,
@@ -36,7 +36,7 @@ the *guards*; it does not pay down the debt they find. Every violation the
 structural lint grandfathers is a backlog ticket, not a silent exemption, and the
 PR body says so.
 
-### Running it (from a Forge card)
+### Running it (from a card)
 
 The card that sent you here lists the **guardrails the owner chose** after a
 repo assessment (the `repo-assessment` skill). Build exactly those, plus the agent

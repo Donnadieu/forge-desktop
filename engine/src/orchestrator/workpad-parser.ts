@@ -11,7 +11,8 @@ export interface WorkpadData {
   notes: string[];
 }
 
-const WORKPAD_HEADER = "## Forge Workpad";
+/** `## Workpad`; cards started before 0.2.23 carry `## Forge Workpad`, which still counts. */
+const WORKPAD_HEADER = /^##\s+(?:Forge\s+)?Workpad\b/m;
 
 const SECTION_HEADERS = [
   "### Plan",
@@ -22,12 +23,12 @@ const SECTION_HEADERS = [
 ] as const;
 
 /**
- * Find the Forge Workpad comment body from a list of comments.
+ * Find the workpad comment body from a list of comments.
  * Returns the comment body or null if not found.
  */
 export function findWorkpadComment(comments: Array<{ body: string }>): string | null {
   for (const comment of comments) {
-    if (comment.body.includes(WORKPAD_HEADER)) {
+    if (WORKPAD_HEADER.test(comment.body)) {
       return comment.body;
     }
   }
@@ -35,11 +36,11 @@ export function findWorkpadComment(comments: Array<{ body: string }>): string | 
 }
 
 /**
- * Parse a Forge Workpad comment into structured data.
+ * Parse a workpad comment into structured data.
  * Returns null if the comment doesn't contain a valid workpad.
  */
 export function parseWorkpad(commentBody: string): WorkpadData | null {
-  if (!commentBody.includes(WORKPAD_HEADER)) return null;
+  if (!WORKPAD_HEADER.test(commentBody)) return null;
 
   const sections = splitSections(commentBody);
 

@@ -50,7 +50,7 @@ export class HelperWatch {
     const list = this.descriptions();
     const what = list.length ? `: ${list.map((d) => `"${d}"`).join(", ")}` : "";
     return (
-      `Forge stopped this run: the agent waited ${minutes} minutes for ${this.count} ` +
+      `This run stopped: the agent waited ${minutes} minutes for ${this.count} ` +
       `helper${this.count === 1 ? "" : "s"} that had not finished${what}. ` +
       "The card goes back in line and its next run starts from the workpad."
     );

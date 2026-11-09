@@ -107,15 +107,7 @@ describe("copySkills: every skill a workflow names is at the path the prompt use
   it("lists Forge's skills where Claude Code's Skill tool looks, beside the client's own", () => {
     copySkills(ws, FORGE_SKILLS);
 
-    for (const name of [
-      "commit",
-      "land",
-      "triage",
-      "simplify",
-      "code-review",
-      "qa-plan-forge",
-      "push",
-    ]) {
+    for (const name of ["commit", "land", "triage", "simplify", "code-review", "qa-plan", "push"]) {
       expect(existsSync(join(ws, ".claude", "skills", name, "SKILL.md")), name).toBe(true);
     }
     expect(existsSync(join(ws, ".claude", "skills", "commit-and-push", "SKILL.md"))).toBe(true);

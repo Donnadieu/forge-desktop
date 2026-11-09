@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 export function buildMcpServers(
   trackerKind: string,
   board: { accountId?: string; endpoint?: string } = {},
+  marks: { invisible?: boolean } = {},
 ): Record<string, unknown> {
   let mcpServers: Record<string, unknown> | undefined;
 
@@ -68,5 +69,11 @@ export function buildMcpServers(
     };
   }
 
+  // "Keep Forge invisible": each tracker tool refuses writes that would show a mark (tracker/marks.ts).
+  if (marks.invisible && mcpServers) {
+    for (const server of Object.values(mcpServers) as Array<{ env: Record<string, string> }>) {
+      server.env.MARKS_INVISIBLE = "1";
+    }
+  }
   return mcpServers ?? {};
 }

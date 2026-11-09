@@ -1,5 +1,5 @@
 ---
-name: qa-plan-forge
+name: qa-plan
 description: The QA stage — draft a QA plan for this repo's change, EXECUTE it end-to-end against the app running locally, self-heal on failure (fix the code, re-run), then attach media evidence to the PR and the Linear card and add the `qa-complete` label. Use when a card reaches the `QA` status. Data setup is strictly additive — never delete or mutate existing records.
 ---
 
@@ -62,7 +62,7 @@ the branch adds migrations, apply them to a local database only. Seed only new
 fixtures. Stop everything you started when QA is done.
 
 ### 4. Draft the plan
-Fill [assets/qa-plan-forge-template.md](assets/qa-plan-forge-template.md): the
+Fill [assets/qa-plan-template.md](assets/qa-plan-template.md): the
 environment, the surface/trigger header, the fixtures table, and one numbered
 section per scenario with an explicit expected result. Save it under
 `.context/qa-plan-<card>.md` (keep `.context/` out of commits).

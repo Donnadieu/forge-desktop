@@ -60,6 +60,13 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var sendNewToTriage: Bool?
     /// Backlog cards marked ready go to Todo, so an agent builds them.
     var startReady: Bool?
+    // What others see, from Workflow Studio (optional: added in 0.2.23; nil = Forge's defaults).
+    /// "Keep Forge invisible": no Forge label, words or folder paths in anything others read; commits as the person.
+    var invisible: Bool?
+    /// The label pull requests get; "" = none, nil = `forge` (none when invisible).
+    var prLabel: String?
+    /// Put before the card's id in branch names (`omar/` → `omar/bc-123`); nil or "" = the tracker's own name.
+    var branchPrefix: String?
 
     enum Signing: String, Codable, CaseIterable, Sendable {
         /// A key Forge makes, kept in the Keychain and registered on the person's GitHub.

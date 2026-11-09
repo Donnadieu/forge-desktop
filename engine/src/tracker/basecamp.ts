@@ -14,6 +14,7 @@ import {
   StaticBasecampTokenProvider,
 } from "./basecamp-token-provider.js";
 import { BasecampWriteClient } from "./basecamp-writes.js";
+import { PLAIN_USER_AGENT } from "./marks.js";
 import type {
   BoardCard,
   ClaimIssueArgs,
@@ -119,7 +120,7 @@ export interface BasecampAdapterOptions {
 }
 
 const DEFAULT_ENDPOINT = "https://3.basecampapi.com";
-const USER_AGENT = "Forge Desktop (https://github.com/Donnadieu/forge-desktop)";
+const USER_AGENT = PLAIN_USER_AGENT;
 
 export class BasecampTracker implements TrackerAdapter {
   readonly kind = "basecamp";

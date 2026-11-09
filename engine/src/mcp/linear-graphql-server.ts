@@ -2,6 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { redactSecretsDeep, redactSecretsFromString } from "../observability/secret-redact.js";
+import { findMarks, marksRefusal } from "../tracker/marks.js";
 import { writeStderr } from "./handler-log.js";
 
 const LINEAR_TOOL = {
@@ -22,7 +23,14 @@ export async function executeGraphQL(
   variables: Record<string, unknown> | undefined,
   apiKey: string,
   endpoint: string,
+  invisible = false,
 ): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  // "Keep Forge invisible": a mutation that would show a mark never leaves (tracker/marks.ts).
+  const marks =
+    invisible && /\bmutation\b/.test(query)
+      ? findMarks(`${query}\n${JSON.stringify(variables ?? {})}`)
+      : [];
+  if (marks.length > 0) return { success: false, error: marksRefusal("this Linear write", marks) };
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -82,7 +90,13 @@ export async function startServer(): Promise<void> {
     }
 
     const args = request.params.arguments as { query: string; variables?: Record<string, unknown> };
-    const result = await executeGraphQL(args.query, args.variables, apiKey, endpoint);
+    const result = await executeGraphQL(
+      args.query,
+      args.variables,
+      apiKey,
+      endpoint,
+      process.env.MARKS_INVISIBLE === "1",
+    );
 
     return {
       content: [{ type: "text", text: JSON.stringify(result) }],

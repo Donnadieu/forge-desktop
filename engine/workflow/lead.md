@@ -105,7 +105,7 @@ listed in pipeline order. Reordering that list reorders dispatch priority.
 - `code-review-nuclear`: `AI Review` stage — the review: behavioral and structural agents in one pass.
 - `code-review-fix`: `AI Review` stage — fixes the nuclear review's findings.
 - `code-comment-style`: `AI Review` stage, last — deletes every LLM-written comment in the branch's diff.
-- `qa-plan-forge`: `QA` stage — draft, execute, and self-heal a repo-specific QA plan, then attach media.
+- `qa-plan`: `QA` stage — draft, execute, and self-heal a repo-specific QA plan, then attach media.
 - `land`: when ticket reaches `Merging`, explicitly open and follow `skills/land/SKILL.md`, which includes the `land` loop.
 
 ## Status map
@@ -157,7 +157,7 @@ listed in pipeline order. Reordering that list reorders dispatch priority.
    - Create a fresh branch from `origin/<your-base-branch>` and restart execution flow as a new attempt.
 6. For `Todo` tickets, do startup sequencing in this exact order:
    - `update_issue(..., state: "In Progress")`
-   - find/create `## Forge Workpad` bootstrap comment
+   - find/create `## Workpad` bootstrap comment
    - only then begin analysis/planning/implementation work.
 7. Add a short comment if state and issue content are inconsistent, then proceed with the safest flow.
 
@@ -166,8 +166,8 @@ listed in pipeline order. Reordering that list reorders dispatch priority.
 Applies only when the ticket state is `Triage`. This stage **plans, it never
 implements** — no feature code, no PR. Open and follow `skills/triage/SKILL.md`.
 
-1. Load or create a single `## Forge Triage` comment (distinct from the execution
-   `## Forge Workpad`) and use it as the spike record.
+1. Load or create a single `## Triage notes` comment (distinct from the execution
+   `## Workpad`) and use it as the spike record.
 2. Investigate: read the relevant code, reproduce/confirm the problem or map the
    feature surface, and identify the concrete files/modules/interfaces involved.
 3. Produce a spike that a later execution run can pick up cold:
@@ -176,7 +176,7 @@ implements** — no feature code, no PR. Open and follow `skills/triage/SKILL.md
    - Risks, open questions, and any decisions taken.
    - Rough scope/effort estimate.
 4. Do **not** edit the issue body/description; keep everything in the
-   `## Forge Triage` comment.
+   `## Triage notes` comment.
 5. If the spike surfaces that the ticket should be split, file the follow-up
    issues per the out-of-scope rule and note them in the triage comment.
 6. On completion, move the ticket **back to `Backlog`** and add the
@@ -186,12 +186,12 @@ implements** — no feature code, no PR. Open and follow `skills/triage/SKILL.md
 ## Step 1: Start/continue execution (Todo or In Progress)
 
 1.  Find or create a single persistent scratchpad comment for the issue:
-    - Search existing comments for a marker header: `## Forge Workpad`.
+    - Search existing comments for a marker header: `## Workpad` (cards started earlier may carry `## Workpad`; that one counts).
     - Ignore resolved comments while searching; only active/unresolved comments are eligible to be reused as the live workpad.
     - If found, reuse that comment; do not create a new workpad comment.
     - If not found, create one workpad comment and use it for all updates.
     - Persist the workpad comment ID and only write progress updates to that ID.
-    - If a `## Forge Triage` spike comment exists, seed the workpad plan,
+    - If a `## Triage notes` spike comment exists, seed the workpad plan,
       acceptance criteria, and validation from it before adding new detail.
 2.  If arriving from `Todo`, do not delay on additional status transitions: the issue should already be `In Progress` before this step begins.
 3.  Immediately reconcile the workpad before new edits:
@@ -200,8 +200,9 @@ implements** — no feature code, no PR. Open and follow `skills/triage/SKILL.md
     - Ensure `Acceptance Criteria` and `Validation` are current and still make sense for the task.
 4.  Start work by writing/updating a hierarchical plan in the workpad comment.
 5.  Ensure the workpad includes a compact environment stamp at the top as a code fence line:
-    - Format: `<host>:<abs-workdir>@<short-sha>`
-    - Example: `devbox-01:/home/dev-user/code/forge-workspaces/MT-32@7bdde33bc`
+    - Format: `<card id>@<short-sha>`
+    - Example: `MT-32@7bdde33bc`
+    - No host name and no folder path: the card is read by other people.
     - Do not include metadata already inferable from Linear issue fields (`issue ID`, `status`, `branch`, `PR link`).
 6.  Add explicit acceptance criteria and TODOs in checklist form in the same comment.
     - If changes are user-facing, include a UI walkthrough acceptance criterion that describes the end-to-end user path to validate.
@@ -267,7 +268,7 @@ Use this only when completion is blocked by missing required tools or missing au
 6.  Re-check all acceptance criteria and close any gaps.
 7.  Before every `git push` attempt, run the required validation for your scope and confirm it passes; if it fails, address issues and rerun until green, then commit and push changes. All commits have to be signed with a gpg key. And using the `commit` skill.
 8.  Attach PR URL to the issue (prefer attachment; use the workpad comment only if attachment is unavailable).
-    - Ensure the GitHub PR has label `forge` (add it if missing).
+    - Give the GitHub PR the pull request label named under "What others see" at the end of these instructions (none named: no label).
 9.  Merge latest `origin/<your-base-branch>` into branch, resolve conflicts, and rerun checks.
 10. **Run the `simplify` skill** over the changed code as the final execution step:
     - It is a quality-only pass (reuse, simplification, efficiency, altitude) — it does not hunt for bugs.
@@ -280,7 +281,7 @@ Use this only when completion is blocked by missing required tools or missing au
     - Add a short `### Confusions` section at the bottom when any part of task execution was unclear/confusing, with concise bullets.
     - Do not post any additional completion summary comment.
 12. Before moving to `AI Review`, confirm:
-    - PR is created, pushed, linked on the issue, and has the `forge` label.
+    - PR is created, pushed, linked on the issue, and carries the pull request label from "What others see" (if one is named).
     - PR checks are passing (green) after the latest changes.
     - Every required ticket-provided validation/test-plan item is explicitly marked complete in the workpad.
     - `simplify` has run and validation is still green.
@@ -321,7 +322,7 @@ loops review → fix until no blocking issues remain.
 ## Step 4: QA flow (QA -> Human Review)
 
 Applies when the ticket state is `QA`. This stage is fully automated and
-self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
+self-healing. Open and follow `skills/qa-plan/SKILL.md`.
 
 1. Draft a repo-specific QA plan for the change:
    - Map the change to its observation surface (the app's UI, a command's
@@ -344,7 +345,7 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
    - Screenshots and a short GIF/video of each key scenario.
 5. Attach the media to **both** the PR and the ticket:
    - Ticket: upload via the Linear `fileUpload` mutation (see the `linear` skill)
-     and embed the `assetUrl`s in the `## Forge Workpad` comment under a
+     and embed the `assetUrl`s in the `## Workpad` comment under a
      `### QA Evidence` heading.
    - PR: post a `gh pr comment` with a `## QA Evidence` section embedding the same
      asset URLs plus a one-line pass summary per scenario.
@@ -365,7 +366,7 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
 1. Treat `Rework` as targeted, in-place changes on the EXISTING PR and branch — not a reset, and never a rebuild from scratch.
 2. Keep the ticket in `Rework` the entire time you work it. Never move it to `In Progress`, `AI Review`, `QA`, or any earlier stage.
 3. Re-read the full issue body, all human comments, and every open PR review comment; identify exactly what the reviewer asked for.
-4. Reuse the existing branch, the existing PR, and the existing `## Forge Workpad` comment. Do not close the PR, do not delete the workpad, do not create a new branch.
+4. Reuse the existing branch, the existing PR, and the existing `## Workpad` comment. Do not close the PR, do not delete the workpad, do not create a new branch.
 5. Make the requested changes, commit, and push to the existing PR. Update the workpad with what changed and how each piece of feedback was addressed.
 6. When the requested changes are complete, move the issue directly back to `Human Review`.
 
@@ -380,7 +381,7 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
 - `simplify` has run and validation is still green.
 - PR feedback sweep is complete and no actionable comments remain.
 - PR checks are green, branch is pushed, and PR is linked on the issue.
-- Required PR metadata is present (`forge` label).
+- Required PR metadata is present (the pull request label from "What others see", if one is named).
 
 ### Before leaving AI Review (AI Review -> QA)
 - `code-review-nuclear` has run.
@@ -400,7 +401,7 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
 - If issue state is `Backlog`, do not modify it; wait for a human to move it to `Triage` or `Todo`.
 - `Triage` never writes feature code or opens a PR — it produces a spike/plan only.
 - Do not edit the issue body/description for planning or progress tracking.
-- Use exactly one persistent workpad comment (`## Forge Workpad`) per issue for execution, and at most one `## Forge Triage` comment for the spike.
+- Use exactly one persistent workpad comment (`## Workpad`) per issue for execution, and at most one `## Triage notes` comment for the spike.
 - If comment editing is unavailable in-session, use the update script. Only report blocked if both MCP editing and script-based editing are unavailable.
 - Temporary proof edits are allowed only for local verification and must be reverted before commit.
 - QA data setup is strictly additive — never delete, reset, or mutate existing records.
@@ -420,10 +421,10 @@ self-healing. Open and follow `skills/qa-plan-forge/SKILL.md`.
 Use this exact structure for the persistent workpad comment and keep it updated in place throughout execution:
 
 ````md
-## Forge Workpad
+## Workpad
 
 ```text
-<hostname>:<abs-path>@<short-sha>
+<card id>@<short-sha>
 ```
 
 ### Plan

@@ -19,7 +19,7 @@ const NAMED: Array<[string, string]> = [
   ["code-review", "code-review/SKILL.md"],
   ["code-review-nuclear", "code-review/code-review-nuclear/SKILL.md"],
   ["code-review-fix", "code-review/code-review-fix/SKILL.md"],
-  ["qa-plan-forge", "qa-plan-forge/SKILL.md"],
+  ["qa-plan", "qa-plan/SKILL.md"],
   ["land", "land/SKILL.md"],
   ["linear", "linear/SKILL.md"],
   ["repo-assessment", "repo-assessment/SKILL.md"],

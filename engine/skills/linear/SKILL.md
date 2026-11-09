@@ -5,7 +5,7 @@ description: Use Linear GraphQL API for issue operations like comments, state tr
 
 # Linear GraphQL
 
-Use this skill for Linear GraphQL operations during Forge agent sessions.
+Use this skill for Linear GraphQL operations during agent sessions.
 
 ## Primary Tool
 
@@ -179,8 +179,8 @@ mutation MoveIssueToState($id: String!, $stateId: String!) {
 }
 ```
 
-- Keep a single `## Forge Workpad` comment up to date as the only record of
-  progress (`commentCreate` once, then `commentUpdate` with its id). The Forge
+- Keep a single `## Workpad` comment up to date as the only record of
+  progress (`commentCreate` once, then `commentUpdate` with its id). The
   app shows this comment in the card's detail.
 - Do NOT post separate summary or "ready for review" comments.
 - Never move a card backward; the only human-driven loop is `Human Review` ⇄

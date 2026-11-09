@@ -37,6 +37,8 @@ export interface OrchestratorConfig {
   promptTemplate: string;
   mcpServers?: Record<string, unknown>;
   skillsManifest?: string;
+  /** Workflow Studio's branch prefix (worker/branch.ts). */
+  branchPrefix?: string;
   repoCloneUrl?: string;
   /**
    * Stamped-repo marker path (Smith only). When the marker is non-empty at

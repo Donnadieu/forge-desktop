@@ -1,13 +1,13 @@
 ---
 name: triage
-description: Spike, investigate, and plan a Backlog ticket WITHOUT implementing it. Use when a ticket is in the `Triage` status — read the code, reproduce/confirm the problem or map the feature surface, and produce an execution-ready plan (hierarchical checklist, acceptance criteria, validation, risks, estimate) in a `## Forge Triage` comment. Never write feature code or open a PR. On completion the caller moves the ticket back to `Backlog` and adds the `ready-for-execution` label so a human can decide when to build it.
+description: Spike, investigate, and plan a Backlog ticket WITHOUT implementing it. Use when a ticket is in the `Triage` status — read the code, reproduce/confirm the problem or map the feature surface, and produce an execution-ready plan (hierarchical checklist, acceptance criteria, validation, risks, estimate) in a `## Triage notes` comment. Never write feature code or open a PR. On completion the caller moves the ticket back to `Backlog` and adds the `ready-for-execution` label so a human can decide when to build it.
 ---
 
 # Triage / Spike
 
 The pre-execution planning stage. A human moved this ticket into `Triage`
 because it needs investigation before it is worth building. Your job is to
-**de-risk and plan it, not build it**. The output is a spike another Forge run
+**de-risk and plan it, not build it**. The output is a spike another agent run
 (or a human) can pick up cold and execute.
 
 ## Hard rules
@@ -16,14 +16,14 @@ because it needs investigation before it is worth building. Your job is to
   changes, do not open a PR. Read-only investigation plus (optionally) a throwaway
   reproduction is the entire remit.
 - **Do not edit the issue body/description.** All output goes in a single
-  `## Forge Triage` comment.
+  `## Triage notes` comment.
 - **Additive to Linear only** — one triage comment; do not spam extra comments.
 
 ## Workflow
 
 ### 1. Open the triage record
-Find or create a single `## Forge Triage` comment on the issue (distinct from the
-execution `## Forge Workpad`). Everything below lives in that one comment, kept
+Find or create a single `## Triage notes` comment on the issue (distinct from the
+execution `## Workpad`). Everything below lives in that one comment, kept
 updated in place.
 
 ### 2. Investigate
@@ -40,7 +40,7 @@ updated in place.
   instead of a plan.
 
 ### 3. Produce the spike
-Write these sections into the `## Forge Triage` comment so an executor can start
+Write these sections into the `## Triage notes` comment so an executor can start
 without re-investigating:
 
 - **Summary** — what the change is and why, in a few sentences.
@@ -66,7 +66,7 @@ decides when execution starts. Do not open a PR or start implementation.
 ## Triage comment template
 
 ````md
-## Forge Triage
+## Triage notes
 
 ### Summary
 <what + why>

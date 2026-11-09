@@ -143,3 +143,13 @@ describe("parseWorkpad", () => {
     expect(result.planItems[1]).toEqual({ text: "Incomplete task", completed: false });
   });
 });
+
+describe("the workpad heading", () => {
+  it("finds the new `## Workpad` and the older `## Forge Workpad` (cards in flight keep working)", () => {
+    const fresh = SAMPLE_WORKPAD.replace("## Forge Workpad", "## Workpad");
+    expect(findWorkpadComment([{ body: "hi" }, { body: fresh }])).toBe(fresh);
+    expect(findWorkpadComment([{ body: SAMPLE_WORKPAD }])).toBe(SAMPLE_WORKPAD);
+    expect(parseWorkpad(fresh)?.planItems).toEqual(parseWorkpad(SAMPLE_WORKPAD)?.planItems);
+    expect(findWorkpadComment([{ body: "We should add a ## Workpad later" }])).toBeNull();
+  });
+});

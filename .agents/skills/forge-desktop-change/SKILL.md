@@ -122,6 +122,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Codex's app-server reports a failed turn as `turn/completed` with `turn.status: "failed"` and `turn.error`, not
   `turn/failed`: reading every `turn/completed` as success hid Codex's usage limits.
 
+- Claude Code's Bash tool resets PATH from the person's login shell (checked live with `claude -p`, Nov 9): a wrapper
+  `gh` or `git` put first on the agent's PATH is skipped. Guard what an agent runs with a PreToolUse hook in the
+  card's `.claude/settings.local.json` (exit 2, reason on stderr: the agent reads it and retries) and git's own hooks,
+  as `workspace/marks-guard.ts` does.
+- Anything an agent writes others can read (pull requests, card comments, commits, branches) must pass `findMarks`
+  (`tracker/marks.ts`) when the workspace keeps Forge invisible. A new place the engine or a prompt writes to
+  people goes through it too, and its words must not name Forge.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

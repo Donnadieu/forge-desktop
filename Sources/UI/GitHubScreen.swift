@@ -185,7 +185,7 @@ struct GitHubScreen: View {
         guard let user else { return }
         busy = true
         defer { busy = false }
-        if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "Forge signing key for @\(user.login)")) {
+        if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "commit signing key for @\(user.login)")) {
             problem = "Forge couldn't make a key."
             return
         }
@@ -194,7 +194,7 @@ struct GitHubScreen: View {
                 askRegister = true
                 return
             }
-            var result = await ForgeSigningKey.register(title: "Forge")
+            var result = await ForgeSigningKey.register(title: ForgeSigningKey.title)
             if result == .needsPermission {
                 let ok = await GitHubSignIn.run(.signingKeyPermission) { c in Task { @MainActor in code = c } }
                 code = nil
@@ -202,7 +202,7 @@ struct GitHubScreen: View {
                     problem = "GitHub didn't give Forge the permission to add a signing key."
                     return
                 }
-                result = await ForgeSigningKey.register(title: "Forge")
+                result = await ForgeSigningKey.register(title: ForgeSigningKey.title)
             }
             if case .failed(let why) = result {
                 problem = "GitHub didn't add the key: \(why)"

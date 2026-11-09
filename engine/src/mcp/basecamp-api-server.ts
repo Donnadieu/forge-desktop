@@ -12,6 +12,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { redactSecretsDeep } from "../observability/secret-redact.js";
 import { createCommandTokenFn } from "../tracker/basecamp-token-provider.js";
+import { findMarks, marksRefusal, PLAIN_USER_AGENT } from "../tracker/marks.js";
 import { writeStderr } from "./handler-log.js";
 
 const BASECAMP_TOOL = {
@@ -47,7 +48,7 @@ export function safePath(path: string): string | null {
 
 export async function callBasecamp(
   args: { method: string; path: string; body?: unknown },
-  opts: { endpoint: string; accountId: string; token: () => Promise<string> },
+  opts: { endpoint: string; accountId: string; token: () => Promise<string>; invisible?: boolean },
   fetchImpl: typeof fetch = fetch,
 ): Promise<BasecampCallResult> {
   const method = args.method.toUpperCase();
@@ -56,13 +57,17 @@ export async function callBasecamp(
   }
   const path = safePath(args.path);
   if (!path) return { success: false, error: "path must start with / and stay inside the account" };
+  // "Keep Forge invisible": a write that would show a mark never leaves (tracker/marks.ts).
+  const marks =
+    opts.invisible && method !== "GET" ? findMarks(JSON.stringify(args.body ?? "")) : [];
+  if (marks.length > 0) return { success: false, error: marksRefusal("this card write", marks) };
   const base = `${opts.endpoint}/${opts.accountId}`;
   const response = await fetchImpl(`${base}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${await opts.token()}`,
       "Content-Type": "application/json",
-      "User-Agent": "Forge Desktop (https://github.com/Donnadieu/forge-desktop)",
+      "User-Agent": PLAIN_USER_AGENT,
     },
     // Agent-written comments leave the box here: credential shapes are redacted.
     body: args.body === undefined ? undefined : JSON.stringify(redactSecretsDeep(args.body)),
@@ -90,6 +95,7 @@ export async function startServer(): Promise<void> {
   if (!accountId || command.length === 0) {
     throw new Error("BASECAMP_ACCOUNT_ID and BASECAMP_TOKEN_COMMAND are required");
   }
+  const invisible = process.env.MARKS_INVISIBLE === "1";
   const refresh = createCommandTokenFn({ command });
   let cached: { token: string; until: number } | null = null;
   const token = async (): Promise<string> => {
@@ -116,10 +122,10 @@ export async function startServer(): Promise<void> {
     const args = request.params.arguments as { method: string; path: string; body?: unknown };
     let result: BasecampCallResult;
     try {
-      result = await callBasecamp(args, { endpoint, accountId, token });
+      result = await callBasecamp(args, { endpoint, accountId, token, invisible });
       if (result.status === 401) {
         cached = null;
-        result = await callBasecamp(args, { endpoint, accountId, token });
+        result = await callBasecamp(args, { endpoint, accountId, token, invisible });
       }
     } catch (err) {
       result = { success: false, error: err instanceof Error ? err.message : String(err) };

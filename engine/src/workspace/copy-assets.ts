@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { configureWorkspaceGitIdentity, verifyWorkspaceSigning } from "./git-identity.js";
+import { setPrePushGuard, withClaudeGuard } from "./marks-guard.js";
 
 /**
  * One org-owned skill, reduced to what the workspace layer needs to write it to
@@ -43,6 +44,8 @@ export interface WorkspaceAssetSources {
   templatesDir?: string;
   /** See `WorkspaceConfig.loadOrgSkills` — absent ⇒ built-in skills only. */
   loadOrgSkills?: () => Promise<OrgSkillFile[]>;
+  /** "Keep Forge invisible": the guard command (marks-guard.ts); absent ⇒ no guard, and an old one is removed. */
+  marksGuard?: string;
 }
 
 /**
@@ -56,7 +59,8 @@ export async function copyWorkspaceAssets(
   sources: WorkspaceAssetSources,
 ): Promise<void> {
   if (sources.skillsDir) copySkills(workspacePath, sources.skillsDir);
-  turnOffClaudeAttribution(workspacePath);
+  turnOffClaudeAttribution(workspacePath, sources.marksGuard);
+  setPrePushGuard(workspacePath, sources.marksGuard);
 
   // The provider returns an empty list whenever either feature gate is closed,
   // so this is a no-op for an unflagged deploy.
@@ -173,7 +177,7 @@ function mirrorNestedSkills(
  * trailers". The card folder's local Claude settings turn it off; any other
  * local setting there is kept, and the file is excluded from git.
  */
-export function turnOffClaudeAttribution(workspacePath: string): void {
+export function turnOffClaudeAttribution(workspacePath: string, marksGuard?: string): void {
   const dir = join(workspacePath, ".claude");
   const file = join(dir, "settings.local.json");
   let settings: Record<string, unknown> = {};
@@ -187,6 +191,7 @@ export function turnOffClaudeAttribution(workspacePath: string): void {
     }
   }
   settings.attribution = { commit: "", pr: "" };
+  settings = withClaudeGuard(settings, marksGuard);
   mkdirSync(dir, { recursive: true });
   writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
   excludeFromGit(workspacePath, ["/.claude/settings.local.json"]);

@@ -86,10 +86,22 @@ enum EngineSettings {
             "retry:",
             "  max_attempts: 5",
             "  base_delay_seconds: 10",
-            "---",
-            "",
         ]
+        lines += marksLines(c)
+        lines += ["---", ""]
         return lines.joined(separator: "\n")
+    }
+
+    /// What others see (Workflow Studio): "Keep Forge invisible", the pull request label and the branch prefix.
+    /// Nothing when none is set, so the engine keeps its defaults (the `forge` label, the tracker's branches).
+    static func marksLines(_ c: SetupChoices) -> [String] {
+        let invisible = c.invisible ?? false
+        let prefix = c.branchPrefix ?? ""
+        guard invisible || c.prLabel != nil || !prefix.isEmpty else { return [] }
+        var lines = ["marks:", "  invisible: \(invisible)"]
+        if let l = c.prLabel { lines.append("  pr_label: \(quoted(l))") }
+        if !prefix.isEmpty { lines.append("  branch_prefix: \(quoted(prefix))") }
+        return lines
     }
 
     /// Which board the engine reads: Linear names the project; Basecamp also names the account, the card
@@ -181,19 +193,30 @@ enum EngineSettings {
         return lines
     }
 
-    /// Writes the workflow file into an engine's folder. Throws a plain-words problem when setup isn't finished.
+    /// Writes the workflow file into an engine's folder. A file the person edited keeps their edits: only the
+    /// settings the app owns change (WorkflowFile). Throws a plain-words problem when setup isn't finished.
     static func writeWorkflow(_ c: SetupChoices, home: URL = Paths.home, store: SetupStore? = nil) throws {
+        let app = try workflowText(c, home: home, store: store)
+        try FileManager.default.createDirectory(at: home.appendingPathComponent("workspaces"), withIntermediateDirectories: true)
+        let file = WorkflowFile(home: home)
+        if file.edited, let mine = file.text {
+            try file.save(WorkflowFile.merge(edited: mine, app: app), edited: true)
+        } else {
+            try file.save(app, edited: false)
+        }
+    }
+
+    /// The workflow file the app writes for these answers.
+    static func workflowText(_ c: SetupChoices, home: URL = Paths.home, store: SetupStore? = nil) throws -> String {
         guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         let cards = home.appendingPathComponent("workspaces")
-        try FileManager.default.createDirectory(at: cards, withIntermediateDirectories: true)
         let file = c.board == .github ? "workflow/github.md" : "workflow/basecamp.md"
         let note = boardNote(c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent(file), encoding: .utf8) })
         if c.board != .linear, note == nil { throw Problem(description: "The \(c.board.name) instructions are missing from the app.") }
-        let text =
-            frontMatter(c, cardsFolder: cards.path, skillsFolder: skillsFolder, store: store) + (note ?? "")
-            + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "") + lead
-        try text.write(to: home.appendingPathComponent("WORKFLOW.md"), atomically: true, encoding: .utf8)
+        let part = (note ?? "") + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "")
+        return frontMatter(c, cardsFolder: cards.path, skillsFolder: skillsFolder, store: store) + WorkflowFile.partStart + "\n" + part
+            + WorkflowFile.partEnd + "\n\n" + lead
     }
 
     /// The engine's environment, built fresh before every start. Reads the Keychain and the `gh` sign-in.

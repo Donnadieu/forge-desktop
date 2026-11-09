@@ -17,23 +17,23 @@ Linear step through this section. Where they differ, this section wins.
   in place `PUT /buckets/@@PROJECT@@/comments/<comment>.json` with `{"content": "<html>"}`.
 - Comments are HTML, and Basecamp keeps only these tags: `div`, `h1`, `br`, `strong`, `em`, `a`,
   `pre`, `ul`, `ol`, `li`, `blockquote` (anything else is dropped). Start the workpad with
-  `<h1>Forge Workpad</h1>` and the spike with `<h1>Forge Triage</h1>`; write each line as a `<div>`,
+  `<h1>Workpad</h1>` and the spike with `<h1>Triage notes</h1>` (older cards: `Forge Workpad`, `Forge Triage`); write each line as a `<div>`,
   lists as `<ul><li>`, sub-headings as `<div><strong>…</strong></div>`, code as `<pre>`. Checklist items
   are `<li>` lines starting with `[ ]` or `[x]`. Find the workpad by that heading.
 - Move a card: `POST /card_tables/@@CARD_TABLE@@/moves.json` with
   `{"source_id": <card>, "target_id": <column id>, "position": 0}`. A plain card update does not move
   it. Then read the card again and check `parent.title`.
 - Labels: Basecamp cards have none. A label is a paragraph of its own that reads exactly
-  `Label: <name>`. Triage's `ready-for-execution` goes near the top of the `Forge Triage` comment
+  `Label: <name>`. Triage's `ready-for-execution` goes near the top of the `Triage notes` comment
   (`<div>Label: ready-for-execution</div>`); QA's `qa-complete` goes near the top of the workpad. "Create
   the label if it does not exist" needs nothing here.
 - The pull request: Basecamp has no attachments for links. Put the pull request's full URL in the
-  workpad (that is how Forge finds it), even where the instructions say to keep it out.
+  workpad (that is how the board finds it), even where the instructions say to keep it out.
 - QA evidence: skip uploading files to the card; post them on the pull request (`gh pr comment`)
   and link that comment from the workpad.
 - Follow-up cards: `POST /buckets/@@PROJECT@@/card_tables/lists/@@BACKLOG@@/cards.json` with
   `{"title": "...", "content": "<html>"}` (Backlog). Basecamp has no blocking links: write
   `Depends on: BC-<card>` as a line of the new card's content.
 - Assignment: `PUT /buckets/@@PROJECT@@/card_tables/cards/<card>.json` with
-  `{"assignee_ids": [...]}` replaces the whole list. Forge assigns cards itself; leave it alone.
+  `{"assignee_ids": [...]}` replaces the whole list. Cards are assigned for you; leave it alone.
 

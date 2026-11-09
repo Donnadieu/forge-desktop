@@ -18,6 +18,7 @@ export type McpServersConfig = Record<string, unknown>;
 export function buildMcpServersConfig(
   trackerKind: string,
   board: { accountId?: string; endpoint?: string } = {},
+  marks: { invisible?: boolean } = {},
 ): McpServersConfig {
-  return buildMcpServers(trackerKind, board);
+  return buildMcpServers(trackerKind, board, marks);
 }

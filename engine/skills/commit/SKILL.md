@@ -141,7 +141,7 @@ EOF
 
 ## Automated Mode
 
-When `COMMIT_AUTO_MODE=true` is set (as Forge sets it for agents):
+When `COMMIT_AUTO_MODE=true` is set (as it is set for agents):
 
 1. **No confirmation prompt** - commits automatically
 2. **No co-author line** - no "Co-Authored-By: Claude" or similar

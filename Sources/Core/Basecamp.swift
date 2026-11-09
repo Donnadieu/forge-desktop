@@ -53,7 +53,7 @@ struct BasecampAPI: Sendable {
         r.timeoutInterval = 20
         r.setValue("Bearer \(try await token())", forHTTPHeaderField: "Authorization")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        r.setValue("Forge Desktop (https://github.com/Donnadieu/forge-desktop)", forHTTPHeaderField: "User-Agent")
+        r.setValue(AppInfo.plainUserAgent, forHTTPHeaderField: "User-Agent")
         if let body { r.httpBody = try JSONSerialization.data(withJSONObject: body) }
         let (data, response) = try await URLSession.shared.data(for: r)
         let http = response as? HTTPURLResponse

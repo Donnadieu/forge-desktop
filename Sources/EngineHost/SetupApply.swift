@@ -73,12 +73,12 @@ enum SetupApply {
         var signingKey: String?
         switch a.signing {
         case .forgeKey:
-            if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "Forge signing key for @\(user.login)")) {
+            if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "commit signing key for @\(user.login)")) {
                 throw Stop(description: "couldn't make a key")
             }
             if !(await ForgeSigningKey.registered()) {
                 guard a.registerForgeKey == true else { throw Stop(description: "Forge's key isn't on GitHub and registering wasn't approved") }
-                let r = await ForgeSigningKey.register(title: "Forge")
+                let r = await ForgeSigningKey.register(title: ForgeSigningKey.title)
                 guard r == .done else { throw Stop(description: "GitHub didn't add the key (\(r))") }
                 print("✓ added Forge's signing key to @\(user.login)")
             }

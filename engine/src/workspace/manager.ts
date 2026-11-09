@@ -21,6 +21,8 @@ export interface WorkspaceConfig {
   skillsDir?: string;
   templatesDir?: string;
   sshConfigPath?: string;
+  /** "Keep Forge invisible": the guard each card folder gets (marks-guard.ts). */
+  marksGuard?: string;
   /**
    * Supplies the org-owned skills to overlay on top of the built-in ones.
    * Injected rather than resolved here because deciding *which* skills apply

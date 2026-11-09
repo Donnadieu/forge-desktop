@@ -50,6 +50,9 @@ enum ForgeSigningKey {
         case failed(String)
     }
 
+    /// The key's name on GitHub, which anyone can read (`/users/<login>/ssh_signing_keys`): plain, never the app's.
+    static let title = "Commit signing"
+
     /// Adds the public half to the person's GitHub as a signing key. Only after they said yes in the app.
     static func register(title: String) async -> Registration {
         guard let pub = publicKey else { return .failed("there's no key yet") }

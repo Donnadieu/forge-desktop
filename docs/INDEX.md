@@ -14,4 +14,5 @@
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress
+  - [exec-plans/active/sessions.md](exec-plans/active/sessions.md): Sessions (Direction A), steps and progress
   - [exec-plans/tech-debt-tracker.md](exec-plans/tech-debt-tracker.md): known debt, only shrinks

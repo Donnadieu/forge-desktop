@@ -280,6 +280,8 @@ Claude Design project: https://claude.ai/design/p/f4c92c06-8b0e-46d1-a6b9-cd2b04
 
 ## 10. Build order (Direction A)
 
+The checklist that tracks it: [exec-plans/active/sessions.md](../exec-plans/active/sessions.md).
+
 1. **Spike** (no screen change): the 12,000-turn transcript and 5,000-line diff budget test (section 7), and the
    sessions host answering `POST /sessions` + one streamed Claude Code turn with steer and stop. Go or no-go on `List`.
 2. **Sessions host + Sessions screen**: workspace repos, New session, the chat (stream, folded tools, steer, queue,

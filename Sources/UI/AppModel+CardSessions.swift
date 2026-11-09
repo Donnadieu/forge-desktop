@@ -42,14 +42,29 @@ extension AppModel {
         sessions.watch(cards.map(\.body))
     }
 
-    /// "Open session" on a running card: the Sessions screen with that card's session open.
+    /// "Open session" on a running card: the Sessions screen with that card's session open. The watcher (CardWatcher)
+    /// takes a moment after a run's session id arrives to post the session itself, so this waits briefly rather than
+    /// opening to an empty "New session" pane on an early click.
     func openCardSession(project: String?, card: EngineState.Card) {
         guard let project else { return }
         let id = Self.cardSessionID(project: project, card: card.id)
         go(Self.sessionsScreen)
         sessions.composing = false
         sessions.selected = id
-        if let s = sessions.sessions.first(where: { $0.id == id }) { sessions.open(s) }
+        if let s = sessions.sessions.first(where: { $0.id == id }) {
+            sessions.open(s)
+            return
+        }
+        Task { [weak self] in
+            for _ in 0..<10 {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard let self, self.sessions.selected == id else { return }
+                if let s = self.sessions.sessions.first(where: { $0.id == id }) {
+                    self.sessions.open(s)
+                    return
+                }
+            }
+        }
     }
 
     /// Wires the card sessions' messages to the card's engine.

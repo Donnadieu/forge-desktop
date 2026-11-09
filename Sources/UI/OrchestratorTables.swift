@@ -203,7 +203,9 @@ struct OrchestratorTables: View {
                 RunningRow(
                     card: c, run: state?.running.first { $0.issue_identifier == c.identifier }, expanded: expandedBinding(c.id),
                     waitingForLimit: state?.waitingForLimit.contains(c.identifier) == true,
-                    openSession: c.agent?.session_id == nil && !model.preview ? nil : { model.openCardSession(project: model.viewedProject, card: c) }
+                    // Always offered for any running card: the session follows as soon as the engine's agent
+                    // reports one (openCardSession below waits rather than failing silently on an early click).
+                    openSession: c.agent == nil ? nil : { model.openCardSession(project: model.viewedProject, card: c) }
                 ) {
                     open = c
                 }

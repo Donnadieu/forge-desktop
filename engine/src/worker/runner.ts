@@ -49,6 +49,9 @@ export interface WorkerCallbacks {
   onEvent?: (issueId: string, event: AgentEvent) => void;
   onTurnStart?: (issueId: string, turn: number) => void;
   onTurnEnd?: (issueId: string, turn: number) => void;
+  /** Forge Desktop: the session id and workspace are known (as soon as the agent's handle resolves), so the
+   *  app can follow and steer this run's session (sessions/cards.ts) before the run itself finishes. */
+  onSessionReady?: (issueId: string, sessionId: string, workspacePath: string) => void;
   /** Asked between turns: true once Stop was pressed, so the agent ends after the turn it's on. */
   shouldStop?: () => boolean;
   /** Forge Desktop (orchestrator/hands-on.ts): the person's message to run as the next turn while they hold the
@@ -171,6 +174,7 @@ export async function runWorker(
       currentHandle = handle;
       if (handle.pid !== undefined) await lock.recordAgentPid(handle.pid);
       sessionId = handle.id;
+      callbacks?.onSessionReady?.(issue.id, sessionId, workspacePath);
 
       while (turnNumber < config.maxTurns && !aborted) {
         const person = turnNumber > 0 ? ((await callbacks?.nextPrompt?.()) ?? null) : null;
@@ -327,6 +331,7 @@ export async function runWorker(
       currentHandle = handle;
       if (handle.pid !== undefined) await lock.recordAgentPid(handle.pid);
       sessionId = handle.id;
+      callbacks?.onSessionReady?.(issue.id, sessionId, workspacePath);
 
       if (aborted) {
         handle.abortController.abort();

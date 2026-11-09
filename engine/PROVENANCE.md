@@ -9,7 +9,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
   factory QA bound and build completion, boot scripts). Two skills tests wait for step 9
   (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts` and
   `test/unit/workspace/leftover-sweep.test.ts` and `test/unit/workspace/runaway-guard.test.ts` are new. `test/unit/sessions/` and its stand-in agent
-  (`test/fixtures/sessions/fake-claude.mjs`) are new.
+  (`test/fixtures/sessions/fake-claude.mjs`) are new. `test/unit/orchestrator/turn-telemetry.test.ts` is new.
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
   same commit. The QA step's two hosted-platform passages were made general (observe the app's UI or a
   command, run the project the way its README says). The app writes the settings block above it.

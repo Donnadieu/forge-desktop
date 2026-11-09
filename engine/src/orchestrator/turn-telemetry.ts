@@ -35,8 +35,8 @@ export function makeWorkerCallbacks(
   return {
     signal,
     shouldStop,
+    // Always accumulate global totals regardless of entry lookup
     onEvent: (issueId, event) => {
-      // Always accumulate global totals regardless of entry lookup
       addUsageTokens(state.totalTokens, event);
       if (event.type === "rate_limit") {
         state.rateLimits[event.window] = {
@@ -52,6 +52,14 @@ export function makeWorkerCallbacks(
       if (runEntry && state.usageLimits.size > 0 && gotGoing(event))
         clearLimit(state, runEntry.limitKey);
       callbacks.onEvent?.(issueId, event);
+    },
+    // Forge Desktop: the session and its workspace are known — the card's "Open session" button and the
+    // Sessions screen's card watcher (sessions/cards.ts) need both before they can follow or steer this run.
+    onSessionReady: (issueId, sessionId, workspacePath) => {
+      const runEntry = ownEntry(issueId);
+      if (!runEntry) return;
+      runEntry.sessionId = sessionId;
+      runEntry.workspacePath = workspacePath;
     },
     onTurnStart: (issueId, turn) => {
       const runEntry = ownEntry(issueId);

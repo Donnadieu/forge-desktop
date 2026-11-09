@@ -50,6 +50,11 @@ struct RunningRow: View {
                 Text(elapsed).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 80, alignment: .leading)
                 Text(run?.attempt.map(String.init) ?? card.agent.map { "\($0.attempt)" } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
                     .frame(width: 64, alignment: .leading)
+                if let openSession, live {
+                    Button("Open session", action: openSession)
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "bubble.left.and.text.bubble.right"))
+                        .help("Read the agent's whole conversation and steer it")
+                }
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 52)
@@ -79,14 +84,6 @@ struct RunningRow: View {
         .padding(.top, 12).padding(.bottom, 16).padding(.trailing, 16)
         .padding(.leading, 16 + 24 + 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottomTrailing) {
-            if let openSession, live {
-                Button("Open session", action: openSession)
-                    .buttonStyle(ForgeButton(kind: .secondary, icon: "bubble.left.and.text.bubble.right"))
-                    .help("Read the agent's whole conversation and steer it")
-                    .padding(12)
-            }
-        }
         .background(Theme.wash1)
         .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
     }

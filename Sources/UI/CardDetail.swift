@@ -8,6 +8,10 @@ struct CardDetail: View {
     let close: () -> Void
     @State private var workpad: String?
     @State private var loaded = false
+    @State private var steerText = ""
+    @State private var sending = false
+    @State private var wheelBusy = false
+    @State private var steerProblem: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -63,11 +67,21 @@ struct CardDetail: View {
                 Text(card.title).font(Theme.display(24)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 24)
+            if card.agent != nil {
+                Button("Open session", action: openSession)
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "bubble.left.and.text.bubble.right"))
+                    .help("Read the agent's whole conversation and steer it")
+            }
             Button("Done", action: close)
                 .buttonStyle(ForgeButton(kind: .ghost, hint: "esc"))
                 .keyboardShortcut(.cancelAction)
         }
         .padding(24)
+    }
+
+    private func openSession() {
+        model.openCardSession(project: model.viewedProject, card: card)
+        close()
     }
 
     @ViewBuilder private var agentSection: some View {
@@ -119,6 +133,65 @@ struct CardDetail: View {
                     .font(Theme.mono(12))
                 }
             }
+        }
+        if card.agent != nil { steerSection }
+    }
+
+    /// A message box right under Recent activity: steers the agent mid-task without leaving the card, plus
+    /// Stop (take the wheel) and Hand back to Forge once taken over (AppModel+CardSessions.swift).
+    @ViewBuilder private var steerSection: some View {
+        let handsOn = card.agent?.hands_on ?? false
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel(text: "Steer")
+            if let steerProblem {
+                Text(steerProblem).font(Theme.sans(12)).foregroundStyle(Theme.heat)
+            }
+            HStack(spacing: 8) {
+                TextField(handsOn ? "Send the next message…" : "Steer the agent right now…", text: $steerText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(Theme.sans(13))
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(Theme.wash1))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(Theme.border))
+                    .onSubmit(send)
+                Button("Send", action: send)
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.circle.fill"))
+                    .disabled(steerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
+            }
+            HStack(spacing: 8) {
+                if handsOn {
+                    Button("Hand back to Forge") { toggleWheel(take: false) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.forward"))
+                        .help("Forge's agent carries on by itself from where you left it")
+                } else {
+                    Button("Stop") { toggleWheel(take: true) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill"))
+                        .help("Ends the agent's turn now; it waits for your messages until you hand it back")
+                }
+                if wheelBusy { Spinner(heat: true) }
+            }
+        }
+    }
+
+    private func send() {
+        let text = steerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, let project = model.viewedProject else { return }
+        steerText = ""
+        sending = true
+        Task {
+            let problem = await model.sessions.steerCard?(project, card.id, text)
+            sending = false
+            steerProblem = problem
+        }
+    }
+
+    private func toggleWheel(take: Bool) {
+        guard let project = model.viewedProject else { return }
+        wheelBusy = true
+        Task {
+            let problem = await model.sessions.cardWheel?(project, card.id, take)
+            wheelBusy = false
+            steerProblem = problem
         }
     }
 

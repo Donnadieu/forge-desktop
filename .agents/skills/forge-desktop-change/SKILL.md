@@ -86,6 +86,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   an `&&` chain before the commit, or the commit never runs.
 
 ### Engine, agents and bundled skills
+- A card's `agent.session_id`/`folder` (what gates "Open session" and card steer/Stop in the UI) come only from
+  `RunningEntry.sessionId`/`workspacePath`, and nothing wrote those live: `WorkerCallbacks` had `onEvent`/
+  `onTurnStart`/`onTurnEnd` but no hook for the session becoming known, so they stayed `null` for a running card's
+  whole life — board-reader.ts always shipped `null`, so the button and the card-detail panel never had anything
+  to show, on every lane, for every agent, since the id/folder are known in `worker/runner.ts` (right after
+  `startSession` resolves) but were never passed up. Fixed with a new `WorkerCallbacks.onSessionReady(issueId,
+  sessionId, workspacePath)`, called once per turn in both runner branches; `turn-telemetry.ts` writes it onto the
+  `RunningEntry`. Gate a card's session UI on `card.agent != nil`, never on `session_id` already being present —
+  there's a few-hundred-ms gap between dispatch and the engine's next state push where it's still catching up.
 - Bundled skills copied from Forge must lose hosted-platform content.
   `engine/test/unit/workspace/bundled-skills.test.ts` greps for it (even "factory functions" needs
   rewording). Record each adaptation in `engine/PROVENANCE.md`.
@@ -148,6 +157,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `bypassPermissions`; answer a question with `updatedInput.answers` = {question: label}. Approving a plan switches the
   session to `default`, so set the permission mode back or the next Bash call asks.
 - Test chats with `engine/test/fixtures/sessions/fake-claude.mjs` (`FORGE_CLAUDE_COMMAND`), never a real `claude`.
+- Confirmed anyway, live, against the real `claude` CLI bypassing the orchestrator (`ClaudeCodeAdapter.startSession`
+  + `streamEvents` called directly, no board): steer mid-turn genuinely lands in the SAME turn (told it to work a
+  word into its reply while a Bash `sleep` tool call was still running; the final text had it, on both Node 22 and
+  26). A second `streamEvents()` call reusing the same session id came back empty (`done success:false`, zero
+  events) in that bare script — not reproduced through the real dispatch loop, and `claude.test.ts`'s own "reuses
+  process across turns" test (mocked stdout) passes — another data point for why this lesson says fake-claude, not
+  a live process, for anything past the first turn.
 - Claude Code's transcript (`~/.claude/projects/<folder with every non-alphanumeric as ->/<session>.jsonl`) has no
   result line: a card session's turn ends at an assistant message with `stop_reason: end_turn` and no tool call.
   Lines with `isSidechain: true` are helpers' own conversations; skip them.

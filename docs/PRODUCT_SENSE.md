@@ -33,7 +33,8 @@ switches (switching stops the running one). Sign-ins belong to the Mac and any w
 **Sessions** (beside the Orchestrator in the top bar) are the chats you have with agents in the workspace: New
 session picks a repo and the first message; the chat streams, folds tool calls, takes a steer mid-turn, stops, goes
 back to before a turn; the right panel shows the changes and the pull request (Create PR, Fix errors, Pull review
-comments, Merge). Conductor's open workspaces come over in one step.
+comments, Merge). Conductor's open workspaces come over in one step. A running card's row on the Orchestrator has
+Open session: its whole conversation, a message steers it, Stop takes the wheel and Hand back to Forge gives it back.
 **Settings** shows the workspace on screen, in setup's order: trackers, projects and repos, intelligence provider and
 account, then GitHub and signing; each
 Change opens that setup step. Saving either restarts the engine; agents pick their cards back up.

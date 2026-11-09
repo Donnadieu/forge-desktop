@@ -76,16 +76,27 @@ struct SessionsScreen: View {
             ReviewCommentsSheet(sessions: sessions, session: s)
         } else if let preview = sessions.importSheet {
             ImportConductorSheet(model: model, sessions: sessions, preview: preview)
+        } else if sessions.showHistory {
+            HistorySheet(model: model, sessions: sessions)
         } else if let d = sessions.openDiff {
-            DiffSheet(path: d.path, text: d.text) { sessions.openDiff = nil }
+            DiffSheet(path: d.path, text: d.text, comment: { sessions.addComment($0, session: d.session) }, close: { sessions.openDiff = nil })
         }
     }
 
-    /// Conductor's keys, so the hands keep working: ⌘N new session, ⌘T new chat, ⌘1-9 sessions.
+    /// Conductor's keys, so the hands keep working (design section 6): ⌘N new session, ⌘T new chat, ⌘W close chat,
+    /// ⌘1-9 and ⌘⌥↑↓ sessions, ⌘⌥L next chat needing you, ⌘O open in the editor, ⌘⇧A archive, ⌘⇧D changes.
     private var shortcuts: some View {
         ZStack {
             Button("") { sessions.composing = true }.keyboardShortcut("n", modifiers: .command)
             Button("") { if let s = sessions.current { sessions.newChat(in: s) } }.keyboardShortcut("t", modifiers: .command)
+            Button("") { sessions.openNextNeedingYou() }.keyboardShortcut("l", modifiers: [.command, .option])
+            Button("") { sessions.openNeighbour(list, by: -1) }.keyboardShortcut(.upArrow, modifiers: [.command, .option])
+            Button("") { sessions.openNeighbour(list, by: 1) }.keyboardShortcut(.downArrow, modifiers: [.command, .option])
+            Button("") { if let s = sessions.current, let c = sessions.activeChat(of: s) { sessions.close(c) } }
+                .keyboardShortcut("w", modifiers: .command)
+            Button("") { if let s = sessions.current { sessions.openInEditor(s) } }.keyboardShortcut("o", modifiers: .command)
+            Button("") { if let s = sessions.current { sessions.archive(s) } }.keyboardShortcut("a", modifiers: [.command, .shift])
+            Button("") { sessions.showChanges.toggle() }.keyboardShortcut("d", modifiers: [.command, .shift])
             ForEach(1..<10) { n in
                 Button("") { if list.indices.contains(n - 1) { sessions.open(list[n - 1]) } }
                     .keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)

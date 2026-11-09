@@ -36,6 +36,14 @@ describe("local API", () => {
         calls.push(`steer ${id} ${text}`);
         return id === "abc-1";
       },
+      takeWheel: (id) => {
+        calls.push(`take ${id}`);
+        return id === "abc-1";
+      },
+      handBack: (id) => {
+        calls.push(`back ${id}`);
+        return false;
+      },
       pushCheckMs: 20,
     });
     return `http://127.0.0.1:${api.port}`;
@@ -87,6 +95,20 @@ describe("local API", () => {
       (await fetch(`${base}/api/v1/cards/abc-1/message`, { method: "POST", body: "{}" })).status,
     ).toBe(401);
     expect(calls).toEqual(["steer abc-1 use the old API", "steer abc-2 hello"]);
+  });
+
+  it("takes the wheel of a running card and hands it back", async () => {
+    const calls: string[] = [];
+    const base = await boot({ n: 1 }, calls);
+    const auth = { authorization: `Bearer ${TOKEN}` };
+    const post = (p: string) =>
+      fetch(`${base}/api/v1/cards/${p}`, { method: "POST", headers: auth });
+    expect((await post("abc-1/stop-turn")).status).toBe(200);
+    expect((await post("abc-2/stop-turn")).status).toBe(409);
+    const back = await post("abc-1/hand-back");
+    expect(back.status).toBe(409);
+    expect(await back.json()).toEqual({ ok: false, problem: "Forge already has this card." });
+    expect(calls).toEqual(["take abc-1", "take abc-2", "back abc-1"]);
   });
 
   it("moves a card when asked, and refuses a move without a column", async () => {

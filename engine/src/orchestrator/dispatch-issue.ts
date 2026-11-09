@@ -11,6 +11,7 @@ import { canDispatch, type InodePressureState } from "../workspace/inode-pressur
 import type { WorkspaceManager } from "../workspace/manager.js";
 import { claimForDispatch } from "./claim-gate.js";
 import { noteClaimRefused } from "./dispatcher.js";
+import type { HandsOn } from "./hands-on.js";
 import { hasNoLiveWork, liveSessionReason, logDispatchSuppressed } from "./session-guard.js";
 import { makeWorkerCallbacks } from "./turn-telemetry.js";
 import {
@@ -35,6 +36,8 @@ export interface DispatchIssueDeps {
   isStopped: () => boolean;
   isDraining: () => boolean;
   inodePressure: InodePressureState;
+  /** Forge Desktop: cards the person holds the wheel of (hands-on.ts). */
+  handsOn?: HandsOn;
   handleWorkerComplete: (
     issueId: string,
     result: WorkerResult,
@@ -226,17 +229,32 @@ export async function dispatchIssue(
     deps.tracker,
     deps.workspace,
     // Stop lets the agent finish the turn it's on, then ends the run instead of starting another.
-    makeWorkerCallbacks(
-      deps.state,
-      deps.callbacks,
-      abortController.signal,
-      () => deps.isStopped() || deps.isDraining(),
-    ),
+    {
+      ...makeWorkerCallbacks(
+        deps.state,
+        deps.callbacks,
+        abortController.signal,
+        () => deps.isStopped() || deps.isDraining(),
+      ),
+      // Forge Desktop: while the person holds the wheel, their message is the next turn; waiting isn't a stall.
+      nextPrompt: () =>
+        deps.handsOn?.next(issue.id, {
+          signal: abortController.signal,
+          stopping: () => deps.isStopped() || deps.isDraining(),
+          alive: () => {
+            entry.lastActivityAt = performance.now();
+          },
+          everyMs: 5000,
+        }) ?? Promise.resolve(null),
+      personStopped: () => deps.handsOn?.isOn(issue.id) ?? false,
+    },
   )
     .then((result) => {
+      deps.handsOn?.forget(issue.id);
       deps.handleWorkerComplete(issue.id, result, attempt, entry);
     })
     .catch((error) => {
+      deps.handsOn?.forget(issue.id);
       deps.handleWorkerError(issue.id, issue.identifier, error, attempt, entry);
     });
 }

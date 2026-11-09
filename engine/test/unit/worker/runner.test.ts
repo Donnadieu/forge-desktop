@@ -128,6 +128,55 @@ describe("runWorker", () => {
     );
   });
 
+  it("runs the person's message as the next turn while they hold the wheel, and an interrupted turn isn't a failure", async () => {
+    const prompts: string[] = [];
+    let turn = 0;
+    const agent: AgentAdapter = {
+      name: "mock",
+      persistentSession: true,
+      async startSession(params: StartSessionParams) {
+        prompts.push(params.prompt);
+        return { id: "s", abortController: new AbortController() };
+      },
+      async *streamEvents() {
+        turn++;
+        // Turn 1 is interrupted by the person (Claude Code ends it with an error).
+        yield { type: "done" as const, success: turn !== 1 };
+      },
+      async stopSession() {},
+    };
+    const tracker = new MemoryTracker([{ ...testIssue, state: "In Progress" }]);
+    let handsOn = true;
+    const result = await runWorker(
+      { ...testIssue, state: "In Progress" },
+      {
+        maxTurns: 3,
+        promptTemplate: "Fix {{ issue.identifier }}",
+        trackerConfig: {
+          kind: "memory",
+          project_slug: "test",
+          active_states: ["Todo", "In Progress"],
+          terminal_states: ["Done"],
+        },
+      },
+      agent,
+      tracker,
+      createMockWorkspace(),
+      {
+        personStopped: () => handsOn,
+        nextPrompt: async () => {
+          if (!handsOn) return null;
+          handsOn = false; // one message, then handed back
+          return "use the old API";
+        },
+      },
+    );
+    expect(result.success).toBe(true);
+    expect(prompts[0]).toBe("Fix MT-42");
+    expect(prompts[1]).toBe("use the old API");
+    expect(prompts[2]).toContain("Continuation guidance");
+  });
+
   it("runs multiple turns while issue stays active", async () => {
     const agent = createMockAgent([
       [{ type: "done", success: true }],

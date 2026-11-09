@@ -51,6 +51,11 @@ export interface WorkerCallbacks {
   onTurnEnd?: (issueId: string, turn: number) => void;
   /** Asked between turns: true once Stop was pressed, so the agent ends after the turn it's on. */
   shouldStop?: () => boolean;
+  /** Forge Desktop (orchestrator/hands-on.ts): the person's message to run as the next turn while they hold the
+   *  wheel; null for Forge's own turn. */
+  nextPrompt?: () => Promise<string | null>;
+  /** Forge Desktop: the person stopped this turn to take the wheel, so its interrupted end isn't a failure. */
+  personStopped?: () => boolean;
   signal?: AbortSignal;
 }
 
@@ -168,6 +173,8 @@ export async function runWorker(
       sessionId = handle.id;
 
       while (turnNumber < config.maxTurns && !aborted) {
+        const person = turnNumber > 0 ? ((await callbacks?.nextPrompt?.()) ?? null) : null;
+        if (aborted || (turnNumber > 0 && callbacks?.shouldStop?.())) break;
         turnNumber++;
         callbacks?.onTurnStart?.(issue.id, turnNumber);
 
@@ -180,14 +187,15 @@ export async function runWorker(
         }
 
         const prompt =
-          turnNumber === 1
+          person ??
+          (turnNumber === 1
             ? renderFirstTurnPrompt(
                 config.promptTemplate,
                 issue,
                 config.attempt ?? 1,
                 config.skillsManifest,
               )
-            : buildContinuationGuidance(turnNumber, config.maxTurns);
+            : buildContinuationGuidance(turnNumber, config.maxTurns));
 
         let turnSuccess = true;
         let eventCount = 0;
@@ -236,6 +244,8 @@ export async function runWorker(
           break;
         }
 
+        // Forge Desktop: the person stopped this turn to take the wheel; the run waits for them instead of failing.
+        if (!turnSuccess && !aborted && callbacks?.personStopped?.()) turnSuccess = true;
         callbacks?.onTurnEnd?.(issue.id, turnNumber);
 
         if (!turnSuccess || aborted) {
@@ -270,6 +280,8 @@ export async function runWorker(
 
     // 4. Per-turn streamEvents flow (non-persistent or no runTurn)
     while (turnNumber < config.maxTurns && !aborted) {
+      const person = turnNumber > 0 ? ((await callbacks?.nextPrompt?.()) ?? null) : null;
+      if (aborted || (turnNumber > 0 && callbacks?.shouldStop?.())) break;
       turnNumber++;
 
       callbacks?.onTurnStart?.(issue.id, turnNumber);
@@ -286,7 +298,8 @@ export async function runWorker(
       }
 
       const prompt =
-        turnNumber === 1
+        person ??
+        (turnNumber === 1
           ? renderFirstTurnPrompt(
               config.promptTemplate,
               issue,
@@ -299,7 +312,7 @@ export async function runWorker(
 - This is continuation turn #${turnNumber} of ${config.maxTurns} for the current agent run.
 - Resume from the current workspace and workpad state instead of restarting from scratch.
 - The original task instructions and prior turn context are already present in this thread, so do not restate them before acting.
-- Focus on the remaining ticket work and do not end the turn while the issue stays active unless you are truly blocked.`;
+- Focus on the remaining ticket work and do not end the turn while the issue stays active unless you are truly blocked.`);
 
       // Spawn agent turn
       const handle = await agent.startSession({
@@ -411,6 +424,8 @@ export async function runWorker(
         break;
       }
 
+      // Forge Desktop: the person stopped this turn to take the wheel; the run waits for them instead of failing.
+      if (!turnSuccess && !aborted && callbacks?.personStopped?.()) turnSuccess = true;
       callbacks?.onTurnEnd?.(issue.id, turnNumber);
 
       // An aborted (killed) run is a failure even if the killed process had

@@ -206,7 +206,8 @@ async function main(): Promise<void> {
         controls,
         orchestrator,
         local,
-        board: () => board.view(orchestrator.getSnapshot().running),
+        board: () =>
+          board.view(orchestrator.getSnapshot().running, (id) => orchestrator.handsOn.isOn(id)),
       }),
     workpad: (id) => board.workpad(id),
     move: async (id, to) => {
@@ -218,6 +219,16 @@ async function main(): Promise<void> {
     steer: (id, text) => {
       const ok = orchestrator.steer(id, text);
       logger.info({ issueId: id, ok }, "The person steered a card");
+      return ok;
+    },
+    takeWheel: (id) => {
+      const ok = orchestrator.takeWheel(id);
+      logger.info({ issueId: id, ok }, "The person took the wheel of a card");
+      return ok;
+    },
+    handBack: (id) => {
+      const ok = orchestrator.handBack(id);
+      logger.info({ issueId: id, ok }, "The person handed a card back to Forge");
       return ok;
     },
     start: () => controls.startOrchestrator(null),

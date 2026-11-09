@@ -13,15 +13,15 @@ extension AppModel {
     /// Every running card with an agent session, from every project's engine.
     var runningCardSessions: [[String: String]] { runningCards.map(\.body) }
 
-    private var runningCards: [(project: String, card: String, body: [String: String])] {
-        var out: [(project: String, card: String, body: [String: String])] = []
+    private var runningCards: [(target: CardTarget, body: [String: String])] {
+        var out: [(target: CardTarget, body: [String: String])] = []
         for (pid, state) in states.sorted(by: { $0.key < $1.key }) {
             let project = store.project(pid)
             for c in state.cards {
                 guard let a = c.agent, let session = a.session_id, let folder = a.folder else { continue }
                 out.append(
                     (
-                        pid, c.id,
+                        CardTarget(project: pid, card: c.id, handsOn: a.hands_on ?? false),
                         [
                             "key": "\(pid):\(c.id)", "workspaceId": project?.workspaceID ?? "default", "identifier": c.identifier,
                             "title": c.title, "folder": folder, "sessionId": session, "branch": c.branchName ?? "", "repo": project?.repo ?? "",
@@ -36,9 +36,9 @@ extension AppModel {
     /// Called whenever an engine's state arrives: the host follows the cards running now.
     func watchCardSessions() {
         let cards = runningCards
-        var targets: [String: (project: String, card: String)] = [:]
-        for c in cards { targets[Self.cardSessionID(project: c.project, card: c.card)] = (c.project, c.card) }
-        sessions.cardTargets = targets
+        var targets: [String: CardTarget] = [:]
+        for c in cards { targets[Self.cardSessionID(project: c.target.project, card: c.target.card)] = c.target }
+        if targets != sessions.cardTargets { sessions.cardTargets = targets }
         sessions.watch(cards.map(\.body))
     }
 
@@ -54,9 +54,19 @@ extension AppModel {
 
     /// Wires the card sessions' messages to the card's engine.
     func connectCardSessions() {
+        LimitNotifier.shared.openSession = { [weak self] id in
+            guard let self else { return }
+            go(Self.sessionsScreen)
+            sessions.composing = false
+            if let s = sessions.sessions.first(where: { $0.id == id }) { sessions.open(s) }
+        }
         sessions.steerCard = { [weak self] project, card, text in
             guard let link = self?.links[project] else { return "This project's engine isn't running." }
             return await link.message(card: card, text: text)
+        }
+        sessions.cardWheel = { [weak self] project, card, take in
+            guard let link = self?.links[project] else { return "This project's engine isn't running." }
+            return await link.wheel(card: card, take: take)
         }
     }
 }

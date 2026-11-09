@@ -186,6 +186,19 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     return true;
   }
 
+  /** Ends the turn in flight at once (Claude Code's `interrupt` control request); the process stays for the next. */
+  interrupt(sessionId: string): boolean {
+    const s = this.sessions.get(sessionId);
+    if (!s || s.process.killed || hasExited(s.process) || !s.process.stdin) return false;
+    const request = {
+      type: "control_request",
+      request_id: `forge-stop-${Date.now()}`,
+      request: { subtype: "interrupt" },
+    };
+    s.process.stdin.write(`${JSON.stringify(request)}\n`);
+    return true;
+  }
+
   async *streamEvents(handle: SessionHandle): AsyncIterable<AgentEvent> {
     const session = this.sessions.get(handle.id);
     if (!session || !session.process.stdout) {

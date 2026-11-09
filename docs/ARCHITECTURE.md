@@ -191,6 +191,13 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
 - Every event is stored before the app hears about it; text being written reaches the app at most every 50 ms. Each turn
   is bracketed by snapshots of the folder (private refs `refs/forge/checkpoints/…`, never signed); going back to before a
   turn restores the files and cuts Claude Code's transcript there, so the agent forgets it.
+- Card sessions: each board engine says which Claude Code session and folder a running card's agent uses; the app
+  passes the list to the sessions host (`cards/watch`), which follows that transcript as a session
+  (`sessions/cards.ts`). A message on it goes to the card's own engine (`cards/<id>/message`, written into the running
+  agent). Stop there is take the wheel (`cards/<id>/stop-turn`, `orchestrator/hands-on.ts`): the turn ends and the
+  run waits for the person's messages, each one a turn, until Hand back (`cards/<id>/hand-back`).
+- Pictures pasted or dropped on the message box are kept as files beside the chat (`sessions/attachments.ts`); the
+  message carries an `[image: <path>]` line each, turned into image blocks when it reaches Claude Code.
 - Import from Conductor reads its database immutable and brings the open workspaces over in place, with their chats'
   history (Conductor kept Claude Code's own lines) and session ids.
 - The transcript is a native `List` (it reuses rows) of one row per turn, 50 turns loaded at a time; `Forge

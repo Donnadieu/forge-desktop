@@ -15,11 +15,16 @@ struct ChatColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if session.origin == "card", chat?.working == true {
+            let handsOn = sessions.cardTargets[session.id]?.handsOn == true
+            if session.origin == "card", chat?.working == true || handsOn {
                 HStack(spacing: 8) {
-                    PulseDot(color: Theme.heat, pulsing: true, size: 6)
-                    Text("Forge is working this card. Anything you send steers its agent right away.")
-                        .font(Theme.sans(12)).foregroundStyle(Theme.text)
+                    PulseDot(color: Theme.heat, pulsing: !handsOn, size: 6)
+                    Text(
+                        handsOn
+                            ? "You have the wheel. The agent waits for your messages; Hand back to Forge lets it carry on."
+                            : "Forge is working this card. Anything you send steers its agent right away. Stop to take over."
+                    )
+                    .font(Theme.sans(12)).foregroundStyle(Theme.text)
                     Spacer()
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)

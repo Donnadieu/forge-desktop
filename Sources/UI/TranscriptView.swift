@@ -7,6 +7,8 @@ struct TranscriptView: View {
     @ObservedObject var sessions: SessionsModel
     let chat: Sessions.Chat
     @ObservedObject var transcript: Transcript
+    /// The bottom of the chat is on screen: new text follows it. Scrolled up, it stays put and offers Jump to latest.
+    @State private var atEnd = true
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -27,14 +29,28 @@ struct TranscriptView: View {
                         .id(t.id)
                 }
                 Color.clear.frame(height: 8).id("end").listRowBackground(Color.clear).listRowSeparator(.hidden)
+                    .onAppear { atEnd = true }
+                    .onDisappear { atEnd = false }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .defaultScrollAnchor(.bottom)
             .onChange(of: transcript.turns.last?.events.last) { _, _ in
-                if chat.working { proxy.scrollTo("end", anchor: .bottom) }
+                if chat.working, atEnd { proxy.scrollTo("end", anchor: .bottom) }
             }
-            .onChange(of: transcript.turns.count) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            // A new turn (not older ones loading at the top) brings the chat to its end.
+            .onChange(of: transcript.turns.last?.id) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            .overlay(alignment: .bottom) {
+                if !atEnd, !transcript.turns.isEmpty {
+                    Button("Jump to latest") {
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("end", anchor: .bottom) }
+                    }
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.down"))
+                    .shadow(color: .black.opacity(0.4), radius: 10)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+                }
+            }
         }
     }
 }
@@ -112,11 +128,18 @@ struct UserBubble<Revert: View>: View {
         HStack(alignment: .top) {
             Spacer(minLength: 80)
             revert
-            Text(text.count > 4000 ? String(text.prefix(4000)) + "…" : text).font(Theme.sans(13)).foregroundStyle(Theme.text)
-                .textSelection(.enabled)
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.surface))
-                .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.border))
+            let parts = MessageImages.split(text)
+            VStack(alignment: .trailing, spacing: 8) {
+                if !parts.paths.isEmpty { ImageStrip(paths: parts.paths) }
+                if !parts.words.isEmpty {
+                    Text(parts.words.count > 4000 ? String(parts.words.prefix(4000)) + "…" : parts.words).font(Theme.sans(13))
+                        .foregroundStyle(Theme.text)
+                        .textSelection(.enabled)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.border))
         }
     }
 }

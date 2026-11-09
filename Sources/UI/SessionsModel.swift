@@ -82,7 +82,10 @@ final class SessionsModel: ObservableObject {
     @Published var showChanges = true
     @Published var reviewSheet: ReviewSheet?
     @Published var importSheet: Sessions.ConductorPreview?
+    @Published var showHistory = false
     @Published var drafts: [String: String] = [:]
+    /// Pictures waiting in each chat's message box.
+    @Published var images: [String: [PastedImage]] = [:]
     @Published var pickerOpen = false
     @Published var connected = false
 
@@ -98,9 +101,11 @@ final class SessionsModel: ObservableObject {
     private var live: URLSessionWebSocketTask?
     private var transcripts: [String: Transcript] = [:]
     /// Card sessions: the session's id to the card's project and card, so a message goes to that card's engine.
-    var cardTargets: [String: (project: String, card: String)] = [:]
+    @Published var cardTargets: [String: CardTarget] = [:]
     /// Set by the app: sends a message to a card's running agent; returns the problem, nil when sent.
     var steerCard: (@MainActor (String, String, String) async -> String?)?
+    /// Set by the app: takes the wheel of a card (true) or hands it back (false); returns the problem, nil when done.
+    var cardWheel: (@MainActor (String, String, Bool) async -> String?)?
     private var lastWatch: [[String: String]] = []
 
     init(preview: Bool) {
@@ -168,6 +173,8 @@ final class SessionsModel: ObservableObject {
             if let i = sessions.firstIndex(where: { $0.id == s.id }) { sessions[i] = s } else { sessions.insert(s, at: 0) }
         case .chat(let c):
             guard let i = sessions.firstIndex(where: { $0.id == c.sessionId }) else { return }
+            if c.hidden == true { return sessions[i].chats.removeAll { $0.id == c.id } }
+            notifyIfNeeded(c)
             if let j = sessions[i].chats.firstIndex(where: { $0.id == c.id }) {
                 var next = c
                 next.turns = next.turns ?? sessions[i].chats[j].turns
@@ -183,7 +190,7 @@ final class SessionsModel: ObservableObject {
 
     // MARK: actions
 
-    private func act(_ f: @escaping (SessionsClient) async throws -> Void) {
+    func act(_ f: @escaping (SessionsClient) async throws -> Void) {
         guard let client else { return }
         Task {
             do { try await f(client) } catch { problem = "\(error)" }
@@ -207,9 +214,11 @@ final class SessionsModel: ObservableObject {
 
     func send(_ chat: Sessions.Chat, text: String, queue: Bool) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !t.isEmpty else { return }
+        let pics = images[chat.id] ?? []
+        guard !t.isEmpty || !pics.isEmpty else { return }
         drafts[chat.id] = ""
         if let target = cardTargets[chat.sessionId] {
+            guard !t.isEmpty else { return }
             Task {
                 if let problem = await steerCard?(target.project, target.card, t) {
                     self.problem = problem
@@ -218,7 +227,14 @@ final class SessionsModel: ObservableObject {
             }
             return
         }
-        act { try await $0.send(chat: chat.id, text: t, queue: queue) }
+        images[chat.id] = nil
+        act { try await $0.send(chat: chat.id, text: t, queue: queue, images: pics.map(\.body)) }
+    }
+
+    /// Adds pictures to a chat's message box.
+    func attach(_ pics: [PastedImage], to chat: Sessions.Chat) {
+        guard !pics.isEmpty else { return }
+        images[chat.id, default: []].append(contentsOf: pics)
     }
 
     /// Tells the host which cards run now (only when that changed).

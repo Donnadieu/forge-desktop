@@ -10,6 +10,8 @@
  *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
  *   POST /api/v1/cards/<id>/move     `{"to": "<column>"}`: the person moves a card (Start, Merge, Ask for changes)
  *   POST /api/v1/cards/<id>/message  `{"text": "..."}`: the person steers the card's running agent
+ *   POST /api/v1/cards/<id>/stop-turn  the person takes the wheel: the turn ends, the run waits for their message
+ *   POST /api/v1/cards/<id>/hand-back  the run goes on by itself again
  *   WS   /api/v1/live    pushes the state whenever it changes
  *
  * New in Forge Desktop. Replaces Forge's hosted router.
@@ -34,6 +36,9 @@ export interface LocalApiDeps {
   move?: (cardId: string, to: string) => Promise<{ ok: boolean; problem?: string }>;
   /** The person steers a running card from its session (`{"text": "..."}`). */
   steer?: (cardId: string, text: string) => boolean;
+  /** Stop from the card's session (take the wheel), and Hand back to Forge. */
+  takeWheel?: (cardId: string) => boolean;
+  handBack?: (cardId: string) => boolean;
   logger?: Logger;
   /** How often the API checks for a changed state to push (ms). */
   pushCheckMs?: number;
@@ -149,6 +154,20 @@ export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
             : jsonResponse(res, 409, {
                 ok: false,
                 problem: "No agent is working this card right now.",
+              });
+        }
+        const wheel = /^\/api\/v1\/cards\/([A-Za-z0-9-]{1,64})\/(stop-turn|hand-back)$/.exec(path);
+        if (wheel && deps.takeWheel && deps.handBack) {
+          if (!post) return methodNotAllowed(res, "POST");
+          const ok = wheel[2] === "stop-turn" ? deps.takeWheel(wheel[1]) : deps.handBack(wheel[1]);
+          return ok
+            ? jsonResponse(res, 200, { ok: true })
+            : jsonResponse(res, 409, {
+                ok: false,
+                problem:
+                  wheel[2] === "stop-turn"
+                    ? "No agent is working this card right now."
+                    : "Forge already has this card.",
               });
         }
         return notFound(res);

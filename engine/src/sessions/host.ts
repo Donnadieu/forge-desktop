@@ -60,6 +60,11 @@ export class SessionsHost {
   private prs = new Map<string, PullRequest | null>();
   private tokens = new Map<string, string | null>();
 
+  /** The host's folder (sessions.sqlite, repos/, folders/, attachments/). */
+  get home(): string {
+    return this.o.home;
+  }
+
   constructor(
     private readonly store: SessionStore,
     private readonly o: HostOptions,

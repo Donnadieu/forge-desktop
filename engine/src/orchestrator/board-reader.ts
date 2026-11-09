@@ -26,6 +26,8 @@ export interface BoardColumn {
         /** The agent's session and folder, so the app can show the card's session. */
         session_id: string | null;
         folder: string | null;
+        /** The person holds the wheel: the run waits for their messages (hands-on.ts). */
+        hands_on: boolean;
       } | null;
       helpers: Array<{ id: string; description: string; running: boolean }>;
       recent: Array<{ at: string; line: string }>;
@@ -145,7 +147,10 @@ export class BoardReader {
   }
 
   /** The board with each held card's live activity. Cards in columns not on the board are left out. */
-  view(running: RunningSessionSnapshot[]): BoardView {
+  view(
+    running: RunningSessionSnapshot[],
+    handsOn: (issueId: string) => boolean = () => false,
+  ): BoardView {
     const byId = new Map(running.map((r) => [r.issueId, r]));
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
     const columns: BoardColumn[] = this.columns.map((name) => ({ name, cards: [] }));
@@ -162,6 +167,7 @@ export class BoardReader {
               attempt: run.attempt,
               session_id: run.sessionId,
               folder: run.workspacePath,
+              hands_on: handsOn(card.id),
             }
           : null,
         helpers: run?.helpers ?? [],

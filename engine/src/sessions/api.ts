@@ -12,8 +12,8 @@
  *   GET  /api/v1/sessions/<id>/review-comments   the pull request's review threads
  *   POST /api/v1/sessions/<id>/merge | archive | unarchive
  *   GET  /api/v1/chats/<id>/turns?before=&limit= turns with their events, newest last
- *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue}
- *   POST /api/v1/chats/<id>/stop | answer | settings | revert
+ *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue, images: [{mediaType, data}]}
+ *   POST /api/v1/chats/<id>/stop | answer | settings (model, effort, title, planMode, askBeforeChanges, hidden) | revert
  *   POST /api/v1/cards/watch                     {cards: [...]}: the cards running now, followed as card sessions
  *   GET  /api/v1/conductor                       what an import from Conductor would bring
  *   POST /api/v1/conductor/import                {targets: {repo: workspaceId}, workspace}
@@ -27,6 +27,7 @@ import type { AddressInfo } from "node:net";
 import type { Logger } from "pino";
 import { WebSocket, WebSocketServer } from "ws";
 import { jsonResponse, notFound, readJsonBody } from "../server/http-utils.js";
+import { attachImages } from "./attachments.js";
 import { previewImport, runImport } from "./conductor.js";
 import type { SessionsHost } from "./host.js";
 import type { SessionStore } from "./store.js";
@@ -42,7 +43,8 @@ type Body = Record<string, unknown>;
 
 async function body(req: IncomingMessage): Promise<Body> {
   try {
-    return (await readJsonBody(req, 4 * 1024 * 1024)) as Body;
+    // Room for a few pasted pictures (base64) in one message.
+    return (await readJsonBody(req, 24 * 1024 * 1024)) as Body;
   } catch {
     return {};
   }
@@ -168,14 +170,18 @@ export async function startSessionsApi(deps: {
         }
         case "messages": {
           const b = await body(req);
-          if (!s(b.text).trim())
+          const images = Array.isArray(b.images)
+            ? (b.images as Body[]).map((i) => ({ mediaType: s(i.mediaType), data: s(i.data) }))
+            : [];
+          if (!s(b.text).trim() && images.length === 0)
             return jsonResponse(res, 400, { ok: false, problem: "Write something first." });
           if (id.startsWith("card-"))
             return jsonResponse(res, 409, {
               ok: false,
               problem: "A card's agent takes messages through its own engine.",
             });
-          await h.chats.send(id, s(b.text), b.mode === "queue" ? "queue" : "steer");
+          const text = attachImages(h.home, id, s(b.text), images);
+          await h.chats.send(id, text, b.mode === "queue" ? "queue" : "steer");
           return jsonResponse(res, 200, { ok: true });
         }
         case "stop":
@@ -194,7 +200,7 @@ export async function startSessionsApi(deps: {
           const b = await body(req);
           const p: Record<string, unknown> = {};
           for (const k of ["model", "effort", "title"]) if (typeof b[k] === "string") p[k] = b[k];
-          for (const k of ["planMode", "askBeforeChanges"])
+          for (const k of ["planMode", "askBeforeChanges", "hidden"])
             if (typeof b[k] === "boolean") p[k] = b[k];
           await h.chats.change(id, p);
           return jsonResponse(res, 200, { ok: true });

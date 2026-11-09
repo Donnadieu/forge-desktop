@@ -11,9 +11,11 @@
  *
  * Checked live with Claude Code 2.1.319 (Nov 9, 2026). New in Forge Desktop.
  */
+
 import type { ChildProcess } from "node:child_process";
 import { createInterface } from "node:readline";
 import { hasExited, spawnProcessGroup, terminateChild } from "../process/process-tree.js";
+import { claudeContent } from "./attachments.js";
 
 export interface ClaudeChatOptions {
   command: string;
@@ -102,7 +104,7 @@ export class ClaudeChat {
   /** Sends a message: starts a turn when idle, steers the running turn otherwise. */
   send(text: string): void {
     this.start();
-    this.write({ type: "user", message: { role: "user", content: text } });
+    this.write({ type: "user", message: { role: "user", content: claudeContent(text) } });
   }
 
   private control(request: Record<string, unknown>): void {

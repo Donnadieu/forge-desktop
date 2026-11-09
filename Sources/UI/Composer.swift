@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The model and effort chip ("Opus 5.5 · 1M · High"); a click opens the picker: models, then effort.
@@ -24,6 +25,7 @@ struct ModelChip: View {
         }
         .buttonStyle(.plain)
         .keyboardShortcut("/", modifiers: .command)
+        .background(Button("") { open.toggle() }.keyboardShortcut("/", modifiers: [.command, .shift]).opacity(0).allowsHitTesting(false))
         .popover(isPresented: $open, arrowEdge: .top) {
             ModelPicker(model: model, effort: effort) { m, e in
                 pick(m, e)
@@ -103,6 +105,9 @@ struct Composer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let pics = sessions.images[chat.id], !pics.isEmpty {
+                PendingImages(images: pics) { p in sessions.images[chat.id]?.removeAll { $0 == p } }
+            }
             ZStack(alignment: .topLeading) {
                 if text.wrappedValue.isEmpty {
                     Text(placeholder).font(Theme.sans(13)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1).lineLimit(1)
@@ -120,6 +125,7 @@ struct Composer: View {
                 if session.origin != "card" {
                     Menu {
                         Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
+                        Button("Attach a picture…") { pickPictures() }
                         Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
                         Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
                             sessions.set(chat, ask: !chat.askBeforeChanges)
@@ -131,7 +137,7 @@ struct Composer: View {
                     .frame(width: 30, height: 30)
                     .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
                 } else {
-                    Pill(text: "Steering the card's agent", tone: .ghost)
+                    Pill(text: sessions.cardTargets[session.id]?.handsOn == true ? "You have the wheel" : "Steering the card's agent", tone: .ghost)
                 }
                 if chat.planMode { Pill(text: "Plan mode", tone: .info) }
                 if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
@@ -143,6 +149,18 @@ struct Composer: View {
                     .fixedSize()
                 }
                 ContextMeter(percent: chat.contextPercent, short: compact).fixedSize()
+                if let card = sessions.cardTargets[session.id] {
+                    if card.handsOn {
+                        Button("Hand back to Forge") { sessions.wheel(chat, take: false) }
+                            .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.forward", large: true))
+                            .help("Forge's agent carries on by itself from where you left it")
+                    } else if chat.working {
+                        Button("Stop") { sessions.wheel(chat, take: true) }
+                            .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
+                            .keyboardShortcut(.delete, modifiers: [.command, .shift])
+                            .help("Ends the agent's turn now; it waits for your messages until you hand it back")
+                    }
+                }
                 if chat.working, session.origin != "card" {
                     Button("Stop") { sessions.stop(chat) }
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
@@ -150,14 +168,51 @@ struct Composer: View {
                 }
                 Button("Send") { sessions.send(chat, text: text.wrappedValue, queue: false) }
                     .buttonStyle(ForgeButton(kind: .primary, icon: "paperplane", large: true))
-                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (sessions.images[chat.id] ?? []).isEmpty)
             }
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(focused ? Theme.borderHover : Theme.border))
         .background(
-            Button("") { focused = true }.keyboardShortcut("l", modifiers: .command).opacity(0).allowsHitTesting(false))
+            Button("") { focused = true }.keyboardShortcut("l", modifiers: .command).opacity(0).allowsHitTesting(false)
+        )
+        .background(Button("", action: paste).keyboardShortcut("v", modifiers: .command).opacity(0).allowsHitTesting(false))
+        .background(
+            Button("") { if focused, session.origin != "card" { sessions.set(chat, planMode: !chat.planMode) } }
+                .keyboardShortcut(.tab, modifiers: .shift).opacity(0).allowsHitTesting(false)
+        )
+        .onDrop(of: [.fileURL, .image], isTargeted: nil) { providers in drop(providers) }
+    }
+
+    /// ⌘V: a picture on the clipboard joins the message (not for card sessions); anything else pastes as usual.
+    private func paste() {
+        let pics = focused && session.origin != "card" ? MessageImages.fromPasteboard() : []
+        if !pics.isEmpty, NSPasteboard.general.string(forType: .string) == nil {
+            sessions.attach(pics, to: chat)
+        } else {
+            NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+        }
+    }
+
+    private func pickPictures() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.png, .jpeg, .gif, .webP, .heic, .tiff]
+        guard panel.runModal() == .OK else { return }
+        sessions.attach(MessageImages.fromFiles(panel.urls), to: chat)
+    }
+
+    private func drop(_ providers: [NSItemProvider]) -> Bool {
+        guard session.origin != "card" else { return false }
+        for p in providers where p.canLoadObject(ofClass: URL.self) {
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                let pics = MessageImages.fromFiles([url])
+                Task { @MainActor in sessions.attach(pics, to: chat) }
+            }
+        }
+        return true
     }
 }
 

@@ -101,6 +101,8 @@ struct EngineState: Decodable, Sendable, Equatable {
         /// The agent's Claude Code session and folder: the card's session follows them (Sessions screen).
         var session_id: String? = nil
         var folder: String? = nil
+        /// The person holds the wheel: the run waits for their messages.
+        var hands_on: Bool? = nil
     }
 
     struct Helper: Decodable, Sendable, Equatable, Identifiable {

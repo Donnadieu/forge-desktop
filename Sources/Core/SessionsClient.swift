@@ -75,8 +75,10 @@ struct SessionsClient: Sendable {
         try await get("/api/v1/chats/\(chat)/turns?limit=\(limit)" + (before.map { "&before=\($0)" } ?? ""), as: Turns.self)
     }
 
-    func send(chat: String, text: String, queue: Bool) async throws {
-        try await call("/api/v1/chats/\(chat)/messages", method: "POST", body: ["text": text, "mode": queue ? "queue" : "steer"])
+    func send(chat: String, text: String, queue: Bool, images: [[String: String]] = []) async throws {
+        try await call(
+            "/api/v1/chats/\(chat)/messages", method: "POST", body: ["text": text, "mode": queue ? "queue" : "steer", "images": images],
+            timeout: images.isEmpty ? 30 : 120)
     }
 
     func stop(chat: String) async throws { try await call("/api/v1/chats/\(chat)/stop", method: "POST", body: [:]) }
@@ -110,6 +112,9 @@ struct SessionsClient: Sendable {
         let t = try await get("/api/v1/sessions/\(session)/review-comments", as: Threads.self)
         if let p = t.problem, !t.ok { throw Failure(description: p) }
         return t.threads
+    }
+    func unarchive(session: String) async throws {
+        try await call("/api/v1/sessions/\(session)/unarchive", method: "POST", body: [:], timeout: 120)
     }
     func merge(session: String) async throws { try await call("/api/v1/sessions/\(session)/merge", method: "POST", body: [:], timeout: 180) }
     func archive(session: String) async throws { try await call("/api/v1/sessions/\(session)/archive", method: "POST", body: [:], timeout: 120) }

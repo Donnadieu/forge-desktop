@@ -16,6 +16,9 @@ export interface AgentAdapter {
   /** Forge Desktop: the person sends a message into a running session; it steers the turn in flight.
    *  False when the session isn't running (or the agent can't take a message mid-turn). */
   steer?(sessionId: string, text: string): boolean;
+
+  /** Forge Desktop: ends the turn in flight, keeping the session for the next turn (take the wheel). */
+  interrupt?(sessionId: string): boolean;
 }
 
 export interface StartSessionParams {

@@ -162,12 +162,18 @@ final class LimitNotifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    private func post(_ title: String, _ body: String) {
+    /// Opens a session when its notification is clicked (set by the Sessions screen's model).
+    var openSession: ((String) -> Void)?
+
+    /// Posts one notification; `session` makes a click open that session.
+    func post(_ title: String, _ body: String, session: String? = nil) {
         let center = UNUserNotificationCenter.current()
         let send = {
             let c = UNMutableNotificationContent()
             c.title = title
             c.body = body
+            c.sound = .default
+            if let session { c.userInfo = ["session": session] }
             center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
         }
         if asked { return send() }
@@ -182,5 +188,15 @@ final class LimitNotifier: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound])
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let session = response.notification.request.content.userInfo["session"] as? String
+        Task { @MainActor in
+            if let session { LimitNotifier.shared.openSession?(session) }
+            completionHandler()
+        }
     }
 }

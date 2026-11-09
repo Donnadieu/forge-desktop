@@ -12,6 +12,7 @@ import { BacklogPromoter } from "./backlog-promotion.js";
 import { enforceCostCeiling } from "./cost-ceiling.js";
 import { type DispatchIssueDeps, dispatchIssue as runDispatchIssue } from "./dispatch-issue.js";
 import { effectiveAgentLimit, inFlightCount, selectIssuesToDispatch } from "./dispatcher.js";
+import { HandsOn } from "./hands-on.js";
 import { reconcileRunningIssues } from "./reconciler.js";
 import { refetchAndDispatch } from "./refetch-dispatch.js";
 import { cancelAllRetries, cancelRetry, scheduleRetry } from "./retry-queue.js";
@@ -425,6 +426,7 @@ export class Orchestrator {
       isStopped: () => this.stopped,
       isDraining: () => this.draining,
       inodePressure: this.inodePressure,
+      handsOn: this.handsOn,
       handleWorkerComplete: (id, result, n, owner) =>
         runHandleWorkerComplete(this.workerOutcomeDeps(), id, result, n, owner),
       handleWorkerError: (id, identifier, err, n, owner) =>
@@ -463,12 +465,36 @@ export class Orchestrator {
     cancelRetry(this.state, issueId);
   }
 
-  /** Forge Desktop: the person steers a running card from its session; false when no agent runs it. */
+  /** Forge Desktop: cards the person holds the wheel of (hands-on.ts). */
+  readonly handsOn = new HandsOn();
+
+  /** Forge Desktop: the person's message to a running card. Between turns while they hold the wheel it is the next
+   *  turn; during a turn it steers that turn. False when no agent runs the card. */
   steer(issueId: string, text: string): boolean {
     const entry = this.state.running.get(issueId);
-    if (!entry?.sessionId) return false;
-    const agent = this.config.agentForState?.(entry.issue.state) ?? this.agent;
-    return agent.steer?.(entry.sessionId, text) ?? false;
+    if (!entry) return false;
+    if (this.handsOn.offer(issueId, text)) return true;
+    if (!entry.sessionId) return false;
+    return this.cardAgent(entry).steer?.(entry.sessionId, text) ?? false;
+  }
+
+  /** Forge Desktop: Stop from the card's session: the turn ends now and the run waits for the person. */
+  takeWheel(issueId: string): boolean {
+    const entry = this.state.running.get(issueId);
+    if (!entry) return false;
+    this.handsOn.take(issueId);
+    if (entry.sessionId && !this.handsOn.waiting(issueId))
+      this.cardAgent(entry).interrupt?.(entry.sessionId);
+    return true;
+  }
+
+  /** Forge Desktop: Hand back to Forge: the run goes on with its own turns. */
+  handBack(issueId: string): boolean {
+    return this.handsOn.give(issueId);
+  }
+
+  private cardAgent(entry: { issue: { state: string } }) {
+    return this.config.agentForState?.(entry.issue.state) ?? this.agent;
   }
 
   private killAndRetry(

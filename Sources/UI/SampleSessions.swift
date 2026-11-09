@@ -123,6 +123,7 @@ enum SampleSessions {
         m.setTranscript(Transcript(chatID: "c1", turns: [buildTurn]))
         m.setTranscript(Transcript(chatID: "c2", turns: [questionTurn]))
         m.setTranscript(Transcript(chatID: "c4", turns: [cardTurn]))
+        m.cardTargets = ["s4": CardTarget(project: "p1", card: "c3"), "s5": CardTarget(project: "p1", card: "c5")]
         m.changes["s1"] = [
             .init(path: "Sources/UI/SessionsScreen.swift", added: 184, removed: 0, status: "A"),
             .init(path: "Sources/UI/SessionList.swift", added: 96, removed: 0, status: "A"),

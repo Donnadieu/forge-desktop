@@ -25,21 +25,21 @@ Conductor-style chats inside a workspace. Design, decisions and screens: [design
 - [x] 2.3 Session folders: a worktree from the local checkout or Forge's clone, fetched first, `<login>/<slug>` branch with no double prefix, `.env*` copied
 - [x] 2.4 Sessions screen: Orchestrator | Sessions switch in the top bar, list grouped Needs you / Working / Ready for review / Merged, unread dot (matches a1)
 - [x] 2.5 New session: repo, branch from, first message, model chip, Send (matches a1)
-- [ ] 2.6 Transcript: one row per turn, streaming text, folded tool rows and thinking, Jump to latest (matches a2)
-- [ ] 2.7 Message box: Enter steers, Option-Enter queues, Stop, pasted text and images, context meter
+- [x] 2.6 Transcript: one row per turn, streaming text, folded tool rows and thinking, Jump to latest (matches a2)
+- [x] 2.7 Message box: Enter steers, Option-Enter queues, Stop, pasted text and images, context meter
 - [x] 2.8 Model and effort picker per chat (matches a2)
 - [x] 2.9 Permission prompts, agent questions as buttons, plan mode with Approve
 - [x] 2.10 Several chats per session as tabs; two chats side by side (matches a4)
 - [x] 2.11 Survives a restart: outbox replayed, chats resumed, an interrupted turn marked
-- [ ] 2.12 Notifications (dot, macOS notification, sound), next chat needing you, the keyboard shortcuts in design section 6
+- [x] 2.12 Notifications (dot, macOS notification, sound), next chat needing you, the keyboard shortcuts in design section 6
 
 ### 3. Diff, pull request and review comments
 - [x] 3.1 Diff panel: file list with counts, unified diff, hunks loaded per file (matches a2)
-- [ ] 3.2 Comment on a line or range; the comment joins the message box
+- [x] 3.2 Comment on a line or range; the comment joins the message box
 - [x] 3.3 Create PR, the PR line with checks, Fix errors, Merge (asks first)
 - [x] 3.4 Pull PR review comments sheet (matches a5)
 - [x] 3.5 Review: the bundled review skill in a new chat tab of the session
-- [ ] 3.6 Archive (snapshot to a private ref), History, restore, archive on merge
+- [x] 3.6 Archive (snapshot to a private ref), History, restore, archive on merge
 
 ### 4. Checkpoints
 - [x] 4.1 A snapshot before and after each turn; files changed per turn shown on the turn
@@ -48,7 +48,7 @@ Conductor-style chats inside a workspace. Design, decisions and screens: [design
 ### 5. Card sessions
 - [x] 5.1 The card engine keeps every card run's full event stream and serves its turns (built: the sessions host follows the run's Claude Code transcript)
 - [x] 5.2 "Open session" on the Orchestrator's expanded running row opens the card's session (matches a3)
-- [ ] 5.3 Steer a running card; Stop and take the wheel; Hand back to Forge (engine test, PROVENANCE row)
+- [x] 5.3 Steer a running card; Stop and take the wheel; Hand back to Forge (engine test, PROVENANCE row)
 
 ### 6. Import from Conductor
 - [x] 6.1 Read Conductor's database read-only (a copy), the import sheet with a workspace per repo (matches a6)

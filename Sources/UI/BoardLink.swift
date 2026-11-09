@@ -124,6 +124,12 @@ final class BoardLink {
         do { return try await client.message(card: card, text: text) } catch { return "Forge's engine didn't answer: \(error)" }
     }
 
+    /// Takes the wheel of a running card (Stop), or hands it back. Nil when done, else the problem in plain words.
+    func wheel(card: String, take: Bool) async -> String? {
+        guard let client else { return "This project's engine isn't running." }
+        do { return try await client.wheel(card: card, take: take) } catch { return "Forge's engine didn't answer: \(error)" }
+    }
+
     func workpad(card: String) async -> EngineClient.Workpad? {
         guard let client else { return nil }
         return try? await client.workpad(card: card)

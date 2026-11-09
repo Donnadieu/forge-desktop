@@ -53,6 +53,9 @@ struct ChangesPanel: View {
                 HStack {
                     Text(file).font(Theme.mono(11)).foregroundStyle(Theme.textSec).lineLimit(1)
                     Spacer()
+                    Button("Comment") { sessions.openDiff = (session.id, file, diff) }
+                        .buttonStyle(ForgeButton(kind: .ghost, icon: "text.bubble"))
+                        .help("Open the diff large and comment on a line or a range")
                     Button {
                         self.file = nil
                     } label: {
@@ -147,72 +150,5 @@ struct ChangesPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// A unified diff as fixed-height mono rows in a native list, so a 5,000-line diff costs no more than a short one.
-struct DiffLines: View {
-    let text: String
-
-    private struct Line: Identifiable {
-        let id: Int
-        let text: String
-    }
-
-    private var lines: [Line] {
-        text.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
-            .filter {
-                !($0.element.hasPrefix("diff --git") || $0.element.hasPrefix("index ") || $0.element.hasPrefix("+++") || $0.element.hasPrefix("---"))
-            }
-            .map { Line(id: $0.offset, text: String($0.element)) }
-    }
-
-    var body: some View {
-        List(lines) { l in
-            Text(l.text.isEmpty ? " " : l.text).font(Theme.mono(11)).foregroundStyle(color(l.text)).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)
-                .padding(.horizontal, 8)
-                .background(background(l.text))
-                .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
-        }
-        .listStyle(.plain)
-        .environment(\.defaultMinListRowHeight, 18)
-        .scrollContentBackground(.hidden)
-    }
-
-    private func color(_ l: String) -> Color {
-        l.hasPrefix("@@") ? Theme.textMuted : Theme.text
-    }
-
-    private func background(_ l: String) -> Color {
-        if l.hasPrefix("+") { return Theme.goodWash }
-        if l.hasPrefix("-") { return Theme.badWash }
-        if l.hasPrefix("@@") { return Theme.wash1 }
-        return .clear
-    }
-}
-
-/// A file's diff in a sheet (from a link elsewhere).
-struct DiffSheet: View {
-    let path: String
-    let text: String
-    let close: () -> Void
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.5).onTapGesture(perform: close)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(path).font(Theme.mono(12)).foregroundStyle(Theme.text)
-                    Spacer()
-                    Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: [])
-                }
-                .padding(16)
-                DiffLines(text: text)
-            }
-            .frame(width: 900, height: 600)
-            .background(RoundedRectangle(cornerRadius: Theme.rXl).fill(Theme.bg))
-            .overlay(RoundedRectangle(cornerRadius: Theme.rXl).stroke(Theme.border))
-        }
     }
 }

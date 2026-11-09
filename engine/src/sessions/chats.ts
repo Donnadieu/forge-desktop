@@ -288,7 +288,9 @@ export class Chats {
 
   async change(
     chatId: string,
-    p: Partial<Pick<ChatRecord, "model" | "effort" | "planMode" | "askBeforeChanges" | "title">>,
+    p: Partial<
+      Pick<ChatRecord, "model" | "effort" | "planMode" | "askBeforeChanges" | "title" | "hidden">
+    >,
   ) {
     const c = this.store.chat(chatId);
     if (!c) return;

@@ -44,7 +44,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/child-env.ts | 05deefb0a43a | src/agent/child-env.ts | unchanged |
 | src/agent/claude-env.ts | 05deefb0a43a | src/agent/claude-env.ts | unchanged |
 | src/agent/claude-usage.ts | 05deefb0a43a | src/agent/claude-usage.ts | unchanged |
-| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`); `steer` writes the person's message into the running process (card sessions) |
+| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`); `steer` writes the person's message into the running process (card sessions); `interrupt` ends the turn in flight (take the wheel) |
 | src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name); a `turn/completed` whose turn failed (usage limit, quota) is a failed turn with its reason |
 | src/agent/codex-sandbox.ts | 05deefb0a43a | src/agent/codex-sandbox.ts | unchanged |
 | src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name); no OPENAI_API_KEY required (Codex can use its own sign-in) |
@@ -55,7 +55,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/kimi.ts | 05deefb0a43a | src/agent/kimi.ts | dropped the container privilege drop and lent-home usage read; a turn with no events says what kimi printed (its quota or rate-limit error) |
 | src/agent/mcp-bridge.ts | 05deefb0a43a | src/agent/mcp-bridge.ts | comment reworded (no old project name); fills `${VAR}` placeholders from the agent's env (`expandEnv`) |
 | src/agent/run-once.ts | 05deefb0a43a | src/agent/run-once.ts | unchanged |
-| src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | `helper` and `waiting_for_helpers` events; `rate_limit` event; optional `steer` on an agent |
+| src/agent/types.ts | 05deefb0a43a | src/agent/types.ts | `helper` and `waiting_for_helpers` events; `rate_limit` event; optional `steer` on an agent; optional `interrupt` |
 | src/config/boolean-token.ts | 05deefb0a43a | src/config/boolean-token.ts | unchanged |
 | src/config/custom-base-url.ts | 05deefb0a43a | src/config/custom-base-url.ts | unchanged |
 | src/config/env-validator.ts | 05deefb0a43a | src/config/env-validator.ts | a Basecamp board needs the app's token command or a fixed key; a GitHub board needs the app's GitHub token command and `status_field_id` |
@@ -84,10 +84,10 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/backlog-promotion.ts | 7f02afe2a | src/orchestrator/backlog-promotion.ts | comments say "workflow file" and drop the other tracker's marker note; its tests came with it |
 | src/orchestrator/claim-gate.ts | 05deefb0a43a | src/orchestrator/claim-gate.ts | unchanged |
 | src/orchestrator/cost-ceiling.ts | 05deefb0a43a | src/orchestrator/cost-ceiling.ts | unchanged |
-| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`); records whose account the run uses (`limitKey`) |
+| src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`); records whose account the run uses (`limitKey`); hands-on callbacks per run (waiting for the person keeps the run from looking stalled) |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit`; cards whose claim was refused rank last for 10 minutes (`claimRefused`); a card waiting for a usage limit holds no slot; cards of a limited account aren't started (`limited`) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent; `takeWheel` / `handBack` (hands-on.ts) |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
 | src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit`; releases only the reservation it owns (a usage-limit wait keeps the attempt number) |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
@@ -134,7 +134,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | returns `handoff` when the card moved to another role's stage |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
-| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn; a card that moves to another role's stage ends the run (`handoff`) so that role's agent picks it up |
+| src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn; a card that moves to another role's stage ends the run (`handoff`) so that role's agent picks it up; Forge Desktop: `nextPrompt` (the person's message is the next turn while they hold the wheel) and `personStopped` (a turn they stopped isn't a failure) |
 | src/worker/usage.ts | 05deefb0a43a | src/worker/usage.ts | unchanged |
 | src/workspace/cleanup.ts | 05deefb0a43a | src/workspace/cleanup.ts | unchanged |
 | src/workspace/copy-assets.ts | 05deefb0a43a | src/workspace/copy-assets.ts | runs the signing check after writing the identity; mirrors nested skills (code-review-nuclear, code-review-fix) to the top of `.claude/skills/`; turns off Claude Code's commit/PR attribution in the card's local settings |
@@ -150,12 +150,13 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
 | src/orchestrator/shared-slots.ts | new | | the ceiling on agents across every engine on the Mac: each engine publishes its count in a shared folder |
-| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once; `POST /api/v1/cards/<id>/message` steers a running card |
+| src/server/local-api.ts | new | | the local API: 127.0.0.1, launch token, HTTP + live WebSocket; `GET /api/v1/cards/<id>/workpad`; `POST /api/v1/cards/<id>/move` (Start, Merge, Ask for changes); `POST /api/v1/stop` answers at once; `POST /api/v1/cards/<id>/message` steers a running card; `POST /api/v1/cards/<id>/stop-turn` and `/hand-back` |
 | src/server/engine-state.ts | new | | the one state object the app shows |
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |
-| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems (Linear, Basecamp, GitHub); reads an HTML workpad; a running card's agent session id and folder (card sessions) |
+| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems (Linear, Basecamp, GitHub); reads an HTML workpad; a running card's agent session id and folder (card sessions); `hands_on` per running card |
+| src/orchestrator/hands-on.ts | new | | take the wheel of a running card: the run waits for the person's messages until they hand it back |
 | src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers |
 | src/tracker/basecamp-board.ts | new | | the board's Basecamp read: every column, Backlog labels and pull requests from comments, kept per card until it changes |
 | src/tracker/rich-text.ts | new | | Basecamp's HTML comments as the Markdown the window reads |
@@ -181,6 +182,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/sessions/host.ts | new | | the sessions host: make, list, archive, restore and merge sessions; changes, pull request, review comments, revert |
 | src/sessions/conductor.ts | new | | import from Conductor: its database read immutable, open workspaces as sessions in place, chats with their history and Claude Code session ids |
 | src/sessions/api.ts | new | | the sessions host's local API (127.0.0.1, launch token, HTTP + live WebSocket) |
+| src/sessions/attachments.ts | new | | pictures in a message: kept as files, one `[image: <path>]` line each, image blocks for Claude Code |
 | src/sessions/cards.ts | new | | card sessions: the cards running in every engine, each followed from its Claude Code transcript as a session (the same recorder a chat uses) |
 | src/sessions/main.ts | new | | the sessions host's entry (`FORGE_ENGINE_MODE=sessions`) |
 | Nov 9, 2026 (what others see) | | | `config/schema.ts` gains `marks`; `worker/runner.ts` takes the branch from `branch.ts`; `worker/helper-wait.ts` says "This run stopped"; `orchestrator/workpad-parser.ts` reads `## Workpad` and the older heading; the three `mcp/` servers refuse marked writes when invisible and GitHub/Basecamp send the plain user agent (also `tracker/basecamp.ts`, `tracker/github.ts`); `workspace/copy-assets.ts` installs the guard; `index.ts` wires it; `workflow/*.md` and the skills lose the words agents could repeat |

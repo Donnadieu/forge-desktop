@@ -46,6 +46,8 @@ enum Sessions {
         var contextWindow: Int
         var queued: Int?
         var turns: Int?
+        /// Closed (⌘W): kept in the store, not shown.
+        var hidden: Bool? = nil
 
         var working: Bool { state == "working" || state == "needs_you" }
         var contextPercent: Int { contextWindow > 0 ? min(100, contextTokens * 100 / contextWindow) : 0 }

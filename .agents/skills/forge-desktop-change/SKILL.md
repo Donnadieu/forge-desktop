@@ -143,6 +143,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `bypassPermissions`; answer a question with `updatedInput.answers` = {question: label}. Approving a plan switches the
   session to `default`, so set the permission mode back or the next Bash call asks.
 - Test chats with `engine/test/fixtures/sessions/fake-claude.mjs` (`FORGE_CLAUDE_COMMAND`), never a real `claude`.
+- Claude Code's transcript (`~/.claude/projects/<folder with every non-alphanumeric as ->/<session>.jsonl`) has no
+  result line: a card session's turn ends at an assistant message with `stop_reason: end_turn` and no tool call.
+  Lines with `isSidechain: true` are helpers' own conversations; skip them.
+- A run waiting for the person (hands-on) must keep touching `lastActivityAt`, or the stall check kills it.
 
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`

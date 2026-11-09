@@ -47,6 +47,11 @@ struct EngineClient: Sendable {
         try await post(card: card, "message", ["text": text])
     }
 
+    /// Stop from the card's session (the person takes the wheel), or Hand back to Forge.
+    func wheel(card: String, take: Bool) async throws -> String? {
+        try await post(card: card, take ? "stop-turn" : "hand-back", [:])
+    }
+
     /// POSTs to `/api/v1/cards/<id>/<what>`; the engine's plain-words problem when refused, nil when it worked.
     private func post(card: String, _ what: String, _ body: [String: String]) async throws -> String? {
         let safe = card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card

@@ -57,6 +57,14 @@ struct SessionList: View {
             }
             Rectangle().fill(Theme.border).frame(height: 1)
             Button {
+                sessions.showHistory = true
+            } label: {
+                Label("History", systemImage: "clock.arrow.circlepath").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20).frame(height: 40)
+            Button {
                 sessions.openImport()
             } label: {
                 Label("Import from Conductor", systemImage: "square.and.arrow.down").font(Theme.sans(12)).foregroundStyle(Theme.textSec)

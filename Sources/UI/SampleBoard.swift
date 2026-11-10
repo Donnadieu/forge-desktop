@@ -108,6 +108,13 @@ enum SampleBoard {
         return s
     }
 
+    /// GitHub's hourly rate limit ran out while reading the board.
+    static var githubLimit: EngineState {
+        var s = stopped
+        s.board?.problem = "Forge couldn't read the board from GitHub Issues: GitHub said: API rate limit exceeded for user ID 1234567."
+        return s
+    }
+
     /// Cards the person can move: three pull requests to decide on, a card blocked by one of them,
     /// two cards triage marked ready and one it hasn't seen.
     static var moves: EngineState {

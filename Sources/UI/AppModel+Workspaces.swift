@@ -28,6 +28,7 @@ extension AppModel {
         choices = next
         engine = viewedProject.flatMap { states[$0] }
         engineProblem = viewedProject.flatMap { problems[$0] }
+        boardLate = false
         // Setup changed for the project left while it runs: its engine takes the new answers now.
         if settingsChanged, !preview, let old, old != viewedProject, shouldRun(old), let l = links[old] { await l.connect(restart: true) }
         settingsChanged = false

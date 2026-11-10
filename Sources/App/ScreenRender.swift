@@ -44,6 +44,7 @@ enum ScreenRender {
             if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
             if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
             if shot.scene == "ask-new" { model.ask = .new }
+            if shot.scene == "late" { model.boardLate = true }
             if let scene = shot.scene, scene.hasPrefix("sessions") { SampleSessions.scene(model.sessions, scene) }
             if shot.scene == "fleet" { AppModel.sampleRunning(model) }
             if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }

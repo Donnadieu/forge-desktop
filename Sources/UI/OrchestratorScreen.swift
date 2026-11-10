@@ -16,7 +16,10 @@ struct OrchestratorScreen: View {
 
     private var state: EngineState? { model.engine }
     private var project: String { model.choices.projectName ?? "your project" }
-    var problem: String? { model.engineProblem ?? state?.board?.problem ?? signedOutLine }
+    var problem: String? { model.engineProblem ?? state?.board?.problem.map(Self.plainProblem) ?? signedOutLine ?? lateLine }
+
+    /// No board and no reason yet after `AppModel.boardWait`: said out loud instead of reading forever.
+    private var lateLine: String? { state == nil && model.boardLate ? Self.lateLine(project) : nil }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,18 +46,19 @@ struct OrchestratorScreen: View {
         }
         .background(Atmosphere())
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .task {
-            let restart = model.settingsChanged
-            model.settingsChanged = false
-            await model.link.connect(restart: restart)
-            // Workspaces left running when Forge last quit start again (once per launch).
+        // Keyed on the project: opening another workspace from this screen's top bar keeps this same view, and a
+        // plain `.task` never ran again, so that project's board was never asked for.
+        .task(id: model.viewedProject) {
+            await model.showBoard()
+            // Once per launch: workspaces left running when Forge last quit start again, and
+            // `open -a Forge --args --start` presses Start once the board is up (the same call the button makes).
             if !AppModel.resumed {
                 AppModel.resumed = true
                 await model.resumeRunning()
+                if CommandLine.arguments.contains("--start"), state?.isRunning == false { await model.startShown() }
             }
-            // `open -a Forge --args --start`: press Start once the board is up (the same call the button makes).
-            if CommandLine.arguments.contains("--start"), state?.isRunning == false { await model.startShown() }
         }
+        .task(id: model.viewedProject) { await model.watchBoard() }
         .sheet(item: $open) { card in
             CardDetail(model: model, card: state?.cards.first { $0.id == card.id } ?? card) { open = nil }
         }
@@ -175,7 +179,7 @@ struct OrchestratorScreen: View {
     }
 
     @ViewBuilder private var metaPill: some View {
-        if problem != nil, problem != model.engineProblem {
+        if problem != nil, problem != model.engineProblem, problem != lateLine, state?.isRunning == true {
             Pill(text: "Paused", tone: .amber, dot: Theme.heat)
         } else if state?.isRunning == true, state?.limits?.isEmpty == false {
             Pill(text: "Waiting for limit", tone: .amber, dot: Theme.heat)
@@ -202,9 +206,13 @@ struct OrchestratorScreen: View {
     private func notice(_ text: String) -> some View {
         Notice(
             title: text,
-            detail: Self.noticeDetail(text, signedOutLine: signedOutLine, appProblem: model.engineProblem)
+            detail: Self.noticeDetail(text, signedOutLine: signedOutLine, appProblem: model.engineProblem, lateLine: lateLine)
         ) {
-            if text == signedOutLine, AgentSignIn.command(for: agent) != nil {
+            if text == lateLine {
+                Button("Try again") { Task { await model.retryBoard() } }
+                    .buttonStyle(ForgeButton(kind: .primary, large: true))
+                    .padding(.leading, 26)
+            } else if text == signedOutLine, AgentSignIn.command(for: agent) != nil {
                 Button("Sign in to \(WorkerScreen.name(agent))") { openGuide() }
                     .buttonStyle(ForgeButton(kind: .primary, large: true))
                     .padding(.leading, 26)
@@ -218,9 +226,21 @@ struct OrchestratorScreen: View {
 
     /// The line under a problem. Only the engine's own problems (the tracker, sign-in) clear by themselves on its next try;
     /// a problem the app hit talking to the engine says what to press in its own line, so nothing goes under it.
-    static func noticeDetail(_ text: String, signedOutLine: String?, appProblem: String?) -> String? {
+    static func noticeDetail(_ text: String, signedOutLine: String?, appProblem: String?, lateLine: String? = nil) -> String? {
         if text == signedOutLine { return "Forge opened the sign-in for you. Cards start again once you approve it." }
+        if text == lateLine { return "It may still be starting. Try again starts it afresh; if something is wrong, the reason shows here." }
         return text == appProblem ? nil : "Forge tries again by itself."
+    }
+
+    /// The line when a project's board hasn't come after the wait.
+    static func lateLine(_ project: String) -> String { "Forge hasn't heard back from \(project)'s engine yet." }
+
+    /// The engine's board problems, in plainer words where Forge knows them.
+    static func plainProblem(_ p: String) -> String {
+        if p.contains("GitHub"), p.localizedCaseInsensitiveContains("rate limit") {
+            return "GitHub's hourly limit for your account ran out, so Forge can't read the board right now. It resets within the hour."
+        }
+        return p
     }
 
     /// The one fix for the problems Forge recognizes; nil when there's nothing to press.

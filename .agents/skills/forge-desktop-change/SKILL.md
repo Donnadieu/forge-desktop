@@ -69,6 +69,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - `--render-screens` draws 1200x800 with fake traffic lights, and prominent buttons come out grey
   (the window isn't key). Don't "fix" the colour, and say the live title bar is unproven.
 
+- A screen that loads per project must key its loader on the project: `.task(id: model.viewedProject)`, never a
+  plain `.task`. Opening another workspace from the Orchestrator's own top bar keeps `screen` the same, so SwiftUI
+  keeps the same view and a plain `.task` never runs again: the new project's engine was never started and the
+  screen read “Reading your board…” forever. `Checks.boardFollowsSwitch` proves it in an off-screen window (only a
+  window runs `.task`, `ImageRenderer` doesn't). Anything that waits on an
+  engine also needs a time limit that says so on screen (`AppModel.watchBoard`).
+
 ### Shell, tests and the gate
 - `cmd | grep -q` under `set -o pipefail` can fail on SIGPIPE: capture the output into a variable first.
 - A test that fails only in the full suite or the commit hook is a race until proven otherwise. Fix it

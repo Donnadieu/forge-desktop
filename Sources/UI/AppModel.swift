@@ -30,6 +30,10 @@ final class AppModel: ObservableObject {
     var links: [String: BoardLink] = [:]
     /// Setup was changed since the engine started, so the board restarts it with the new answers.
     var settingsChanged = false
+    /// The projects the Orchestrator asked to show, in order (the selftest reads it).
+    var boardRequests: [String?] = []
+    /// The project on screen has had no board and no problem for `boardWait`: the Orchestrator says so.
+    @Published var boardLate = false
 
     /// What render mode shows instead of the person's real Linear and GitHub.
     struct Sample {

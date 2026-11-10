@@ -104,6 +104,7 @@ enum Checks {
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
         check("the main window's view draws", size.width == 1200 && size.height == 800)
+        boardFollowsSwitch(check)
         check("a Linear key problem offers the key screen", OrchestratorScreen.fix(for: "Linear didn't accept this key.")?.isLink == false)
         check("an unknown problem offers no button that can't fix it", OrchestratorScreen.fix(for: "Linear answered 502.") == nil)
         check("a Stop the engine took counts even when its answer was slow", BoardLink.landed(.stop, in: SampleBoard.stopping))

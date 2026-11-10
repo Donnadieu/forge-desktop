@@ -111,6 +111,33 @@ extension AppModel {
         await l.close()
     }
 
+    /// The Orchestrator shows the project on screen: follow its engine, starting it when needed. Runs each time the
+    /// project on screen changes, also while the Orchestrator stays on screen (a workspace opened from its top bar).
+    func showBoard() async {
+        boardRequests.append(viewedProject)
+        let restart = settingsChanged
+        settingsChanged = false
+        await link.connect(restart: restart)
+    }
+
+    /// How long the Orchestrator waits for a board before it says so and offers Try again.
+    nonisolated static let boardWait: Duration = .seconds(45)
+
+    /// After `wait`, the project still on screen has no board and no problem: say so instead of reading forever.
+    func watchBoard(after wait: Duration = AppModel.boardWait) async {
+        let shown = viewedProject
+        try? await Task.sleep(for: wait)
+        guard !Task.isCancelled, viewedProject == shown, engine == nil, engineProblem == nil else { return }
+        boardLate = true
+    }
+
+    /// Try again under that line: the project's engine starts afresh, and the wait starts over.
+    func retryBoard() async {
+        boardLate = false
+        Task { await watchBoard() }
+        await link.connect(restart: true)
+    }
+
     /// Agents working now across a workspace's projects (or every workspace).
     func agentsWorking(in w: String? = nil) -> Int {
         states.filter { id, _ in w == nil || store.project(id)?.workspaceID == w }.values.reduce(0) { $0 + $1.running.count }

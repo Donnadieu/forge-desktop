@@ -10,6 +10,7 @@
 - [decisions.md](decisions.md): calls made while building a plan without stopping to ask (sessions polish onward)
 - [design/workspaces.md](design/workspaces.md): Workspaces, the request and requirements (design, not built yet)
   - [design/workspaces-design.md](design/workspaces-design.md): its model, migration, settings flow, screens and open questions
+- [design/workspaces-v2.md](design/workspaces-v2.md): Workspaces v2, a workspace is a repo (Conductor's way), settings split into Orchestrator and Workspace settings, what Workflow Studio is for; two directions, not built
 - [design/sessions.md](design/sessions.md): Sessions, chatting with agents inside a workspace (Conductor-style); design, two screen directions, not built
 - [design/sidebar-pr-panel.md](design/sidebar-pr-panel.md): both sidebars resize, the Changes panel in sync with GitHub (one status, one button), branch rename, archive on hover; Direction A, built
 - [design/missing-columns-and-skills.md](design/missing-columns-and-skills.md): optional columns, parking "Waiting on you", Next step, skills in sessions

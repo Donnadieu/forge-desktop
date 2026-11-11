@@ -115,7 +115,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/telemetry/infer-issue-type.ts | 05deefb0a43a | src/telemetry/infer-issue-type.ts | unchanged |
 | src/telemetry/types.ts | 05deefb0a43a | src/telemetry/types.ts | TicketStatus written out instead of read from the database schema |
 | src/tracker/index.ts | 7f02afe2a | src/tracker/index.ts | exports `GitHubTracker` |
-| src/tracker/basecamp.ts | 7f02afe2a | src/tracker/basecamp.ts | `fetchBoard` (basecamp-board.ts); user agent names Forge Desktop; exports `createCommandTokenFn` |
+| src/tracker/basecamp.ts | 7f02afe2a | src/tracker/basecamp.ts | `fetchBoard` (basecamp-board.ts); user agent names Forge Desktop; exports `createCommandTokenFn`; `fetchColumns` (the columns setup mapped) |
 | src/tracker/basecamp-claim.ts | 7f02afe2a | src/tracker/basecamp-claim.ts | unchanged |
 | src/tracker/basecamp-errors.ts | 7f02afe2a | src/tracker/basecamp-errors.ts | unchanged |
 | src/tracker/basecamp-normalize.ts | 7f02afe2a | src/tracker/basecamp-normalize.ts | a card's state is the canonical column name whatever its case; `Label:` lines are found in Basecamp's HTML (a block's end is a new line) |
@@ -127,12 +127,12 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/linear-errors.ts | 05deefb0a43a | src/tracker/linear-errors.ts | unchanged |
 | src/tracker/linear-normalize.ts | 05deefb0a43a | src/tracker/linear-normalize.ts | unchanged |
 | src/tracker/linear-paginate.ts | 05deefb0a43a | src/tracker/linear-paginate.ts | unchanged |
-| src/tracker/linear-progress.ts | 05deefb0a43a | src/tracker/linear-progress.ts | filters by project or team (Linear with no project: `linear-scope.ts`) |
+| src/tracker/linear-progress.ts | 05deefb0a43a | src/tracker/linear-progress.ts | filters by project or team (Linear with no project: `linear-scope.ts`); `fetchColumns` (the team's states) |
 | src/tracker/linear-reads.ts | 05deefb0a43a | src/tracker/linear-reads.ts | terminal reads filter by project or team (Linear with no project: `linear-scope.ts`) |
 | src/tracker/linear-writes.ts | 05deefb0a43a | src/tracker/linear-writes.ts | unchanged |
 | src/tracker/linear.ts | 05deefb0a43a | src/tracker/linear.ts | comment reworded (no old project name); `fetchBoard`; candidates filter by project or team (Linear with no project: `linear-scope.ts`) |
-| src/tracker/memory.ts | 05deefb0a43a | src/tracker/memory.ts | unchanged |
-| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard`; `TrackerConfig.team_id` |
+| src/tracker/memory.ts | 05deefb0a43a | src/tracker/memory.ts | optional `columns` (a board with only some columns, for tests) |
+| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard`; `TrackerConfig.team_id`; optional `fetchColumns` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | returns `handoff` when the card moved to another role's stage |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
 | src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn; a card that moves to another role's stage ends the run (`handoff`) so that role's agent picks it up; Forge Desktop: `nextPrompt` (the person's message is the next turn while they hold the wheel) and `personStopped` (a turn they stopped isn't a failure) |
@@ -147,7 +147,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/leftover-sweep.ts | new | | stops dev servers left running in card workspaces: at a run's start and end, and every 3 minutes for cards no live run holds |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead; passes `tracker.team_id` on |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead; passes `tracker.team_id` on; moves into a column the board doesn't have are refused (`tracker/board-columns.ts`) |
 | src/agent/usage-limit.ts | new | | reads a usage, spend or rate limit (and its reset time) from Claude Code, Codex, OpenRouter and Kimi failure texts |
 | src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
@@ -157,16 +157,17 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/store/local-store.ts | new | | the engine's SQLite file (Start/Stop intent, finished runs) |
 | src/worker/helper-wait.ts | new | | the lead waits for its helpers (`HelperWatch`, the limit message) |
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |
-| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems (Linear, Basecamp, GitHub); reads an HTML workpad; a running card's agent session id and folder (card sessions); `hands_on` per running card |
+| src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems (Linear, Basecamp, GitHub); reads an HTML workpad; a running card's agent session id and folder (card sessions); `hands_on` per running card; `present` (the board's real columns) and no move into a missing column |
 | src/orchestrator/hands-on.ts | new | | take the wheel of a running card: the run waits for the person's messages until they hand it back |
 | src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers; by project or team |
+| src/tracker/board-columns.ts | new | | the columns the board really has (cached 5 minutes); refuses a move into a missing one before the tracker is called |
 | src/tracker/linear-scope.ts | new | | which cards a Linear board covers: one project, or the whole team when no project was picked |
 | src/tracker/basecamp-board.ts | new | | the board's Basecamp read: every column, Backlog labels and pull requests from comments, kept per card until it changes |
 | src/tracker/rich-text.ts | new | | Basecamp's HTML comments as the Markdown the window reads |
 | src/tracker-factory.ts | new | | builds Linear, Basecamp or GitHub from the workflow file (adapted from Forge's `src/tracker-factory.ts` at 7f02afe2a: the token comes from the app) |
 | src/mcp/basecamp-api-server.ts | new | | the agents' `basecamp_api` tool: one request per call, the app's short-lived token, paths kept inside the account |
 | src/mcp/github-graphql-server.ts | new | | the agents' `github_graphql` tool: one GraphQL call each, the token from the app's `--github-token`, kept in memory |
-| src/tracker/github.ts | new | | GitHub Issues on a GitHub project: Status field = column; reads, claims (assignees), moves (adds the issue to the project first), comments |
+| src/tracker/github.ts | new | | GitHub Issues on a GitHub project: Status field = column; reads, claims (assignees), moves (adds the issue to the project first), comments; `fetchColumns` (the Status options setup mapped) |
 | src/tracker/github-queries.ts | new | | the GraphQL it sends, and how an issue becomes a card (labels, closing pull request, open blockers) |
 | src/tracker/marks.ts | new | | what others see: the marks check every guard uses, the plain user agent, the `marks` settings and the note after the lead's instructions (pull request label, Keep Forge invisible) |
 | src/workspace/marks-guard.ts | new | | Keep Forge invisible in a card's folder: Claude Code's PreToolUse hook and git's pre-push hook, checking pushes and `gh` writes |

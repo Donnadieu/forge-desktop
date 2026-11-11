@@ -71,20 +71,43 @@ enum Pipeline {
     }
 
     /// The lines put in front of the lead's instructions when columns are off, so it routes around them.
-    static func routingNote(off: [String]) -> String? {
-        let skipped = optionalColumns.filter { off.contains($0) }
+    static func routingNote(off: [String]) -> String? { routingNote(off: off, missing: []) }
+
+    /// The same, for stages turned off (`off`) and stages whose column the board doesn't have (`missing`). A missing
+    /// column is never named as a place to move a ticket; with nothing left to move to, the ticket stays put.
+    static func routingNote(off: [String], missing: [String]) -> String? {
+        let gone = off + missing.filter { !off.contains($0) }
+        let skipped = (optionalColumns + ["Rework"]).filter { gone.contains($0) }
         guard !skipped.isEmpty else { return nil }
-        var lines = [
-            "## This board's stages", "", "These stages are turned off on this board: " + skipped.map { "`\($0)`" }.joined(separator: ", ") + ".",
-        ]
+        var lines = ["## This board's stages", ""]
+        let turnedOff = optionalColumns.filter { off.contains($0) && !missing.contains($0) }
+        if !turnedOff.isEmpty {
+            lines.append("These stages are turned off on this board: " + turnedOff.map { "`\($0)`" }.joined(separator: ", ") + ".")
+        }
+        let absent = Pipeline.names.filter { missing.contains($0) }
+        if !absent.isEmpty {
+            let named = absent.map { "`\($0)`" }
+            let list = named.count < 2 ? named.joined() : named.dropLast().joined(separator: ", ") + " or " + named.last!
+            lines.append(
+                "This board has no \(list) column\(absent.count == 1 ? "" : "s"). Never move a ticket into a column this board doesn't have, "
+                    + "and never add columns to the board.")
+        }
         for s in skipped {
             switch s {
             case "Triage": lines.append("- Leave tickets in `Triage` alone; never work them.")
             case "Merging":
                 lines.append(
                     "- Never move a ticket to `Merging` and never merge a pull request: the person merges it and moves the ticket to `Done`.")
+            case "Rework": lines.append("- There's no `Rework` stage here: the person asks for changes on the pull request.")
             default:
-                lines.append("- Wherever these instructions say to move a ticket to `\(s)`, move it to `\(skipTarget(s, off: off))` instead.")
+                let to = skipTarget(s, off: gone)
+                if to == "Done" && !missing.isEmpty {
+                    lines.append(
+                        "- Wherever these instructions say to move a ticket to `\(s)`, leave the ticket in its current column instead "
+                            + "and stop: the person takes it from there.")
+                } else {
+                    lines.append("- Wherever these instructions say to move a ticket to `\(s)`, move it to `\(to)` instead.")
+                }
             }
         }
         return lines.joined(separator: "\n") + "\n\n"

@@ -169,6 +169,11 @@ export class GitHubTracker implements TrackerAdapter {
     return want.has(state);
   }
 
+  /** Forge Desktop: the board's columns are the Status options setup mapped (board-columns.ts). */
+  async fetchColumns(_config: TrackerConfig): Promise<string[]> {
+    return Object.keys(this.opts.columns);
+  }
+
   async fetchBoard(_config: TrackerConfig, states: string[]): Promise<BoardCard[]> {
     const all = await this.readProject();
     return all

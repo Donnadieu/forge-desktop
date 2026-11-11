@@ -33,9 +33,19 @@ export class MemoryTracker implements TrackerAdapter {
   private comments = new Map<string, Array<{ id: string; body: string }>>();
   private commentCounter = 0;
 
-  constructor(issues?: NormalizedIssue[]) {
+  private readonly columns: string[] | undefined;
+
+  /** `columns`: the board's columns, for tests of missing ones; without it the board can't list them. */
+  constructor(issues?: NormalizedIssue[], opts?: { columns?: string[] }) {
     if (issues) this.issues = [...issues];
+    this.columns = opts?.columns;
+    if (this.columns) {
+      const names = [...this.columns];
+      this.fetchColumns = async () => [...names];
+    }
   }
+
+  fetchColumns?: (config: TrackerConfig) => Promise<string[]>;
 
   addIssue(issue: NormalizedIssue): void {
     this.issues.push(issue);

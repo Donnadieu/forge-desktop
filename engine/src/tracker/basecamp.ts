@@ -230,6 +230,11 @@ export class BasecampTracker implements TrackerAdapter {
     return { data, nextPath };
   }
 
+  /** Forge Desktop: the board's columns are the ones setup mapped on the card table (board-columns.ts). */
+  async fetchColumns(_config: TrackerConfig): Promise<string[]> {
+    return Object.keys(this.columns);
+  }
+
   /** Every card in `states`' columns, for the app's board. Throws when Basecamp can't be reached. */
   fetchBoard(_config: TrackerConfig, states: string[]): Promise<BoardCard[]> {
     return this.board.read(states);

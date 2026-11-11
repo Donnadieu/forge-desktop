@@ -239,7 +239,9 @@ struct OrchestratorTables: View {
             if let pr = c.prUrl {
                 Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
             }
-            Button("Ask for changes") { move([c], to: "Rework") }.buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
+            if model.choices.stageState("Rework") == .on {
+                Button("Ask for changes") { move([c], to: "Rework") }.buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
+            }
             if mergeOn {
                 Button("Merge") { move([c], to: "Merging") }.buttonStyle(ForgeButton(kind: .primary)).lineLimit(1).fixedSize()
             }
@@ -273,8 +275,9 @@ struct OrchestratorTables: View {
         .contentShape(Rectangle()).onTapGesture { open = c }
     }
 
-    /// Merging is on unless Workflow Studio turned it off (then the person merges on GitHub).
-    private var mergeOn: Bool { model.choices.stageOn("Merging") }
+    /// Merging is on unless Workflow Studio turned it off or the board has no Merging column (then the person
+    /// merges on GitHub).
+    private var mergeOn: Bool { model.choices.stageState("Merging") == .on }
 
     private func move(_ cards: [EngineState.Card], to: String) { Task { await model.link.move(cards, to: to) } }
 

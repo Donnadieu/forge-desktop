@@ -38,6 +38,7 @@ import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
 import { runSessionsHost } from "./sessions/main.js";
 import { openLocalStore } from "./store/local-store.js";
+import { BoardColumns, guardMoves } from "./tracker/board-columns.js";
 import { marksNote, resolveMarks } from "./tracker/marks.js";
 import type { TrackerConfig } from "./tracker/types.js";
 import { createTrackerFromConfig } from "./tracker-factory.js";
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
 
   // What others see: the pull request label, the branch prefix and "Keep Forge invisible" (tracker/marks.ts).
   const marks = resolveMarks(config.marks);
-  const tracker = createTrackerFromConfig(config, process.env, logger);
+  const boardTracker = createTrackerFromConfig(config, process.env, logger);
   const trackerConfig: TrackerConfig = {
     kind: config.tracker.kind,
     project_slug: config.tracker.project_slug,
@@ -75,6 +76,9 @@ async function main(): Promise<void> {
     done_states: config.tracker.done_states,
     labels: config.tracker.labels,
   };
+  // Never move a card into a column the board doesn't have (shared boards lack the optional ones).
+  const boardColumns = new BoardColumns(boardTracker, trackerConfig);
+  const tracker = guardMoves(boardTracker, boardColumns);
   const hasRoles = config.agent.roles.length > 0;
   const agent = createWorkerAgent(config.agent.kind, {
     command: config.agent.command,
@@ -114,7 +118,7 @@ async function main(): Promise<void> {
     stopLeftovers: (root, card) => stopLeftoverServers(root, { only: card, logger }),
   });
   const local = openLocalStore(join(home, "forge.sqlite"));
-  const board = new BoardReader(tracker, trackerConfig, config.board.columns);
+  const board = new BoardReader(tracker, trackerConfig, config.board.columns, boardColumns);
 
   let notify = (): void => {};
   const orchestrator = new Orchestrator(

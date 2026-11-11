@@ -5,6 +5,7 @@
  * New in Forge Desktop.
  */
 import type { RunningSessionSnapshot } from "../observability/types.js";
+import { type BoardColumns, missingColumnProblem } from "../tracker/board-columns.js";
 import { htmlToMarkdown } from "../tracker/rich-text.js";
 import type {
   BoardCard,
@@ -40,6 +41,8 @@ export interface BoardView {
   read_at: string | null;
   /** Why the last read failed, in plain words; null when it worked. */
   problem: string | null;
+  /** The columns the board really has (null when the tracker can't list them). */
+  present: string[] | null;
 }
 
 function fromIssue(i: NormalizedIssue): BoardCard {
@@ -86,6 +89,7 @@ export class BoardReader {
     private readonly tracker: TrackerAdapter,
     private readonly config: TrackerConfig,
     private readonly columns: string[],
+    private readonly boardColumns?: BoardColumns,
   ) {}
 
   /** Reads the board again. Concurrent calls share one read. */
@@ -103,6 +107,7 @@ export class BoardReader {
         : (await this.tracker.fetchCandidates({ ...this.config, active_states: this.columns })).map(
             fromIssue,
           );
+      await this.boardColumns?.present();
       this.readAt = new Date().toISOString();
       this.problem = null;
     } catch (err) {
@@ -125,6 +130,8 @@ export class BoardReader {
     }
     if (!this.tracker.updateIssueState)
       return { ok: false, problem: "This board can't move cards." };
+    if (await this.boardColumns?.missing(to))
+      return { ok: false, problem: missingColumnProblem(to) };
     try {
       await this.tracker.updateIssueState(cardId, to);
     } catch (err) {
@@ -181,6 +188,11 @@ export class BoardReader {
           (a.priority ?? 5) - (b.priority ?? 5),
       );
     }
-    return { columns, read_at: this.readAt, problem: this.problem };
+    return {
+      columns,
+      read_at: this.readAt,
+      problem: this.problem,
+      present: this.boardColumns?.known() ?? null,
+    };
   }
 }

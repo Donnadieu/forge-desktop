@@ -27,6 +27,12 @@ final class BoardLink {
         return model.store.runChoices(id, live: model.choices)
     }
 
+    /// The board's real columns came in with the engine's state: true when a stage became available or unavailable.
+    static func columnsChanged(_ c: inout SetupChoices, _ board: EngineState.Board?) -> Bool {
+        guard let present = board?.present, !present.isEmpty else { return false }
+        return c.refreshColumns(present)
+    }
+
     private func show(_ s: EngineState) {
         guard let model else { return }
         if let id = projectID {
@@ -35,6 +41,12 @@ final class BoardLink {
             model.watchCardSessions()
         }
         if onScreen { model.engine = s }
+        // A column was added to (or taken off) the board: Workflow Studio follows, and the engine restarts with
+        // the stages that can run now. Only the project on screen; another picks it up when it's opened.
+        if onScreen, !model.preview, Self.columnsChanged(&model.choices, s.board) {
+            model.save(restarts: false)
+            Task { await connect(restart: true) }
+        }
     }
 
     private func report(_ problem: String?) {

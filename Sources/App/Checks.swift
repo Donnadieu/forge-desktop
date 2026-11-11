@@ -222,6 +222,7 @@ enum Checks {
         linearTeamChecks(check)
         missingColumnSetupChecks(check)
         missingColumnStudioChecks(check)
+        missingColumnGatingChecks(check)
         workspaceNameChecks(check)
         moveChecks(check)
         accountChecks(check)

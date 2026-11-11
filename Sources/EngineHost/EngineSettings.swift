@@ -37,7 +37,7 @@ enum EngineSettings {
             }
         var lines = ["---", "tracker:"] + trackerLines(c)
         lines += [
-            "  active_states: [\(Pipeline.activeColumns(off: c.stagesOff ?? []).map(quoted).joined(separator: ", "))]",
+            "  active_states: [\(Pipeline.activeColumns(off: (c.stagesOff ?? []) + c.unavailableStages).map(quoted).joined(separator: ", "))]",
             "  terminal_states: [\"Done\", \"Closed\", \"Cancelled\", \"Canceled\", \"Duplicate\"]",
         ]
         lines += promoteLines(c)
@@ -173,7 +173,7 @@ enum EngineSettings {
     /// The engine moves cards out of Backlog for the person (Workflow Studio's two switches). Nothing when
     /// both are off. New cards only go to Triage while the Triage stage is on.
     static func promoteLines(_ c: SetupChoices) -> [String] {
-        let toTriage = (c.sendNewToTriage ?? false) && c.stageOn("Triage")
+        let toTriage = (c.sendNewToTriage ?? false) && c.stageState("Triage") == .on
         let toTodo = c.startReady ?? false
         guard toTriage || toTodo else { return [] }
         return ["  promote:", "    backlog_to_triage: \(toTriage)", "    ready_to_todo: \(toTodo)"]
@@ -215,7 +215,7 @@ enum EngineSettings {
         let file = c.board == .github ? "workflow/github.md" : "workflow/basecamp.md"
         let note = boardNote(c, template: engineDir.flatMap { try? String(contentsOf: $0.appendingPathComponent(file), encoding: .utf8) })
         if c.board != .linear, note == nil { throw Problem(description: "The \(c.board.name) instructions are missing from the app.") }
-        let part = (note ?? "") + (Pipeline.routingNote(off: c.stagesOff ?? []) ?? "")
+        let part = (note ?? "") + (Pipeline.routingNote(off: c.stagesOff ?? [], missing: c.unavailableStages) ?? "")
         return frontMatter(c, cardsFolder: cards.path, skillsFolder: skillsFolder, store: store) + WorkflowFile.partStart + "\n" + part
             + WorkflowFile.partEnd + "\n\n" + lead
     }

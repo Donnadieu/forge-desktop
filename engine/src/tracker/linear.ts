@@ -181,6 +181,26 @@ export class LinearTracker implements TrackerAdapter {
     }
   }
 
+  /** Forge Desktop: the team's workflow states (the board's columns). A project's board is its first team's. */
+  async fetchColumns(config: TrackerConfig): Promise<string[]> {
+    if (config.team_id) {
+      const data = await this.graphql<{ team: { states: { nodes: Array<{ name: string }> } } }>(
+        "query TeamStates($team: String!) { team(id: $team) { states(first: 100) { nodes { name } } } }",
+        { team: config.team_id },
+      );
+      return data.team.states.nodes.map((n) => n.name);
+    }
+    const data = await this.graphql<{
+      projects: {
+        nodes: Array<{ teams: { nodes: Array<{ states: { nodes: Array<{ name: string }> } }> } }>;
+      };
+    }>(
+      "query ProjectStates($slug: String!) { projects(filter: { slugId: { eq: $slug } }) { nodes { teams(first: 1) { nodes { states(first: 100) { nodes { name } } } } } } }",
+      { slug: config.project_slug },
+    );
+    return data.projects.nodes[0]?.teams.nodes[0]?.states.nodes.map((n) => n.name) ?? [];
+  }
+
   // PITFALL #1: Use issues(filter: { id: { in: $ids } }), NOT nodes(ids: [...])
   async fetchBoard(config: TrackerConfig, states: string[]): Promise<BoardCard[]> {
     return fetchBoardCards((q, v) => this.graphql(q, v), linearScope(config), states);

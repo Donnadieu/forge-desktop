@@ -73,3 +73,47 @@ extension Checks {
         check("on Basecamp the reason names the project", basecamp.stageState("QA") == .unavailable("No QA column on Client site"))
     }
 }
+
+extension Checks {
+    /// Item 3: a stage runs only if its column exists and it's on, and nothing tells an agent to move a card into
+    /// a column the board doesn't have.
+    static func missingColumnGatingChecks(_ check: (String, Bool) -> Void) {
+        var c = SetupChoices()
+        (c.teamID, c.teamName, c.projectName) = ("team-atc", "ATC Rewrite", "ATC Rewrite")
+        c.boardColumns = sharedBoard
+        let fm = EngineSettings.frontMatter(c, cardsFolder: "/c")
+        check(
+            "agents pick cards only from stages that have a column and are on",
+            fm.contains("  active_states: [\"Triage\", \"Todo\", \"In Progress\"]\n"))
+        c.stagesOff = ["Triage"]
+        check(
+            "a stage turned off still doesn't run",
+            EngineSettings.frontMatter(c, cardsFolder: "/c").contains("  active_states: [\"Todo\", \"In Progress\"]\n"))
+        c.stagesOff = nil
+        let note = Pipeline.routingNote(off: [], missing: c.unavailableStages) ?? ""
+        check(
+            "the lead is told which columns the board doesn't have",
+            note.contains("This board has no `AI Review`, `QA`, `Human Review`, `Rework` or `Merging` column"))
+        let targets = ["AI Review", "QA", "Human Review", "Rework", "Merging"].filter {
+            note.contains("move it to `\($0)` instead") || note.contains("move the ticket to `\($0)`")
+        }
+        check("the lead is never told to move a card into a missing column", targets.isEmpty)
+        check("with nothing to go to, the card stays where it is", note.contains("leave the ticket in its current column"))
+        check("a board with every column and nothing off needs no note", Pipeline.routingNote(off: [], missing: []) == nil)
+        var some = c
+        some.boardColumns = Pipeline.names.filter { $0 != "QA" }
+        let qa = Pipeline.routingNote(off: [], missing: some.unavailableStages) ?? ""
+        check("a missing stage between two that exist is skipped", qa.contains("move it to `Human Review` instead"))
+        c.sendNewToTriage = true
+        c.boardColumns = Pipeline.names.filter { $0 != "Triage" }
+        check("new cards aren't sent to a Triage column that isn't there", !EngineSettings.promoteLines(c).joined().contains("triage"))
+        let json = #"{"columns":[],"read_at":null,"problem":null,"present":["Backlog","Todo","In Progress","Done","AI Review"]}"#
+        let board = try? JSONDecoder().decode(EngineState.Board.self, from: Data(json.utf8))
+        check("the board says which columns it really has", board?.present?.contains("AI Review") == true)
+        var seen = c
+        seen.boardColumns = sharedBoard
+        check(
+            "a column added on the board is picked up from the engine", BoardLink.columnsChanged(&seen, board) && seen.stageState("AI Review") == .on)
+        check("the same columns again change nothing", !BoardLink.columnsChanged(&seen, board))
+    }
+}

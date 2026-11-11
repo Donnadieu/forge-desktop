@@ -172,6 +172,8 @@ export interface TrackerAdapter {
   claimIssue?(args: ClaimIssueArgs, options?: ClaimIssueOptions): Promise<ClaimResult>;
   /** Transition an issue to a named workflow state. Optional — not all trackers support writes. */
   updateIssueState?(issueId: string, stateName: string): Promise<void>;
+  /** Forge Desktop: the names of the board's columns, so moves into a missing one are refused (board-columns.ts). */
+  fetchColumns?(config: TrackerConfig): Promise<string[]>;
   /** Create a comment on an issue. Returns the comment ID. Optional. */
   createComment?(issueId: string, body: string): Promise<string>;
   /** Fetch comments on an issue. Optional — not all trackers support reads. */

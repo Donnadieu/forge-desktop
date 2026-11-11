@@ -85,6 +85,7 @@ struct EngineState: Decodable, Sendable, Equatable {
         var columns: [Column]
         var read_at: String?
         var problem: String?
+        var present: [String]?
     }
 
     struct Column: Decodable, Sendable, Equatable, Identifiable {

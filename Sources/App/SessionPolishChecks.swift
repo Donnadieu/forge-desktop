@@ -28,6 +28,29 @@ extension Checks {
         tabChecks(check)
         createPRChecks(check)
         newSessionChecks(check)
+        sidebarChecks(check)
+    }
+
+    /// Item 10: the sessions list is grouped; idle and finished groups start folded and open on a click.
+    static func sidebarChecks(_ check: (String, Bool) -> Void) {
+        let sessions = SessionsModel(preview: true)
+        SampleSessions.fill(sessions)
+        var list = SampleSessions.all
+        list.append(SampleSessions.session("s7", "Old spike", repo: "acme/app", branch: "x/spike", status: "idle", chats: []))
+        let shown = SessionList.sections(list, folded: sessions.foldedGroups, search: "", selected: nil)
+        let byTitle = Dictionary(uniqueKeysWithValues: shown.map { ($0.title, $0) })
+        check(
+            "the groups show in order, each with its count",
+            shown.map(\.title) == ["Needs you", "Working", "Ready for review", "Idle", "Merged"] && byTitle["Working"]?.count == 3)
+        check("idle and merged sessions start folded", byTitle["Idle"]?.rows.isEmpty == true && byTitle["Merged"]?.rows.isEmpty == true)
+        check("the groups that need you stay open", byTitle["Needs you"]?.rows.count == 1 && byTitle["Working"]?.rows.count == 3)
+        sessions.toggleGroup("Merged")
+        let opened = SessionList.sections(list, folded: sessions.foldedGroups, search: "", selected: nil)
+        check("a click opens a folded group", opened.first { $0.title == "Merged" }?.rows.count == 1)
+        let open = SessionList.sections(list, folded: ["Idle"], search: "", selected: "s7")
+        check("the session on screen shows even in a folded group", open.first { $0.title == "Idle" }?.rows.map(\.id) == ["s7"])
+        let found = SessionList.sections(list, folded: ["Idle"], search: "spike", selected: nil)
+        check("a search shows matches in folded groups too", found.first { $0.title == "Idle" }?.rows.map(\.id) == ["s7"])
     }
 
     /// Item 9: a new session gets its own folder and branch off main by default, or a branch the person names or picks.

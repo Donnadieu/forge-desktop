@@ -86,6 +86,8 @@ final class SessionsModel: ObservableObject {
     @Published var drafts: [String: String] = [:]
     /// Messages the person sent, per chat: each one brings that chat to its latest turn.
     @Published var sent: [String: Int] = [:]
+    /// Groups of the sessions list folded to their header: idle and finished ones start folded.
+    @Published var foldedGroups: Set<String> = ["Idle", "Merged"]
     /// Sessions showing their Changes tab instead of a chat.
     @Published var changesTab: Set<String> = []
     /// Pictures waiting in each chat's message box.

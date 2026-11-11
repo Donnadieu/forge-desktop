@@ -58,3 +58,7 @@ the bottom. Each line: the date, the plan item, the call and why.
   optional name (Forge names it when empty) "off" the base, main by default. Existing branch: a menu of GitHub's
   branches (fetched, newest first, main on top); the folder opens on the local branch if there is one, else a new
   local branch tracking GitHub's. The base for the diff stays main.
+- 2026-11-11, item 10: the list was already grouped (Needs you, Working, Ready for review, Idle, Merged). Each header
+  now shows its count and folds or opens on a click; Idle and Merged start folded. The folds hold while Forge is open
+  (not saved across launches: a fresh start should show the tidy default). The session on screen still shows inside
+  a folded group, and a search opens every group so a match is never hidden.

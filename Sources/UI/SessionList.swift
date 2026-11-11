@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The left list: search, New session, then the sessions grouped by what they need from you, and Import from
-/// Conductor at the bottom. Right-click a row to open it beside the one on screen or to archive it.
+/// The left list: search, New session, then the sessions grouped by what they need from you (idle and merged groups
+/// start folded, so the list stays tidy), and Import from Conductor at the bottom. Right-click a row to open it beside the one on screen or to archive it.
 struct SessionList: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
@@ -12,11 +12,35 @@ struct SessionList: View {
         (["needs_you"], "Needs you"), (["working"], "Working"), (["review"], "Ready for review"), (["idle"], "Idle"), (["merged"], "Merged"),
     ]
 
-    private var shown: [Sessions.Session] {
+    struct Section: Identifiable {
+        let title: String
+        /// How many sessions the group holds (shown on its header, folded or not).
+        let count: Int
+        let folded: Bool
+        let rows: [Sessions.Session]
+        var id: String { title }
+    }
+
+    static func matching(_ list: [Sessions.Session], _ search: String) -> [Sessions.Session] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return list }
         return list.filter { ($0.title + " " + $0.repo + " " + $0.branch + " " + ($0.prTitle ?? "")).lowercased().contains(q) }
     }
+
+    /// The list's groups in order. A folded group shows only its header (and the session on screen, if it's in
+    /// there); a search opens every group so matches are never hidden.
+    static func sections(_ list: [Sessions.Session], folded: Set<String>, search: String, selected: String?) -> [Section] {
+        let found = matching(list, search)
+        let searching = !search.trimmingCharacters(in: .whitespaces).isEmpty
+        return groups.compactMap { g in
+            let all = found.filter { g.status.contains($0.status) }
+            guard !all.isEmpty else { return nil }
+            let fold = folded.contains(g.title) && !searching
+            return Section(title: g.title, count: all.count, folded: fold, rows: fold ? all.filter { $0.id == selected } : all)
+        }
+    }
+
+    private var shown: [Sessions.Session] { Self.matching(list, search) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,12 +66,9 @@ struct SessionList: View {
             .padding(12)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Self.groups, id: \.title) { g in
-                        let rows = shown.filter { g.status.contains($0.status) }
-                        if !rows.isEmpty {
-                            SectionLabel(text: g.title).padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 6)
-                            ForEach(rows) { s in row(s) }
-                        }
+                    ForEach(Self.sections(list, folded: sessions.foldedGroups, search: search, selected: sessions.selected)) { g in
+                        header(g)
+                        ForEach(g.rows) { s in row(s) }
                     }
                     if shown.isEmpty {
                         Text(list.isEmpty ? "No sessions yet. Start one, or bring your Conductor work over." : "Nothing matches.")
@@ -74,6 +95,25 @@ struct SessionList: View {
             .padding(.horizontal, 20).frame(height: 48)
         }
         .background(Theme.bg.opacity(0.6))
+    }
+
+    /// A group's header: its name and count; a click folds or opens it.
+    private func header(_ g: Section) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { sessions.toggleGroup(g.title) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: g.folded ? "chevron.right" : "chevron.down").font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Theme.textMuted).frame(width: 10)
+                SectionLabel(text: g.title)
+                Text("\(g.count)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+                Spacer()
+            }
+            .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(g.folded ? "Show the \(g.count) \(g.title.lowercased()) sessions" : "Fold this group")
     }
 
     private func dot(_ s: Sessions.Session) -> Color {

@@ -44,6 +44,10 @@ extension SessionsModel {
         open(list[j])
     }
 
+    func toggleGroup(_ title: String) {
+        if foldedGroups.contains(title) { foldedGroups.remove(title) } else { foldedGroups.insert(title) }
+    }
+
     /// The name a new tab gets: Chat 2, Chat 3, and so on, skipping any number already taken.
     static func newChatTitle(in s: Sessions.Session) -> String {
         let taken = Set(s.chats.map(\.title))

@@ -121,54 +121,11 @@ struct Composer: View {
                         return .handled
                     }
             }
-            HStack(spacing: 8) {
-                if session.origin != "card" {
-                    Menu {
-                        Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
-                        Button("Attach a picture…") { pickPictures() }
-                        Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
-                        Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
-                            sessions.set(chat, ask: !chat.askBeforeChanges)
-                        }
-                    } label: {
-                        Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textSec)
-                    }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                    .frame(width: 30, height: 30)
-                    .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
-                } else {
-                    Pill(text: sessions.cardTargets[session.id]?.handsOn == true ? "You have the wheel" : "Steering the card's agent", tone: .ghost)
-                }
-                if chat.planMode { Pill(text: "Plan mode", tone: .info) }
-                if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
-                Spacer(minLength: 8)
-                if session.origin != "card" {
-                    ModelChip(model: chat.model, effort: chat.effort, short: compact) { m, e in
-                        sessions.set(chat, model: m != chat.model ? m : nil, effort: e != chat.effort ? e : nil)
-                    }
-                    .fixedSize()
-                }
-                ContextMeter(percent: chat.contextPercent, short: compact).fixedSize()
-                if let card = sessions.cardTargets[session.id] {
-                    if card.handsOn {
-                        Button("Hand back to Forge") { sessions.wheel(chat, take: false) }
-                            .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.forward", large: true))
-                            .help("Forge's agent carries on by itself from where you left it")
-                    } else if chat.working {
-                        Button("Stop") { sessions.wheel(chat, take: true) }
-                            .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
-                            .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                            .help("Ends the agent's turn now; it waits for your messages until you hand it back")
-                    }
-                }
-                if chat.working, session.origin != "card" {
-                    Button("Stop") { sessions.stop(chat) }
-                        .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
-                        .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                }
-                Button("Send") { sessions.send(chat, text: text.wrappedValue, queue: false) }
-                    .buttonStyle(ForgeButton(kind: .primary, icon: "paperplane", large: true))
-                    .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (sessions.images[chat.id] ?? []).isEmpty)
+            // A narrow chat (the narrowest window with Changes open, or two side by side) gets the short words, so the
+            // box never pushes past its column.
+            ViewThatFits(in: .horizontal) {
+                controls(short: compact)
+                controls(short: true)
             }
         }
         .padding(14)
@@ -183,6 +140,64 @@ struct Composer: View {
                 .keyboardShortcut(.tab, modifiers: .shift).opacity(0).allowsHitTesting(false)
         )
         .onDrop(of: [.fileURL, .image], isTargeted: nil) { providers in drop(providers) }
+    }
+
+    private func wheelWords(short: Bool) -> String {
+        let hands = sessions.cardTargets[session.id]?.handsOn == true
+        if short { return hands ? "Your wheel" : "Steering" }
+        return hands ? "You have the wheel" : "Steering the card's agent"
+    }
+
+    private func controls(short: Bool) -> some View {
+        HStack(spacing: 8) {
+            if session.origin != "card" {
+                Menu {
+                    Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
+                    Button("Attach a picture…") { pickPictures() }
+                    Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
+                    Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
+                        sessions.set(chat, ask: !chat.askBeforeChanges)
+                    }
+                } label: {
+                    Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textSec)
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .frame(width: 30, height: 30)
+                .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+            } else {
+                Pill(text: wheelWords(short: short), tone: .ghost)
+            }
+            if chat.planMode { Pill(text: "Plan mode", tone: .info) }
+            if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
+            Spacer(minLength: 8)
+            if session.origin != "card" {
+                ModelChip(model: chat.model, effort: chat.effort, short: short) { m, e in
+                    sessions.set(chat, model: m != chat.model ? m : nil, effort: e != chat.effort ? e : nil)
+                }
+                .fixedSize()
+            }
+            ContextMeter(percent: chat.contextPercent, short: short).fixedSize()
+            if let card = sessions.cardTargets[session.id] {
+                if card.handsOn {
+                    Button("Hand back to Forge") { sessions.wheel(chat, take: false) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.forward", large: true))
+                        .help("Forge's agent carries on by itself from where you left it")
+                } else if chat.working {
+                    Button("Stop") { sessions.wheel(chat, take: true) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
+                        .keyboardShortcut(.delete, modifiers: [.command, .shift])
+                        .help("Ends the agent's turn now; it waits for your messages until you hand it back")
+                }
+            }
+            if chat.working, session.origin != "card" {
+                Button("Stop") { sessions.stop(chat) }
+                    .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
+                    .keyboardShortcut(.delete, modifiers: [.command, .shift])
+            }
+            Button("Send") { sessions.send(chat, text: text.wrappedValue, queue: false) }
+                .buttonStyle(ForgeButton(kind: .primary, icon: "paperplane", large: true))
+                .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (sessions.images[chat.id] ?? []).isEmpty)
+        }
     }
 
     /// ⌘V: a picture on the clipboard joins the message (not for card sessions); anything else pastes as usual.

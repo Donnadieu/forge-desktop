@@ -15,6 +15,8 @@ enum ScreenRender {
         var changing = false
         /// Window height; taller shots show a whole board.
         var height: CGFloat = 800
+        /// Window width; Omar's own screenshots are about 1500 wide.
+        var width: CGFloat = 1200
     }
 
     static func shots() -> [Shot] {
@@ -35,7 +37,9 @@ enum ScreenRender {
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var failed = 0
-        for shot in shots() {
+        // FORGE_SHOTS=14-sessions,16- draws only the shots whose names start with one of these.
+        let only = ProcessInfo.processInfo.environment["FORGE_SHOTS"]?.split(separator: ",").map(String.init) ?? []
+        for shot in shots() where only.isEmpty || only.contains(where: { shot.name.hasPrefix($0) }) {
             let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
             model.engine = shot.engine
             model.sample.scene = shot.scene
@@ -52,10 +56,11 @@ enum ScreenRender {
             if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }
             if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
             let ok = render(
-                RootView(model: model), size: NSSize(width: 1200, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))
+                RootView(model: model), size: NSSize(width: shot.width, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
             if !ok { failed += 1 }
         }
+        if !only.isEmpty { return failed == 0 ? 0 : 1 }
         let detailModel = AppModel(preview: true, screen: AppModel.boardScreen)
         let held = SampleBoard.state.cards.first { $0.agent != nil }!
         let ok = render(

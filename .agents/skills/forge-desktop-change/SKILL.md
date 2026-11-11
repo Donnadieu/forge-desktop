@@ -66,6 +66,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   wrap at 1200 px.
 - A `.plain` TextField/SecureField draws its placeholder in the field's foreground colour: use
   `forgeField(hint:empty:)`, not `prompt:`.
+- A child that won't shrink (`.fixedSize()`, like `Chip`) inside a fixed-width pane makes the pane wider than its
+  frame, and SwiftUI centres the extra over the neighbouring pane (the Changes panel's long branch chip covered the
+  chat's message box). Let it shrink (`Chip(fits: true)`), and prove a pane fits with
+  `NSHostingController(rootView:).sizeThatFits(in:)` in the selftest (`SessionPolishChecks.swift`).
 - `--render-screens` draws 1200x800 with fake traffic lights, and prominent buttons come out grey
   (the window isn't key). Don't "fix" the colour, and say the live title bar is unproven.
 

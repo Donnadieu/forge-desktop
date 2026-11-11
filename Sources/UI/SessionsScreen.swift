@@ -14,10 +14,11 @@ struct SessionsScreen: View {
             HStack(spacing: 0) {
                 SessionList(model: model, sessions: sessions, list: list).frame(width: 260)
                 Rectangle().fill(Theme.border).frame(width: 1)
-                center.frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Each pane keeps to its own edges: the chat and its message box end where the Changes panel begins.
+                center.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
                 if let s = sessions.current, !sessions.composing, sessions.showChanges, sessions.splitChat == nil {
                     Rectangle().fill(Theme.border).frame(width: 1)
-                    ChangesPanel(sessions: sessions, session: s).frame(width: 360)
+                    ChangesPanel(sessions: sessions, session: s)
                 }
             }
         }

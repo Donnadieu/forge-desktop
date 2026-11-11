@@ -142,16 +142,20 @@ struct Chip: View {
     enum Tone { case quiet, heat, dim, warn, good }
     let text: String
     var tone: Tone = .quiet
+    /// Shrinks to the room it's given, cutting the middle of the text (a long branch name in a narrow panel).
+    var fits = false
 
     var body: some View {
         Text(text)
             .font(Theme.mono(10.5))
             .foregroundStyle(word)
+            .lineLimit(1).truncationMode(.middle)
             .padding(.horizontal, 8)
             .frame(height: 20)
             .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(fill))
             .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(edge))
-            .fixedSize()
+            .fixedSize(horizontal: !fits, vertical: true)
+            .help(fits ? text : "")
     }
 
     private var word: Color {

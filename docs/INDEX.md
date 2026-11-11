@@ -7,6 +7,7 @@
 - [design-docs/golden-principles.md](design-docs/golden-principles.md): every rule and what enforces it
 - [RELEASING.md](RELEASING.md): signing, notarizing, publishing a release, the in-app updater
 - [design-docs/decisions.md](design-docs/decisions.md): answers to the plan's open questions (triage, signing key, GitHub sign-in)
+- [decisions.md](decisions.md): calls made while building a plan without stopping to ask (sessions polish onward)
 - [design/workspaces.md](design/workspaces.md): Workspaces, the request and requirements (design, not built yet)
   - [design/workspaces-design.md](design/workspaces-design.md): its model, migration, settings flow, screens and open questions
 - [design/sessions.md](design/sessions.md): Sessions, chatting with agents inside a workspace (Conductor-style); design, two screen directions, not built
@@ -15,4 +16,5 @@
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress
   - [exec-plans/active/sessions.md](exec-plans/active/sessions.md): Sessions (Direction A), steps and progress
+  - [exec-plans/active/sessions-polish.md](exec-plans/active/sessions-polish.md): Sessions polish (Omar's Nov 11 walkthrough)
   - [exec-plans/tech-debt-tracker.md](exec-plans/tech-debt-tracker.md): known debt, only shrinks

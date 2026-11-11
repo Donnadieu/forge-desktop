@@ -3,6 +3,10 @@ import SwiftUI
 /// The right panel: what the session changed against its base, the one next step (Create PR, Fix errors, Merge),
 /// its pull request with the checks and the review comments, and one file's diff at a time.
 struct ChangesPanel: View {
+    /// The panel's width on the Sessions screen; nothing inside it may be wider (a long branch once pushed it over
+    /// the chat and its message box).
+    static let width: CGFloat = 360
+
     @ObservedObject var sessions: SessionsModel
     let session: Sessions.Session
     @State private var confirmMerge = false
@@ -33,8 +37,8 @@ struct ChangesPanel: View {
                 }
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.triangle.branch").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
-                    Chip(text: session.branch)
-                    Text("vs \(session.base)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+                    Chip(text: session.branch, fits: true)
+                    Text("vs \(session.base)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).fixedSize()
                 }
                 prLine
                 actions
@@ -67,7 +71,10 @@ struct ChangesPanel: View {
                 DiffLines(text: diff)
             }
         }
-        .background(Theme.bg.opacity(0.6))
+        .frame(width: Self.width)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Theme.bg)
+        .clipped()
         .onAppear { sessions.refreshSide(session.id) }
         .onChange(of: session.id) { _, id in
             file = nil

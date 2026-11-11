@@ -116,6 +116,50 @@ enum SampleSessions {
             ], files: 2)
     }
 
+    /// The prompt Forge sends a card's agent, as it arrives in the card's session (Omar's PER-32, Nov 11).
+    static let cardPrompt = """
+        You are working on a Linear ticket `PER-32`.
+
+        Continuation context:
+
+        - This is retry attempt #1 because the ticket is still in an active state.
+        - Resume from the current workspace state instead of restarting from scratch.
+
+        ## What the assessment found
+
+        * A Rails 8.1 prototype with **636 Minitest tests** and 33 end-to-end journeys, all run by CI.
+        * The main gap is that RuboCop, Brakeman and bundler-audit are configured in `config/ci.rb` but never run in CI.
+
+        ### Running it (from a card)
+
+        1. **Read first.** Re-read the repo; the assessment on the card is a summary, not a substitute.
+        2. Build exactly the guardrails the owner chose, in **one additive pull request**.
+        3. Run `bin/rails test` before you push.
+
+        ```sh
+        bin/rubocop --parallel
+        bin/brakeman --no-pager
+        ```
+
+        Every violation the structural lint grandfathers is a backlog ticket, not a silent exemption.
+        """
+
+    static var promptTurn: Sessions.Turn {
+        turn(
+            "t4p", "c4", cardPrompt, status: "working",
+            events: [
+                event("p1", "t4p", "c4", "thinking", "Hardening mode. The card names 9 guardrails; that's the scope. Map the repo first."),
+                event(
+                    "p2", "t4p", "c4", "text", "Hardening mode. The card names 9 specific guardrails — that's the scope. Let me map the repo first."),
+                event(
+                    "p3", "t4p", "c4", "tool", "Ran Map repo structure", name: "Bash", data: .object(["command": .string("ls -la && cat Gemfile")])),
+                event("p4", "t4p", "c4", "thinking", ""),
+                event("p5", "t4p", "c4", "tool", "Read config/ci.rb", name: "Read", data: .object(["file_path": .string("config/ci.rb")])),
+                event("p6", "t4p", "c4", "tool", "Edited .github/workflows/ci.yml", name: "Edit"),
+                event("p7", "t4p", "c4", "text", "Gems aren't installed in this fresh workspace. Installing them first."),
+            ], files: 1)
+    }
+
     static func fill(_ m: SessionsModel) {
         m.sessions = all
         m.selected = "s1"
@@ -172,6 +216,13 @@ enum SampleSessions {
         switch scene {
         case "sessions-new": m.composing = true
         case "sessions-card": m.selected = "s4"
+        case "sessions-card-long":
+            // Omar's PER-32 card (Nov 11): a long branch name and the card's whole prompt as its first message.
+            m.selected = "s4"
+            if let i = m.sessions.firstIndex(where: { $0.id == "s4" }) {
+                m.sessions[i].branch = "donnadieu86/per-32-get-donnadieuintake-workspace-ready-for-agents"
+            }
+            m.setTranscript(Transcript(chatID: "c4", turns: [promptTurn]))
         case "sessions-split":
             m.selected = "s2"
             m.splitChat = "c1"

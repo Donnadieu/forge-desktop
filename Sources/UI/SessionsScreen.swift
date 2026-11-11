@@ -16,7 +16,7 @@ struct SessionsScreen: View {
                 Rectangle().fill(Theme.border).frame(width: 1)
                 // Each pane keeps to its own edges: the chat and its message box end where the Changes panel begins.
                 center.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
-                if let s = sessions.current, !sessions.composing, sessions.showChanges, sessions.splitChat == nil {
+                if let s = sessions.current, !sessions.composing, sessions.showChanges, sessions.split == nil {
                     Rectangle().fill(Theme.border).frame(width: 1)
                     ChangesPanel(sessions: sessions, session: s)
                 }
@@ -32,7 +32,7 @@ struct SessionsScreen: View {
         if let s = sessions.current, !sessions.composing {
             VStack(spacing: 0) {
                 if let p = sessions.problem { problemLine(p) }
-                if let split = sessions.chat(sessions.splitChat), split.id != sessions.activeChat(of: s)?.id {
+                if let split = sessions.split, split.id != sessions.activeChat(of: s)?.id {
                     HStack(spacing: 0) {
                         ChatColumn(model: model, sessions: sessions, session: s, compact: true)
                         Rectangle().fill(Theme.border).frame(width: 1)
@@ -73,7 +73,7 @@ struct SessionsScreen: View {
     }
 
     @ViewBuilder private var sheets: some View {
-        if let sheet = sessions.reviewSheet, let s = sessions.sessions.first(where: { $0.id == sheet.session }) {
+        if let sheet = sessions.reviewSheet, let s = sessions.sessions.first(where: { $0.id == sheet.session && sessions.belongs($0) }) {
             ReviewCommentsSheet(sessions: sessions, session: s)
         } else if let preview = sessions.importSheet {
             ImportConductorSheet(model: model, sessions: sessions, preview: preview)

@@ -180,6 +180,8 @@ Proven by `engine/test/unit/worker/lead-waits-for-helpers.test.ts`, which fails 
   folder `sessions/` with `sessions.sqlite`, Forge's clones in `repos/`, every session's folder in `folders/`). Same
   127.0.0.1 port, launch token and live WebSocket as a board engine (`engine/src/sessions/api.ts`); the app talks to it
   through `Core/SessionsClient.swift` and keeps its state in `UI/SessionsModel.swift`.
+- The host holds every workspace's sessions; the screen shows the workspace on screen's only (`UI/SessionsModel+Workspace.swift`:
+  the open session, side-by-side chat, actions and each workspace's remembered pick). The app sets it from `store`.
 - A session is a git worktree on its own branch from `origin/<base>`, hung off the person's own checkout when the
   workspace knows one (`SessionRepo.local`, `~/Repos/<name>` is found by itself) or Forge's clone; `.env*` files git
   ignores come along. The branch prefix is the GitHub login that can push to the repo (`gh auth token -u`, never a switch

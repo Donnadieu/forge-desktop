@@ -69,6 +69,11 @@ final class Transcript: ObservableObject {
 final class SessionsModel: ObservableObject {
     @Published var sessions: [Sessions.Session] = []
     @Published var selected: String?
+    /// The workspace on screen (the app sets it, `show(workspace:)`): only its sessions are shown, opened or acted on.
+    /// Sessions of other workspaces keep running; they just don't show here.
+    @Published var workspace: String?
+    /// What each workspace had open (its session and side-by-side chat), for when the person comes back to it.
+    var picks: [String: (selected: String?, split: String?)] = [:]
     /// The chat shown for each session (its tab).
     @Published var activeChat: [String: String] = [:]
     /// A second chat shown side by side (any session's).
@@ -119,12 +124,6 @@ final class SessionsModel: ObservableObject {
     init(preview: Bool) {
         self.preview = preview
         if preview { SampleSessions.fill(self) }
-    }
-
-    var current: Sessions.Session? { sessions.first { $0.id == selected } }
-
-    func sessions(in workspace: String?) -> [Sessions.Session] {
-        sessions.filter { !$0.archived && (workspace == nil || $0.workspaceId == workspace || $0.workspaceId == "default") }
     }
 
     func chat(_ id: String?) -> Sessions.Chat? {
@@ -206,6 +205,7 @@ final class SessionsModel: ObservableObject {
     }
 
     func open(_ s: Sessions.Session) {
+        guard belongs(s) else { return }
         selected = s.id
         composing = false
         if s.unread { act { try await $0.read(session: s.id) } }
@@ -223,7 +223,7 @@ final class SessionsModel: ObservableObject {
     func send(_ chat: Sessions.Chat, text: String, queue: Bool) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let pics = images[chat.id] ?? []
-        guard !t.isEmpty || !pics.isEmpty else { return }
+        guard !t.isEmpty || !pics.isEmpty, isHere(chat) else { return }
         drafts[chat.id] = ""
         sent[chat.id, default: 0] += 1
         if let target = cardTargets[chat.sessionId] {
@@ -253,9 +253,13 @@ final class SessionsModel: ObservableObject {
         Task { try? await client.watchCards(cards) }
     }
 
-    func stop(_ chat: Sessions.Chat) { act { try await $0.stop(chat: chat.id) } }
+    func stop(_ chat: Sessions.Chat) {
+        guard isHere(chat) else { return }
+        act { try await $0.stop(chat: chat.id) }
+    }
 
     func answer(_ chat: Sessions.Chat, _ e: Sessions.Event, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil) {
+        guard isHere(chat) else { return }
         act { try await $0.answer(chat: chat.id, event: e.id, allow: allow, answers: answers, feedback: feedback) }
     }
 
@@ -363,7 +367,10 @@ final class SessionsModel: ObservableObject {
         reviewSheet = nil
     }
 
-    func merge(_ s: Sessions.Session) { act { try await $0.merge(session: s.id) } }
+    func merge(_ s: Sessions.Session) {
+        guard belongs(s) else { return }
+        act { try await $0.merge(session: s.id) }
+    }
     func archive(_ s: Sessions.Session) {
         act { try await $0.archive(session: s.id) }
         if selected == s.id { selected = nil }

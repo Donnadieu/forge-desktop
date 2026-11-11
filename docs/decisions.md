@@ -69,3 +69,9 @@ the bottom. Each line: the date, the plan item, the call and why.
   SSH host aliases (`git@github.com-andela:…`), which the old reader didn't take, so every repo showed by its short
   folder name and could never match a workspace's repo. The reader takes them now. A workspace that still holds
   several repos from before scopes the import to its first one.
+- 2026-11-11, session isolation: the sessions list was already filtered by workspace, but the open session was one
+  Mac-wide `SessionsModel.selected`, so switching workspaces kept the other workspace's chat, tabs, steer box and
+  Changes panel on screen. A workspace now shows, opens and acts on only its own sessions (`SessionsModel+Workspace.swift`)
+  and remembers what it had open; one it never opened shows New session. Sessions of other workspaces keep running.
+  Notifications still come from every workspace (an agent waiting on you elsewhere is worth knowing): a click opens
+  that session's own workspace first, as does the Orchestrator's Open session. ⌘⌥L stays inside the workspace.

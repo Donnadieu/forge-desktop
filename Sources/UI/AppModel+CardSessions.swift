@@ -42,12 +42,26 @@ extension AppModel {
         sessions.watch(cards.map(\.body))
     }
 
-    /// "Open session" on a running card: the Sessions screen with that card's session open. The watcher (CardWatcher)
-    /// takes a moment after a run's session id arrives to post the session itself, so this waits briefly rather than
-    /// opening to an empty "New session" pane on an early click.
+    /// "Open session" on a running card: the Sessions screen with that card's session open, in the card's own
+    /// workspace. The watcher (CardWatcher) takes a moment after a run's session id arrives to post the session itself,
+    /// so this waits briefly rather than opening to an empty "New session" pane on an early click.
     func openCardSession(project: String?, card: EngineState.Card) {
         guard let project else { return }
-        let id = Self.cardSessionID(project: project, card: card.id)
+        showSession(Self.cardSessionID(project: project, card: card.id), in: store.project(project)?.workspaceID)
+    }
+
+    /// Opens a session on the Sessions screen. A session of another workspace opens that workspace first: a
+    /// workspace never shows another one's session.
+    func showSession(_ id: String, in owner: String?) {
+        let w = owner ?? sessions.sessions.first { $0.id == id }?.workspaceId
+        if let w, w != "default", w != workspace?.id, store.workspace(w) != nil {
+            Task { [weak self] in
+                guard let self else { return }
+                await open(workspace: w)
+                if workspace?.id == w { showSession(id, in: w) }
+            }
+            return
+        }
         go(Self.sessionsScreen)
         sessions.composing = false
         sessions.selected = id
@@ -70,10 +84,8 @@ extension AppModel {
     /// Wires the card sessions' messages to the card's engine.
     func connectCardSessions() {
         LimitNotifier.shared.openSession = { [weak self] id in
-            guard let self else { return }
-            go(Self.sessionsScreen)
-            sessions.composing = false
-            if let s = sessions.sessions.first(where: { $0.id == id }) { sessions.open(s) }
+            guard let self, sessions.sessions.contains(where: { $0.id == id }) else { return }
+            showSession(id, in: nil)
         }
         sessions.steerCard = { [weak self] project, card, text in
             guard let link = self?.links[project] else { return "This project's engine isn't running." }

@@ -200,6 +200,12 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   behaviour is testable: host the view in a window at -20000, find its `NSScrollView`, move `contentView`, and read
   `bounds.origin` (`Sources/App/ScrollCheck.swift`).
 
+- Anything on the Sessions screen that points at one session (the open one, the side-by-side chat, a sheet, a
+  notification click) must be checked against the workspace on screen, not only the list: the list was filtered by
+  workspace while `selected` was Mac-wide, so another workspace's running card stayed open, steerable, after a switch.
+  Read `SessionsModel.current`/`split` (both filtered), guard actions with `isHere`, and open another workspace's
+  session through `AppModel.showSession`, which switches first. `Checks.sessionIsolationChecks` covers it.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

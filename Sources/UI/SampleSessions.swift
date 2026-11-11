@@ -228,6 +228,27 @@ enum SampleSessions {
             outdated: false),
     ]
 
+    /// Omar's Nov 11 case: a card runs in the first workspace (ATC-1742, open on screen) and the person switches to
+    /// another workspace ("Intake Tool") that has one idle session of its own. `back` switches to the first again.
+    static func otherWorkspace(_ m: AppModel, back: Bool = false) {
+        guard let first = m.workspace?.id else { return }
+        let intake = m.store.addWorkspace(name: "Intake Tool", color: "green")
+        var card = session(
+            "card-atc-1742", "ATC-1742 Serve Directory → Talent from cached talent rows", repo: "andela-technology/andela",
+            branch: "serve-directory-talent-from-cached-talent-rows-atc-1742", status: "working", origin: "card",
+            chats: [chat("catc", "card-atc-1742", "ATC-1742", state: "working")])
+        var per = session(
+            "card-per-32", "PER-32 Get Donnadieu/intake-workspace ready for agents", repo: "Donnadieu/intake-workspace",
+            branch: "per-32-get-intake-workspace-ready", status: "idle", origin: "card", chats: [chat("cper", "card-per-32", "PER-32")])
+        (card.workspaceId, per.workspaceId) = (first, intake.id)
+        m.sessions.sessions = [card, per]
+        m.sessions.changes[card.id] = [.init(path: "app/models/talent.rb", added: 42, removed: 7, status: "M")]
+        m.sessions.foldedGroups = []
+        m.sessions.open(card)
+        if let next = m.store.switchTo(workspace: intake.id, from: m.choices) { m.choices = next }
+        if back, let next = m.store.switchTo(workspace: first, from: m.choices) { m.choices = next }
+    }
+
     /// Puts the model in the state a render shows.
     static func scene(_ m: SessionsModel, _ scene: String) {
         switch scene {

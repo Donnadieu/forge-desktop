@@ -54,6 +54,8 @@ enum ScreenRender {
             if shot.scene == "unnamed-workspace" { model.renameWorkspace("My workspace", color: model.workspace?.color) }
             if let scene = shot.scene, scene.hasPrefix("sessions") { SampleSessions.scene(model.sessions, scene) }
             if shot.scene == "fleet" { AppModel.sampleRunning(model) }
+            if shot.scene == "sessions-other-workspace" { SampleSessions.otherWorkspace(model) }
+            if shot.scene == "sessions-first-workspace" { SampleSessions.otherWorkspace(model, back: true) }
             if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }
             if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
             let ok = render(

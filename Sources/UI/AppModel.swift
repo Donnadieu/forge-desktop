@@ -8,7 +8,9 @@ final class AppModel: ObservableObject {
         didSet { useSignIns() }
     }
     /// Trackers, projects and the intelligence provider accounts (store.json); `choices` is the running project.
-    @Published var store: SetupStore
+    @Published var store: SetupStore {
+        didSet { sessions.show(workspace: store.current?.id) }
+    }
     @Published var screen: Int
     /// The live board of the project on screen, pushed by its engine.
     @Published var engine: EngineState?
@@ -105,6 +107,7 @@ final class AppModel: ObservableObject {
         self.choices = c
         self.screen = screen ?? c.nextScreen
         useSignIns(github: true)
+        sessions.show(workspace: store.current?.id)
         connectCardSessions()
     }
 

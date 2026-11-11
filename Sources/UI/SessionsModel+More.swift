@@ -9,7 +9,7 @@ extension SessionsModel {
         guard !preview, let old = chat(next.id), old.working, old.state != next.state,
             let s = sessions.first(where: { $0.id == next.sessionId })
         else { return }
-        let looking = NSApp.isActive && selected == s.id
+        let looking = NSApp.isActive && current?.id == s.id
         guard !looking else { return }
         switch next.state {
         case "needs_you": LimitNotifier.shared.post("\(s.title) needs you", "The agent is waiting for your answer.", session: s.id)
@@ -26,9 +26,9 @@ extension SessionsModel {
         drafts[c.id] = draft.isEmpty ? text : draft + "\n\n" + text
     }
 
-    /// ⌘⌥L: the next session with a chat waiting on the person, after the one open (any workspace).
+    /// ⌘⌥L: the next session of this workspace with a chat waiting on the person, after the one open.
     func openNextNeedingYou() {
-        let waiting = sessions.filter { s in !s.archived && s.chats.contains { $0.state == "needs_you" } }
+        let waiting = sessions.filter { s in !s.archived && belongs(s) && s.chats.contains { $0.state == "needs_you" } }
         guard !waiting.isEmpty else { return }
         let start = waiting.firstIndex { $0.id == selected }.map { $0 + 1 } ?? 0
         let s = waiting[start % waiting.count]
@@ -79,7 +79,7 @@ extension SessionsModel {
 
     /// History: archived sessions, newest first.
     func archived(in workspace: String?) -> [Sessions.Session] {
-        sessions.filter { $0.archived && (workspace == nil || $0.workspaceId == workspace || $0.workspaceId == "default") }
+        sessions.filter { $0.archived && Self.belongs($0, to: workspace) }
     }
 
     /// Brings an archived session back: its folder is made again on its branch, its chats where they were.
@@ -112,7 +112,7 @@ struct CardTarget: Equatable {
 extension SessionsModel {
     /// Stop on a card's session: the turn ends and the run waits for the person (true), or Hand back to Forge (false).
     func wheel(_ chat: Sessions.Chat, take: Bool) {
-        guard let t = cardTargets[chat.sessionId] else { return }
+        guard let t = cardTargets[chat.sessionId], isHere(chat) else { return }
         cardTargets[chat.sessionId]?.handsOn = take
         Task {
             if let problem = await cardWheel?(t.project, t.card, take) {

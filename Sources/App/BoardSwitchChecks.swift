@@ -65,7 +65,7 @@ extension Checks {
         check("other problems are left as the engine said them", OrchestratorScreen.plainProblem("Linear answered 502.") == "Linear answered 502.")
     }
 
-    private static func offscreen<V: View>(_ view: V) -> NSWindow {
+    static func offscreen<V: View>(_ view: V) -> NSWindow {
         // No Dock icon and nothing on the person's screen: far off screen and see-through.
         NSApplication.shared.setActivationPolicy(.prohibited)
         let size = NSSize(width: 1200, height: 800)
@@ -81,5 +81,5 @@ extension Checks {
     }
 
     /// Lets SwiftUI lay out and run its tasks.
-    private static func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.6)) }
+    static func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.6)) }
 }

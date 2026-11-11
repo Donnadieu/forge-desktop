@@ -69,6 +69,8 @@ extension ScreenRender {
             Shot(name: "14-sessions-side-by-side", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-split"),
             Shot(name: "14-sessions-review-comments", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-review"),
             Shot(name: "14-sessions-import", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-import"),
+            Shot(name: "17-sessions-other-workspace", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-other-workspace"),
+            Shot(name: "17-sessions-first-workspace", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-first-workspace"),
             Shot(name: "16-polish-code", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-code", height: 800, width: 1500),
             Shot(name: "16-polish-tabs", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-tabs", height: 800, width: 1500),
             Shot(

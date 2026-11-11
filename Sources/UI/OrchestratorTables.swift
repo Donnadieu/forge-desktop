@@ -95,7 +95,12 @@ struct OrchestratorTables: View {
 
     static func inFlightCards(_ state: EngineState?) -> [EngineState.Card] {
         let busy = Set(state?.running.map(\.issue_identifier) ?? [])
-        return (state?.cards ?? []).filter { flight.contains($0.state) || busy.contains($0.identifier) }
+        return (state?.cards ?? []).filter { ($0.parked == nil && flight.contains($0.state)) || busy.contains($0.identifier) }
+    }
+
+    /// Cards waiting on the person: Human Review, and cards parked because their next stage has no column.
+    static func yourTurn(_ state: EngineState?) -> [EngineState.Card] {
+        (state?.cards ?? []).filter { $0.state == "Human Review" || $0.parked != nil }
     }
 
     private func cards(_ columns: [String]) -> [EngineState.Card] { (state?.cards ?? []).filter { columns.contains($0.state) } }
@@ -113,10 +118,15 @@ struct OrchestratorTables: View {
                 section("Running sessions", count: flying.count) {
                     if flying.isEmpty { empty("No agent is working on a card") } else { runningTable(flying) }
                 }
-                let yours = cards(["Human Review"])
-                let mergeAll = mergeOn && CardMoves.showsBulk(yours) ? ("Merge all", { confirm = BulkMove(kind: .merge, cards: yours) }) : nil
+                let yours = Self.yourTurn(state)
+                let reviews = yours.filter { $0.parked == nil }
+                let mergeAll = mergeOn && CardMoves.showsBulk(reviews) ? ("Merge all", { confirm = BulkMove(kind: .merge, cards: reviews) }) : nil
                 section("Your turn", count: yours.count, stage: "Human Review", bulk: mergeAll) {
-                    if yours.isEmpty { empty("Nothing in Human Review") } else { ForEach(yours) { yourTurnRow($0) } }
+                    if yours.isEmpty {
+                        empty("Nothing waits on you")
+                    } else {
+                        ForEach(yours) { c in if c.parked != nil { parkedRow(c) } else { yourTurnRow(c) } }
+                    }
                 }
                 HStack(alignment: .top, spacing: 16) {
                     let next = cards(["Todo", "Triage"])
@@ -247,6 +257,31 @@ struct OrchestratorTables: View {
             }
         }
         .padding(.horizontal, 16).frame(minHeight: 52)
+        .contentShape(Rectangle()).onTapGesture { open = c }
+    }
+
+    /// A card parked because its next stage has no column: still in its column on the board, waiting on you.
+    private func parkedRow(_ c: EngineState.Card) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                cardCell(c)
+                HStack(spacing: 8) {
+                    Pill(text: "Waiting on you", stage: "Human Review")
+                    Text("Still in \(c.state) on \(model.choices.boardName)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                .frame(width: 72, alignment: .leading)
+            Text(c.parked?.line ?? "")
+                .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
+            if let pr = c.prUrl {
+                Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
+            }
+        }
+        .padding(.horizontal, 16).frame(minHeight: 60)
+        .background(Theme.wash2)
         .contentShape(Rectangle()).onTapGesture { open = c }
     }
 

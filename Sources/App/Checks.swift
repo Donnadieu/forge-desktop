@@ -223,6 +223,7 @@ enum Checks {
         missingColumnSetupChecks(check)
         missingColumnStudioChecks(check)
         missingColumnGatingChecks(check)
+        parkingChecks(check)
         workspaceNameChecks(check)
         moveChecks(check)
         accountChecks(check)

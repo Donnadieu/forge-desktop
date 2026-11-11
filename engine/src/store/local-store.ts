@@ -38,12 +38,26 @@ export interface UsageTotals {
   cacheWriteTokens: number;
 }
 
+/** A card waiting on the person (orchestrator/parking.ts), as kept in forge.sqlite. */
+export interface ParkedRow {
+  issueId: string;
+  identifier: string;
+  state: string;
+  next: string | null;
+  line: string;
+  parkedAt: string;
+}
+
 export interface LocalStore {
   readDesired(): DesiredState;
   writeDesired(desired: DesiredState): void;
   recordRun(run: RunRecord): void;
   /** Token totals for runs that finished at or after `sinceIso` (all runs when omitted). */
   usageSince(sinceIso?: string): UsageTotals;
+  /** Parked cards ("Waiting on you"), so they stay parked after a restart. */
+  listParked(): ParkedRow[];
+  putParked(card: ParkedRow): void;
+  removeParked(issueId: string): void;
   close(): void;
 }
 
@@ -66,6 +80,14 @@ CREATE TABLE IF NOT EXISTS runs (
   cache_write_tokens INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS runs_finished_at ON runs (finished_at);
+CREATE TABLE IF NOT EXISTS parked_cards (
+  issue_id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  state TEXT NOT NULL,
+  next_stage TEXT,
+  line TEXT NOT NULL,
+  parked_at TEXT NOT NULL
+);
 `;
 
 export function openLocalStore(path: string): LocalStore {
@@ -89,7 +111,32 @@ export function openLocalStore(path: string): LocalStore {
       "FROM runs WHERE finished_at >= ?",
   );
 
+  const listParked = db.prepare(
+    "SELECT issue_id, identifier, state, next_stage, line, parked_at FROM parked_cards ORDER BY parked_at",
+  );
+  const putParked = db.prepare(
+    "INSERT INTO parked_cards (issue_id, identifier, state, next_stage, line, parked_at) VALUES (?, ?, ?, ?, ?, ?) " +
+      "ON CONFLICT(issue_id) DO UPDATE SET identifier = excluded.identifier, state = excluded.state, " +
+      "next_stage = excluded.next_stage, line = excluded.line, parked_at = excluded.parked_at",
+  );
+  const removeParked = db.prepare("DELETE FROM parked_cards WHERE issue_id = ?");
+
   return {
+    listParked: () =>
+      (listParked.all() as Array<Record<string, string | null>>).map((r) => ({
+        issueId: String(r.issue_id),
+        identifier: String(r.identifier),
+        state: String(r.state),
+        next: r.next_stage ?? null,
+        line: String(r.line),
+        parkedAt: String(r.parked_at),
+      })),
+    putParked: (c) => {
+      putParked.run(c.issueId, c.identifier, c.state, c.next, c.line, c.parkedAt);
+    },
+    removeParked: (id) => {
+      removeParked.run(id);
+    },
     readDesired: () => {
       const row = readDesired.get() as { desired?: string } | undefined;
       return row?.desired === "running" ? "running" : "stopped";

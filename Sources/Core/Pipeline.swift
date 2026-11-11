@@ -77,6 +77,7 @@ enum Pipeline {
     /// column is never named as a place to move a ticket; with nothing left to move to, the ticket stays put.
     static func routingNote(off: [String], missing: [String]) -> String? {
         let gone = off + missing.filter { !off.contains($0) }
+        var parks = false
         let skipped = (optionalColumns + ["Rework"]).filter { gone.contains($0) }
         guard !skipped.isEmpty else { return nil }
         var lines = ["## This board's stages", ""]
@@ -104,11 +105,23 @@ enum Pipeline {
                 if to == "Done" && !missing.isEmpty {
                     lines.append(
                         "- Wherever these instructions say to move a ticket to `\(s)`, leave the ticket in its current column instead "
-                            + "and stop: the person takes it from there.")
+                            + "and park it for the person (below), with `\"next\": \"\(s)\"`.")
+                    parks = true
                 } else {
                     lines.append("- Wherever these instructions say to move a ticket to `\(s)`, move it to `\(to)` instead.")
                 }
             }
+        }
+        if parks {
+            lines += [
+                "", "### Parking: waiting on the person",
+                "When a step is done and the next stage has no column here, park the ticket instead of moving it:",
+                "1. Open the pull request as a draft (`gh pr create --draft`; if it's already open, `gh pr ready --undo`).",
+                "2. Leave the ticket in its current column and post nothing new on the ticket: no comment, no label, no move.",
+                "3. Write the file `.forge/parked` at the top of the repo folder (it is never committed), one line of JSON: "
+                    + #"`{"next": "<that stage>", "line": "<one plain sentence for the person: what's done, what to look at>"}`."#,
+                "4. End your turn. Forge shows the card as waiting on the person; never keep working it after parking.",
+            ]
         }
         return lines.joined(separator: "\n") + "\n\n"
     }

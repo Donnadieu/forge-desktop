@@ -82,6 +82,7 @@ extension ScreenRender {
             Shot(name: "12-orchestrator-merge-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "merge-all", height: 1100),
             Shot(name: "12-orchestrator-start-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "start-all", height: 1100),
             Shot(name: "10-workflow", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state),
+            Shot(name: "16-orchestrator-parked", screen: board, choices: shared, engine: SampleBoard.parked, height: 1000),
             Shot(name: "10-workflow-shared-board", screen: AppModel.workflowScreen, choices: shared, height: 1000),
             Shot(name: "10-workflow-qa-off", screen: AppModel.workflowScreen, choices: ready, scene: "qa-off"),
             Shot(name: "10-workflow-restarting", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state, scene: "restarting"),

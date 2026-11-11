@@ -117,3 +117,31 @@ extension Checks {
         check("the same columns again change nothing", !BoardLink.columnsChanged(&seen, board))
     }
 }
+
+extension Checks {
+    /// Item 4: In Progress done with no next column = the card stays put, the pull request is a draft, the agent
+    /// leaves a park note, and the Orchestrator shows the card as waiting on you.
+    static func parkingChecks(_ check: (String, Bool) -> Void) {
+        let missing = ["AI Review", "QA", "Human Review", "Rework", "Merging"]
+        let note = Pipeline.routingNote(off: [], missing: missing) ?? ""
+        check("with no column after In Progress, the lead parks the card", note.contains("`.forge/parked`"))
+        check("the pull request opens as a draft", note.contains("--draft"))
+        check("nothing new is posted on the card when it parks", note.contains("post nothing new on the ticket"))
+        check("the park note names the stage that has no column", note.contains(#""next": "AI Review""#))
+        check("a parked card never goes to Done by itself", !note.contains("move it to `Done` instead"))
+        check(
+            "cards still skip a missing stage when a later column exists",
+            !(Pipeline.routingNote(off: [], missing: ["QA"]) ?? "").contains(".forge/parked"))
+        let json = #"""
+            {"id":"c1","identifier":"ATC-1","title":"Login","state":"In Progress","helpers":[],
+             "parked":{"next":"AI Review","line":"The pull request is open as a draft.","since":"2026-11-11T12:00:00Z"}}
+            """#
+        let card = try? JSONDecoder().decode(EngineState.Card.self, from: Data(json.utf8))
+        check("a parked card decodes with its line", card?.parked?.line == "The pull request is open as a draft.")
+        let working = EngineState.Card(id: "c2", identifier: "ATC-2", title: "Signup", state: "In Progress", helpers: [])
+        var state = EngineState(status: "running", running: [])
+        state.board = .init(columns: [.init(name: "In Progress", cards: [card, working].compactMap { $0 })])
+        check("a parked card isn't shown as running", OrchestratorTables.inFlightCards(state).map(\.id) == ["c2"])
+        check("a parked card waits in Your turn", OrchestratorTables.yourTurn(state).map(\.id) == ["c1"])
+    }
+}

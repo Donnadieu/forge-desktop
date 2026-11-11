@@ -135,6 +135,18 @@ enum SampleBoard {
         return s
     }
 
+    /// A shared team board with no column after In Progress: two cards wait on you, one agent still works.
+    static var parked: EngineState {
+        var s = state
+        s.running = [running(held)]
+        var p1 = card(11, "Paginate the trade history", "In Progress", pr: true)
+        p1.parked = .init(next: "AI Review", line: "The pull request is open as a draft. Pick the next step.", since: SampleBoard.ago(40 * 60))
+        var p2 = card(12, "Show fees on each fill", "In Progress", pr: true)
+        p2.parked = .init(next: "AI Review", line: "Built and tested; the draft pull request waits for you.", since: SampleBoard.ago(90 * 60))
+        s.board = board([held, p1, p2, card(6, "Show the open positions on startup", "Todo"), card(7, "Paper-trading mode", "Backlog")])
+        return s
+    }
+
     /// The work account hit its spend limit at 8:13 PM: three cards wait for 11:40 PM, one agent still works.
     static var limited: EngineState {
         var s = state

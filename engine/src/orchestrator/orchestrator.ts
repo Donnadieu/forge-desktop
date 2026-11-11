@@ -14,6 +14,7 @@ import { enforceCostCeiling } from "./cost-ceiling.js";
 import { type DispatchIssueDeps, dispatchIssue as runDispatchIssue } from "./dispatch-issue.js";
 import { effectiveAgentLimit, inFlightCount, selectIssuesToDispatch } from "./dispatcher.js";
 import { HandsOn } from "./hands-on.js";
+import { forgetMovedParked, isParked } from "./parking.js";
 import { reconcileRunningIssues } from "./reconciler.js";
 import { refetchAndDispatch } from "./refetch-dispatch.js";
 import { cancelAllRetries, cancelRetry, scheduleRetry } from "./retry-queue.js";
@@ -94,6 +95,8 @@ export class Orchestrator {
     callbacks: OrchestratorCallbacks = {},
   ) {
     this.state = createInitialState();
+    // Parked cards survive a restart (forge.sqlite): they still wait on the person.
+    for (const p of config.parking?.list() ?? []) this.state.parked.set(p.issueId, p);
     this.tracker = tracker;
     this.agent = agent;
     this.workspace = workspace;
@@ -399,6 +402,8 @@ export class Orchestrator {
       }
     }
     this.checkEmptyPolls(candidates);
+    // The board wins: a parked card someone moved is worked as usual again.
+    forgetMovedParked(this.state, candidates, (id) => this.config.parking?.remove(id));
     this.runaway.forgetMoved(candidates);
     const dispatchCandidates = candidates;
 
@@ -411,6 +416,7 @@ export class Orchestrator {
       limited: (issue) =>
         this.runaway.holds(issue.id) ||
         limitActive(this.state, this.config.roleOf?.(issue.state) ?? -1),
+      parked: (issue) => isParked(this.state, issue),
     });
     for (const issue of toDispatch) {
       await this.dispatchIssue(issue);

@@ -159,6 +159,12 @@ async function main(): Promise<void> {
       logger,
       costCeiling: resolveCostCeiling(config.cost, { logger }),
       customWorkflows: true,
+      // Cards waiting on the person stay parked across restarts (orchestrator/parking.ts).
+      parking: {
+        list: () => local.listParked(),
+        put: (c) => local.putParked(c),
+        remove: (id) => local.removeParked(id),
+      },
       claimOptions: { assignee: "me" },
       backlogPromotion: resolveBacklogPromotion(config.tracker.promote, {
         customWorkflows: true,
@@ -212,7 +218,11 @@ async function main(): Promise<void> {
         orchestrator,
         local,
         board: () =>
-          board.view(orchestrator.getSnapshot().running, (id) => orchestrator.handsOn.isOn(id)),
+          board.view(
+            orchestrator.getSnapshot().running,
+            (id) => orchestrator.handsOn.isOn(id),
+            (id) => orchestrator.getState().parked.get(id),
+          ),
       }),
     workpad: (id) => board.workpad(id),
     move: async (id, to) => {

@@ -189,6 +189,8 @@ export function selectIssuesToDispatch(
     max_concurrent_agents_by_state?: Record<string, number>;
     /** Forge Desktop: the card's account is at a usage limit, so it isn't started (usage-limits.ts). */
     limited?: (issue: NormalizedIssue) => boolean;
+    /** Forge Desktop: the card waits on the person, its next stage has no column (parking.ts). */
+    parked?: (issue: NormalizedIssue) => boolean;
   },
 ): NormalizedIssue[] {
   const sorted = sortIssuesForDispatch(candidates, config.active_states);
@@ -208,7 +210,7 @@ export function selectIssuesToDispatch(
 
   for (const issue of sorted) {
     if (baseInFlight + selected.length >= config.max_concurrent_agents) break;
-    if (config.limited?.(issue)) continue;
+    if (config.limited?.(issue) || config.parked?.(issue)) continue;
     if (shouldDispatchIssue(issue, state, config)) {
       selected.push(issue);
     }

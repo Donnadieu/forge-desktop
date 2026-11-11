@@ -8,6 +8,7 @@ import type { WorkspaceManager } from "../workspace/manager.js";
 import { gitHasBranch, issueBranch } from "./branch.js";
 import { DEFAULT_HELPER_WAIT_MS, HelperWatch } from "./helper-wait.js";
 import { IssueStateChecker } from "./issue-state-checker.js";
+import { type ParkNote, readParkMarker } from "./park-note.js";
 import { renderFirstTurnPrompt } from "./prompt-renderer.js";
 import { addUsageTokens } from "./usage.js";
 
@@ -43,6 +44,8 @@ export interface WorkerResult {
   workspacePath?: string;
   /** When true the orchestrator must NOT delete the workspace (single-turn agents need it for re-dispatch). */
   preserveWorkspace?: boolean;
+  /** Forge Desktop: the agent parked the card, waiting on the person (orchestrator/parking.ts). */
+  parked?: ParkNote;
 }
 
 export interface WorkerCallbacks {
@@ -66,6 +69,17 @@ export interface WorkerCallbacks {
  * Forge Desktop: the card moved to a stage another role's agent works. This run ends as a success with its folder
  * kept, so the orchestrator dispatches the card again at once, with that role's agent (agent/roles.ts).
  */
+/** Forge Desktop: the agent left a park note, so the run ends here, folder kept, with no continuation turn. */
+function parkedResult(
+  issue: NormalizedIssue,
+  turns: number,
+  tokens: TokenTotals,
+  workspacePath: string,
+  note: ParkNote,
+): WorkerResult {
+  return { ...handoff(issue, turns, tokens, workspacePath), parked: note };
+}
+
 function handoff(
   issue: NormalizedIssue,
   turns: number,
@@ -257,6 +271,8 @@ export async function runWorker(
           break;
         }
         if (callbacks?.shouldStop?.()) break;
+        const note = readParkMarker(workspacePath);
+        if (note) return parkedResult(issue, turnNumber, totalTokens, workspacePath, note);
 
         const stateCheck = await stateChecker.decide(
           tracker,
@@ -445,6 +461,8 @@ export async function runWorker(
         break;
       }
       if (callbacks?.shouldStop?.()) break;
+      const note = readParkMarker(workspacePath);
+      if (note) return parkedResult(issue, turnNumber, totalTokens, workspacePath, note);
 
       const stateCheck = await stateChecker.decide(
         tracker,

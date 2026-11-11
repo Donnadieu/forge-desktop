@@ -7,6 +7,7 @@
 
 import type { TicketTelemetry, TokenTotals } from "../telemetry/types.js";
 import type { WorkerResult } from "../worker/runner.js";
+import { parkCard } from "./parking.js";
 import { scheduleRetry } from "./retry-queue.js";
 import { holdUntilSettled, ownedEntry } from "./session-guard.js";
 import type {
@@ -289,6 +290,13 @@ export function handleWorkerComplete(
 
   const { identifier } = entry;
   if (result.success) clearLimit(deps.state, entry.limitKey);
+  // Parked: the card waits on the person. No continuation, no retry; dispatch skips it while it stays put.
+  if (result.success && result.parked) {
+    const card = parkCard(deps.state, entry.issue, result.parked, deps.config.parking);
+    deps.config.logger?.info({ identifier, next: card.next }, "Parked: waiting on you");
+    deps.callbacks.onComplete?.(issueId, result, entry.issue, false);
+    return;
+  }
   // A usage limit: the card waits for the reset with the same attempt, and is never given up on.
   const resume = (id: string): void => deps.refetchAndDispatch(id, attempt, true);
   if (!result.success && waitIfLimited(deps.state, entry, result.error, resume)) {

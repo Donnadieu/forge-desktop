@@ -13,6 +13,7 @@ import type {
   TrackerAdapter,
   TrackerConfig,
 } from "../tracker/types.js";
+import type { ParkedCard } from "./parking.js";
 
 export interface BoardColumn {
   name: string;
@@ -31,6 +32,8 @@ export interface BoardColumn {
         hands_on: boolean;
       } | null;
       helpers: Array<{ id: string; description: string; running: boolean }>;
+      /** Waiting on the person: the next stage has no column (parking.ts). */
+      parked: { next: string | null; line: string; since: string } | null;
       recent: Array<{ at: string; line: string }>;
     }
   >;
@@ -157,6 +160,7 @@ export class BoardReader {
   view(
     running: RunningSessionSnapshot[],
     handsOn: (issueId: string) => boolean = () => false,
+    parkedOf: (issueId: string) => ParkedCard | undefined = () => undefined,
   ): BoardView {
     const byId = new Map(running.map((r) => [r.issueId, r]));
     const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
@@ -178,6 +182,12 @@ export class BoardReader {
             }
           : null,
         helpers: run?.helpers ?? [],
+        parked: (() => {
+          const p = run ? undefined : parkedOf(card.id);
+          return p && norm(p.state) === norm(card.state)
+            ? { next: p.next, line: p.line, since: p.parkedAt }
+            : null;
+        })(),
         recent: run?.recent ?? [],
       });
     }

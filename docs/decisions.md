@@ -44,3 +44,9 @@ the bottom. Each line: the date, the plan item, the call and why.
   when Omar wants an agent review; it's greyed out until there are changes. Each chat tab shows an X on hover (not on
   the last tab or a working one, which can't close) and right-click gives Rename…, Close and Open beside this one.
   Rename saves the title through the chat's settings, which the engine already accepted.
+- 2026-11-11, item 8: Create PR already sent a message rather than calling GitHub, but a thin one. It now sends the shape
+  of Conductor's create-PR prompt (read from Omar's Conductor workspaces' `PR instructions.md`): "Create a PR", the
+  branch and its target, use the repo's own PR skill or template first, commit what's left, push, review the whole
+  branch diff, `gh pr create --base <base>` with a short title and description of every change, reply with the link,
+  and ask for help when a step fails. Conductor's own tool names are swapped for plain git. The message shows in the
+  chat (folded, with "Show full message"), so Omar sees what the agent was asked. No new Forge words reach the PR.

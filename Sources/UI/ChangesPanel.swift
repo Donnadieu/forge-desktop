@@ -111,10 +111,12 @@ struct ChangesPanel: View {
         HStack(spacing: 8) {
             if let chat, session.status != "merged" {
                 if pr == nil {
-                    Button("Create PR") { sessions.send(chat, text: Sessions.Prompt.createPR(base: session.base), queue: chat.working) }
-                        .buttonStyle(ForgeButton(kind: .primary, hint: "⌘⇧P", large: true))
-                        .keyboardShortcut("p", modifiers: [.command, .shift])
-                        .disabled(files.isEmpty)
+                    Button("Create PR") {
+                        sessions.send(chat, text: Sessions.Prompt.createPR(base: session.base, branch: session.branch), queue: chat.working)
+                    }
+                    .buttonStyle(ForgeButton(kind: .primary, hint: "⌘⇧P", large: true))
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                    .disabled(files.isEmpty)
                 } else if let pr, pr.state == "OPEN" {
                     if !pr.failing.isEmpty {
                         Button("Fix errors") {

@@ -26,6 +26,19 @@ extension Checks {
         syntaxChecks(check)
         scrollChecks(check)
         tabChecks(check)
+        createPRChecks(check)
+    }
+
+    /// Item 8: Create PR asks the agent, the way Conductor's create-PR prompt does; nothing is made behind its back.
+    static func createPRChecks(_ check: (String, Bool) -> Void) {
+        let p = Sessions.Prompt.createPR(base: "main")
+        check("Create PR's message says what it asks for first", p.hasPrefix("Create a PR"))
+        check("the agent uses the repo's own PR skill or template first", p.contains("skills related to creating PRs") && p.contains("template"))
+        check(
+            "it commits what's left, pushes, reviews the whole branch and opens the PR onto the base",
+            p.contains("git status") && p.contains("git push -u origin HEAD") && p.contains("git diff origin/main...HEAD")
+                && p.contains("gh pr create --base main"))
+        check("if a step fails the agent asks instead of working around it", p.contains("ask the user for help"))
     }
 
     /// Item 7: tabs are Chat, Chat 2, Chat 3; a Changes tab only once there are changes; Rename and Close.

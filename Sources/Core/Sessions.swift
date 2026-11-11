@@ -211,12 +211,29 @@ enum Sessions {
 
     /// What the one-click actions send to the chat.
     enum Prompt {
-        static func createPR(base: String) -> String {
-            """
-            Create a pull request for this branch: commit anything not committed yet (one clear message per change), \
-            push the branch, and open the pull request against \(base) with `gh pr create`. Give it a short title that \
-            says what changed and a description with what changed, why, and how it was tested. Reply with its link.
-            """
+        /// What Create PR sends the agent, shaped like Conductor's create-PR prompt: the agent makes the PR in the chat,
+        /// where the person sees each step, using the repo's own PR skill or template when there is one.
+        static func createPR(base: String, branch: String? = nil) -> String {
+            let on = branch.map { "The current branch is \($0). " } ?? ""
+            return """
+                Create a PR
+
+                \(on)The target branch is origin/\(base).
+
+                Follow these steps to create a PR:
+
+                - If you have any skills related to creating PRs, invoke them now; their instructions take precedence over \
+                these. If the repo has a pull request template (such as .github/pull_request_template.md), fill it in.
+                - Run `git status` to check for uncommitted changes. If there are any, review them with `git diff` and commit \
+                them, following any instructions about commit messages.
+                - If the branch has no upstream or has unpushed commits, push with `git push -u origin HEAD`.
+                - Review everything the branch changes with `git diff origin/\(base)...HEAD`.
+                - Use `gh pr create --base \(base)` to open the PR. Keep the title under 80 characters and the description \
+                under five sentences unless told otherwise, and describe every change on the branch, not only this chat's.
+                - Reply with the pull request's link.
+
+                If any of these steps fail, ask the user for help.
+                """
         }
 
         static func fixErrors(_ failing: [PullRequest.Check], number: Int) -> String {

@@ -74,7 +74,13 @@ struct TurnView: View {
             ForEach(Array(turn.events.enumerated()), id: \.element.id) { i, e in
                 switch e.kind {
                 case "user":
-                    if e.name == "steered" { SteerBubble(text: e.text) } else { UserBubble(text: e.text) { revertButton } }
+                    if e.name == "steered" {
+                        SteerBubble(text: e.text)
+                    } else {
+                        UserBubble(text: e.text, unfold: sessions.session(of: chat)?.origin == "card" ? "Show full prompt" : "Show full message") {
+                            revertButton
+                        }
+                    }
                 case "text": MessageText(text: e.text, writing: turn.status == "working" && i == turn.events.count - 1)
                 case "thinking": FoldRow(icon: "brain", title: "Thought", detail: e.text.isEmpty ? nil : e.text)
                 case "tool": ToolRow(event: e, result: res[e.id], running: turn.status == "working" && res[e.id] == nil && e.id == lastTool)
@@ -122,19 +128,35 @@ struct TurnView: View {
 
 struct UserBubble<Revert: View>: View {
     let text: String
+    /// What the unfold button says on a long message ("Show full prompt" for a card's prompt).
+    var unfold = "Show full message"
     @ViewBuilder var revert: Revert
+    @State private var open = false
+
+    /// Long messages (a card's whole prompt) open folded to their first lines.
+    static func isLong(_ words: String) -> Bool {
+        words.count > 600 || words.split(separator: "\n", omittingEmptySubsequences: false).count > 12
+    }
 
     var body: some View {
         HStack(alignment: .top) {
             Spacer(minLength: 80)
             revert
             let parts = MessageImages.split(text)
-            VStack(alignment: .trailing, spacing: 8) {
+            let long = Self.isLong(parts.words)
+            VStack(alignment: .leading, spacing: 8) {
                 if !parts.paths.isEmpty { ImageStrip(paths: parts.paths) }
                 if !parts.words.isEmpty {
-                    Text(parts.words.count > 4000 ? String(parts.words.prefix(4000)) + "…" : parts.words).font(Theme.sans(13))
-                        .foregroundStyle(Theme.text)
-                        .textSelection(.enabled)
+                    // Folded, only the start is drawn: a prompt of thousands of lines stays cheap in the list.
+                    let shown = long && !open ? String(parts.words.prefix(1200)) : String(parts.words.prefix(40_000))
+                    MessageText(text: shown, fill: false)
+                        .frame(maxHeight: long && !open ? 150 : nil, alignment: .top)
+                        .clipped()
+                        .mask(LinearGradient(stops: long && !open ? Self.fade : Self.solid, startPoint: .top, endPoint: .bottom))
+                    if long {
+                        Button(open ? "Show less" : unfold) { open.toggle() }
+                            .buttonStyle(ForgeButton(kind: .ghost, icon: open ? "chevron.up" : "chevron.down"))
+                    }
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
@@ -142,6 +164,11 @@ struct UserBubble<Revert: View>: View {
             .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.border))
         }
     }
+
+    private static var fade: [Gradient.Stop] {
+        [.init(color: .black, location: 0), .init(color: .black, location: 0.7), .init(color: .clear, location: 1)]
+    }
+    private static var solid: [Gradient.Stop] { [.init(color: .black, location: 0), .init(color: .black, location: 1)] }
 }
 
 struct SteerBubble: View {

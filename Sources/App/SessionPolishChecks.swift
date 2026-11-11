@@ -20,5 +20,30 @@ extension Checks {
         check(
             "a card's chat and its message box fit beside the Changes panel in the narrowest window",
             chat.sizeThatFits(in: CGSize(width: room, height: 700)).width <= room + 0.5)
+
+        promptChecks(check)
+    }
+
+    /// Item 2: the card's prompt reads as formatted text, folded to a short preview.
+    static func promptChecks(_ check: (String, Bool) -> Void) {
+        let shown = MarkdownCache.parts(SampleSessions.cardPrompt).map(Self.plain).joined(separator: "\n")
+        check(
+            "a prompt's Markdown is drawn, not shown as marks (no #, list stars or **)",
+            !shown.contains("## ") && !shown.contains("### ") && !shown.contains("* ") && !shown.contains("**") && !shown.contains("- This"))
+        check(
+            "a prompt's list items and code survive the drawing",
+            shown.contains("Resume from the current workspace state") && shown.contains("bin/rubocop"))
+        let code = MarkdownCache.inline("Run `make lint` first")
+        check("inline code is drawn in mono", code.runs.contains { $0.font != nil && String(code[$0.range].characters) == "make lint" })
+        let bubble = NSHostingController(rootView: UserBubble(text: SampleSessions.cardPrompt) { EmptyView() })
+        let tall = bubble.sizeThatFits(in: CGSize(width: 760, height: 10_000)).height
+        check("a long prompt opens folded to a short preview", tall < 260)
+    }
+
+    private static func plain(_ p: MarkdownPart) -> String {
+        switch p {
+        case .prose(let a), .heading(_, let a), .item(_, let a, _): return String(a.characters)
+        case .code(let c, _): return c
+        }
     }
 }

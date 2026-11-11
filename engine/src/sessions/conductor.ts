@@ -28,9 +28,12 @@ interface Row {
   [k: string]: unknown;
 }
 
-/** "git@github.com:acme/app.git" or "https://github.com/acme/app" -> "acme/app". */
+/**
+ * "git@github.com:acme/app.git", "https://github.com/acme/app" or an SSH host alias
+ * ("git@github.com-work:acme/app.git", one per GitHub account) -> "acme/app".
+ */
 export function repoFromRemote(url: string): string | null {
-  const m = /github\.com[:/]([^/]+)\/([^/]+?)(\.git)?\/?$/.exec(url.trim());
+  const m = /github\.com[\w.-]*[:/]([^/]+)\/([^/]+?)(\.git)?\/?$/.exec(url.trim());
   return m ? `${m[1]}/${m[2]}` : null;
 }
 
@@ -52,9 +55,22 @@ export interface ConductorRepo {
   messages: number;
 }
 
+/** One Conductor workspace, which comes over as one session. */
+export interface ConductorWorkspace {
+  id: string;
+  repo: string;
+  title: string;
+  branch: string;
+  chats: number;
+  messages: number;
+  /** Already brought over: shown, but can't be picked again. */
+  imported: boolean;
+}
+
 export interface ConductorPreview {
   found: boolean;
   repos: ConductorRepo[];
+  workspaces: ConductorWorkspace[];
   sessions: number;
   chats: number;
   messages: number;
@@ -79,32 +95,61 @@ function visibleChats(db: InstanceType<typeof DatabaseSync>, workspaceId: string
     .all(workspaceId) as Row[];
 }
 
-export function previewImport(store: SessionStore, path = CONDUCTOR_DB): ConductorPreview {
-  const empty = { found: false, repos: [], sessions: 0, chats: 0, messages: 0, alreadyImported: 0 };
+export function previewImport(
+  store: SessionStore,
+  path = CONDUCTOR_DB,
+  onlyRepo?: string,
+): ConductorPreview {
+  const empty = {
+    found: false,
+    repos: [],
+    workspaces: [],
+    sessions: 0,
+    chats: 0,
+    messages: 0,
+    alreadyImported: 0,
+  };
   if (!existsSync(path)) return empty;
   const db = open(path);
   try {
     const byRepo = new Map<string, ConductorRepo>();
+    const workspaces: ConductorWorkspace[] = [];
     let already = 0;
     const count = db.prepare("SELECT COUNT(*) AS n FROM session_messages WHERE session_id = ?");
     for (const w of openWorkspaces(db)) {
-      if (store.session(`conductor-${w.id}`)) {
+      const repo = repoOf(w);
+      if (onlyRepo && repo.toLowerCase() !== onlyRepo.toLowerCase()) continue;
+      const imported = Boolean(store.session(`conductor-${w.id}`));
+      let chats = 0;
+      let messages = 0;
+      for (const c of visibleChats(db, String(w.id))) {
+        chats += 1;
+        messages += (count.get(c.id as string) as { n: number }).n;
+      }
+      workspaces.push({
+        id: String(w.id),
+        repo,
+        title: titleOf(w),
+        branch: String(w.branch ?? ""),
+        chats,
+        messages,
+        imported,
+      });
+      if (imported) {
         already += 1;
         continue;
       }
-      const repo = repoFromRemote(String(w.remote_url ?? "")) ?? String(w.repo_name ?? "repo");
       const r = byRepo.get(repo) ?? { repo, sessions: 0, chats: 0, messages: 0 };
       r.sessions += 1;
-      for (const c of visibleChats(db, String(w.id))) {
-        r.chats += 1;
-        r.messages += (count.get(c.id as string) as { n: number }).n;
-      }
+      r.chats += chats;
+      r.messages += messages;
       byRepo.set(repo, r);
     }
     const repos = [...byRepo.values()].sort((a, b) => b.sessions - a.sessions);
     return {
       found: true,
       repos,
+      workspaces,
       sessions: repos.reduce((n, r) => n + r.sessions, 0),
       chats: repos.reduce((n, r) => n + r.chats, 0),
       messages: repos.reduce((n, r) => n + r.messages, 0),
@@ -115,14 +160,30 @@ export function previewImport(store: SessionStore, path = CONDUCTOR_DB): Conduct
   }
 }
 
-/** Imports every open workspace not imported yet; `targets` maps a repo to the Forge workspace it goes into. */
+function repoOf(w: Row): string {
+  return repoFromRemote(String(w.remote_url ?? "")) ?? String(w.repo_name ?? "repo");
+}
+
+function titleOf(w: Row): string {
+  return String(
+    w.pr_title || w.workspace_name || w.branch || w.directory_name || "Imported session",
+  );
+}
+
+/** What to bring over: the picked Conductor workspaces, all into one Forge workspace (the one on screen). */
+export interface ImportPick {
+  ids: string[];
+  workspace: string;
+}
+
+/** Imports the picked open workspaces not imported yet, into the given workspace. */
 export function runImport(
   store: SessionStore,
-  targets: Record<string, string>,
-  fallbackWorkspace: string,
+  pick: ImportPick,
   path = CONDUCTOR_DB,
 ): { sessions: number; chats: number } {
   if (!existsSync(path)) return { sessions: 0, chats: 0 };
+  const wanted = new Set(pick.ids);
   const db = open(path);
   let sessions = 0;
   let chats = 0;
@@ -132,21 +193,19 @@ export function runImport(
     );
     for (const w of openWorkspaces(db)) {
       const id = `conductor-${w.id}`;
-      if (store.session(id)) continue;
-      const repo = repoFromRemote(String(w.remote_url ?? "")) ?? String(w.repo_name ?? "repo");
+      if (!wanted.has(String(w.id)) || store.session(id)) continue;
+      const repo = repoOf(w);
       const folder = String(w.workspace_path ?? "");
       const now = new Date().toISOString();
       const s: SessionRecord = {
         id,
-        workspaceId: targets[repo] ?? fallbackWorkspace,
+        workspaceId: pick.workspace,
         origin: "import",
         repo,
         folder,
         branch: String(w.branch ?? ""),
         base: String(w.intended_target_branch || w.default_branch || "main"),
-        title: String(
-          w.pr_title || w.workspace_name || w.branch || w.directory_name || "Imported session",
-        ),
+        title: titleOf(w),
         titleByHand: false,
         githubLogin: null,
         prNumber: null,

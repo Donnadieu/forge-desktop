@@ -62,3 +62,10 @@ the bottom. Each line: the date, the plan item, the call and why.
   now shows its count and folds or opens on a click; Idle and Merged start folded. The folds hold while Forge is open
   (not saved across launches: a fresh start should show the tidy default). The session on screen still shows inside
   a folded group, and a search opens every group so a match is never hidden.
+- 2026-11-11, item 11: the import now asks the engine for the workspace's repo only (`?repo=`), one row per Conductor
+  workspace (its title, branch and chat count), every row not brought over yet ticked, a tick-all box, and "Import
+  selected (N)" into the workspace on screen; the "Into workspace" column is gone. Rows already brought over show
+  greyed with "already here". The test against Omar's real Conductor database showed a second bug: his remotes use
+  SSH host aliases (`git@github.com-andela:…`), which the old reader didn't take, so every repo showed by its short
+  folder name and could never match a workspace's repo. The reader takes them now. A workspace that still holds
+  several repos from before scopes the import to its first one.

@@ -366,26 +366,6 @@ final class SessionsModel: ObservableObject {
         act { try await $0.archive(session: s.id) }
         if selected == s.id { selected = nil }
     }
-
-    func openImport() {
-        guard let client else { return }
-        Task {
-            do { importSheet = try await client.conductor() } catch { problem = "\(error)" }
-        }
-    }
-
-    func runImport(targets: [String: String], workspace: String) {
-        guard let client else { return }
-        busy = true
-        Task {
-            defer { busy = false }
-            do {
-                try await client.importConductor(targets: targets, workspace: workspace)
-                importSheet = nil
-                sessions = (try? await client.sessions()) ?? sessions
-            } catch { problem = "\(error)" }
-        }
-    }
 }
 
 /// Review comments as one block in the message box: file:line, reviewer, what they said, link.

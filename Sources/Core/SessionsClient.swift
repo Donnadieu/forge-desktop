@@ -125,9 +125,16 @@ struct SessionsClient: Sendable {
     }
     func merge(session: String) async throws { try await call("/api/v1/sessions/\(session)/merge", method: "POST", body: [:], timeout: 180) }
     func archive(session: String) async throws { try await call("/api/v1/sessions/\(session)/archive", method: "POST", body: [:], timeout: 120) }
-    func conductor() async throws -> Sessions.ConductorPreview { try await get("/api/v1/conductor", as: Sessions.ConductorPreview.self) }
-    func importConductor(targets: [String: String], workspace: String) async throws {
-        try await call("/api/v1/conductor/import", method: "POST", body: ["targets": targets, "workspace": workspace], timeout: 600)
+    /// What Conductor holds for one repo (the workspace's), or for every repo when nil.
+    static func conductorPath(repo: String?) -> String {
+        guard let repo, !repo.isEmpty else { return "/api/v1/conductor" }
+        return "/api/v1/conductor?repo=\(q(repo))"
+    }
+    func conductor(repo: String?) async throws -> Sessions.ConductorPreview {
+        try await get(Self.conductorPath(repo: repo), as: Sessions.ConductorPreview.self)
+    }
+    func importConductor(_ body: [String: Any]) async throws {
+        try await call("/api/v1/conductor/import", method: "POST", body: body, timeout: 600)
     }
 
     /// Opens the live stream; `onFrame` runs for each change, `onClose` once when it ends.

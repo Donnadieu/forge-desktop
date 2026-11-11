@@ -86,7 +86,7 @@ struct SessionList: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20).frame(height: 40)
             Button {
-                sessions.openImport()
+                sessions.openImport(repo: model.sessionRepos.first?.repo)
             } label: {
                 Label("Import from Conductor", systemImage: "square.and.arrow.down").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
                     .frame(maxWidth: .infinity, alignment: .leading)

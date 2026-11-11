@@ -16,8 +16,8 @@
  *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue, images: [{mediaType, data}]}
  *   POST /api/v1/chats/<id>/stop | answer | settings (model, effort, title, planMode, askBeforeChanges, hidden) | revert
  *   POST /api/v1/cards/watch                     {cards: [...]}: the cards running now, followed as card sessions
- *   GET  /api/v1/conductor                       what an import from Conductor would bring
- *   POST /api/v1/conductor/import                {targets: {repo: workspaceId}, workspace}
+ *   GET  /api/v1/conductor                       what an import from Conductor would bring; ?repo=owner/name: that repo only
+ *   POST /api/v1/conductor/import                {ids: [Conductor workspace id], workspace}
  *   WS   /api/v1/live                            session, chat, turn and event changes
  *
  * New in Forge Desktop.
@@ -102,14 +102,14 @@ export async function startSessionsApi(deps: {
       const list = await h.branches(s(b.repo), s(b.local) || null, s(b.base, "main"));
       return jsonResponse(res, 200, { branches: list });
     }
-    if (path === "/api/v1/conductor") return jsonResponse(res, 200, previewImport(deps.store));
+    if (path === "/api/v1/conductor") {
+      const repo = url.searchParams.get("repo") || undefined;
+      return jsonResponse(res, 200, previewImport(deps.store, undefined, repo));
+    }
     if (path === "/api/v1/conductor/import" && post) {
       const b = await body(req);
-      const r = runImport(
-        deps.store,
-        (b.targets ?? {}) as Record<string, string>,
-        s(b.workspace, "default"),
-      );
+      const ids = Array.isArray(b.ids) ? (b.ids as unknown[]).map(String) : [];
+      const r = runImport(deps.store, { ids, workspace: s(b.workspace, "default") });
       broadcast({ type: "sessions", sessions: h.list() });
       return jsonResponse(res, 200, { ok: true, ...r });
     }

@@ -272,13 +272,21 @@ enum SampleSessions {
             m.reviewSheet = .init(session: "s3", number: 318, threads: threads, picked: ["r1", "r2", "r3", "r4"])
         case "sessions-import":
             m.importSheet = Sessions.ConductorPreview(
-                found: true,
-                repos: [
-                    .init(repo: "Donnadieu/forge-desktop", sessions: 3, chats: 9, messages: 12_104),
-                    .init(repo: "Donnadieu/one", sessions: 4, chats: 8, messages: 9_870),
-                    .init(repo: "Donnadieu/notarc", sessions: 2, chats: 4, messages: 3_211),
-                    .init(repo: "acme/rails-app", sessions: 5, chats: 11, messages: 14_203),
-                ], sessions: 14, chats: 32, messages: 39_388, alreadyImported: 0)
+                found: true, repos: [.init(repo: "acme/ai-trading-bot", sessions: 3, chats: 7, messages: 9_870)],
+                workspaces: [
+                    .init(
+                        id: "w1", repo: "acme/ai-trading-bot", title: "Reject orders over the balance", branch: "samrivera/balance-check",
+                        chats: 3, messages: 4_210, imported: false),
+                    .init(
+                        id: "w2", repo: "acme/ai-trading-bot", title: "Momentum strategy stop-loss", branch: "samrivera/stop-loss",
+                        chats: 2, messages: 3_002, imported: false),
+                    .init(
+                        id: "w3", repo: "acme/ai-trading-bot", title: "Backtest report", branch: "samrivera/backtest-report", chats: 2,
+                        messages: 2_658, imported: false),
+                    .init(
+                        id: "w4", repo: "acme/ai-trading-bot", title: "Broker sandbox keys", branch: "samrivera/sandbox", chats: 1,
+                        messages: 310, imported: true),
+                ], sessions: 3, chats: 7, messages: 9_870, alreadyImported: 1)
         default: break
         }
     }

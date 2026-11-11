@@ -183,7 +183,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/sessions/git.ts | new | | the session's folder (a worktree on its own branch from `origin/<base>`), snapshots to private refs, the diff against the base, the gh account that reaches the repo; an existing branch in its own folder, a branch name no other branch has, the repo's branches |
 | src/sessions/github.ts | new | | the session's pull request, its review threads (GraphQL `reviewThreads`) and the merge |
 | src/sessions/host.ts | new | | the sessions host: make, list, archive, restore and merge sessions; changes, pull request, review comments, revert; a typed or existing branch for a new session, and the branches to pick from |
-| src/sessions/conductor.ts | new | | import from Conductor: its database read immutable, open workspaces as sessions in place, chats with their history and Claude Code session ids |
+| src/sessions/conductor.ts | new | | import from Conductor: its database read immutable, open workspaces as sessions in place, chats with their history and Claude Code session ids; scoped to one repo, one row per Conductor workspace, imports only the picked ones into one workspace; reads SSH host-alias remotes |
 | src/sessions/api.ts | new | | the sessions host's local API (127.0.0.1, launch token, HTTP + live WebSocket) |
 | src/sessions/attachments.ts | new | | pictures in a message: kept as files, one `[image: <path>]` line each, image blocks for Claude Code |
 | src/sessions/cards.ts | new | | card sessions: the cards running in every engine, each followed from its Claude Code transcript as a session (the same recorder a chat uses) |

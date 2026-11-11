@@ -124,9 +124,22 @@ enum Sessions {
         var id: String { repo }
     }
 
+    /// One Conductor workspace; it comes over as one session.
+    struct ConductorWorkspace: Decodable, Sendable, Equatable, Identifiable {
+        var id: String
+        var repo: String
+        var title: String
+        var branch: String
+        var chats: Int
+        var messages: Int
+        var imported: Bool
+    }
+
     struct ConductorPreview: Decodable, Sendable, Equatable {
         var found: Bool
         var repos: [ConductorRepo]
+        /// Each Conductor workspace of the repo asked for (engines before the scoped import don't send it).
+        var workspaces: [ConductorWorkspace]?
         var sessions: Int
         var chats: Int
         var messages: Int

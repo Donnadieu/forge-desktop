@@ -100,66 +100,100 @@ struct ImportConductorSheet: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
     let preview: Sessions.ConductorPreview
-    @State private var targets: [String: String] = [:]
+    @State private var picked: Set<String>
 
-    private var workspaces: [Workspace] { model.store.workspaceList }
+    init(model: AppModel, sessions: SessionsModel, preview: Sessions.ConductorPreview) {
+        self.model = model
+        self.sessions = sessions
+        self.preview = preview
+        _picked = State(initialValue: Self.initialPick(preview))
+    }
+
+    /// Everything not brought over yet starts picked; untick what to leave in Conductor.
+    static func initialPick(_ p: Sessions.ConductorPreview) -> Set<String> {
+        Set((p.workspaces ?? []).filter { !$0.imported }.map(\.id))
+    }
+
+    private var rows: [Sessions.ConductorWorkspace] { preview.workspaces ?? [] }
+    private var repo: String { model.sessionRepos.first?.repo ?? "this workspace's repo" }
+    private var open: [Sessions.ConductorWorkspace] { rows.filter { !$0.imported } }
 
     var body: some View {
         SessionSheet(
             title: "Bring your Conductor work over",
-            lead: preview.found
-                ? "Conductor stays as it is. Forge reads it and leaves every folder where it is."
-                : "Forge didn't find Conductor on this Mac.",
+            lead: !preview.found
+                ? "Forge didn't find Conductor on this Mac."
+                : rows.isEmpty
+                    ? "Conductor has no work on \(repo)."
+                    : "Your Conductor workspaces on \(repo). Conductor stays as it is; Forge reads it and leaves every folder where it is.",
             close: dismiss
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    SectionLabel(text: "Repo").frame(maxWidth: .infinity, alignment: .leading)
-                    SectionLabel(text: "Sessions").frame(width: 70, alignment: .trailing)
-                    SectionLabel(text: "Chats").frame(width: 60, alignment: .trailing)
-                    SectionLabel(text: "Into workspace").frame(width: 170, alignment: .leading).padding(.leading, 16)
-                }
-                .padding(.bottom, 8)
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(preview.repos) { r in
-                            HStack {
-                                Text(r.repo).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).frame(
-                                    maxWidth: .infinity, alignment: .leading)
-                                Text("\(r.sessions)").font(Theme.mono(12)).frame(width: 70, alignment: .trailing)
-                                Text("\(r.chats)").font(Theme.mono(12)).frame(width: 60, alignment: .trailing)
-                                Picker("", selection: binding(r.repo)) {
-                                    ForEach(workspaces) { w in Text(w.name).tag(w.id) }
-                                }
-                                .labelsHidden().frame(width: 170).padding(.leading, 16)
-                            }
-                            .foregroundStyle(Theme.textSec)
-                            .frame(height: 36)
-                            .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+                if !rows.isEmpty {
+                    HStack(spacing: 10) {
+                        toggle(on: !open.isEmpty && picked.count == open.count) {
+                            picked = picked.count == open.count ? [] : Set(open.map(\.id))
+                        }
+                        .disabled(open.isEmpty)
+                        SectionLabel(text: "Conductor workspace").frame(maxWidth: .infinity, alignment: .leading)
+                        SectionLabel(text: "Chats").frame(width: 60, alignment: .trailing)
+                    }
+                    .padding(.bottom, 8)
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(rows) { w in row(w) }
                         }
                     }
-                }
-                .frame(maxHeight: 300)
-                Text("\(preview.repos.count) repos · \(preview.chats) chats · \(preview.messages.formatted()) messages")
+                    .frame(maxHeight: 320).fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        "\(picked.count) of \(open.count) picked"
+                            + (preview.alreadyImported > 0 ? " · \(preview.alreadyImported) already here" : "")
+                    )
                     .font(Theme.sans(12)).foregroundStyle(Theme.textSec).padding(.top, 12)
-                if preview.alreadyImported > 0 {
-                    Text("\(preview.alreadyImported) already here; they're left as they are.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    Text("Don't send to the same chat from Conductor and Forge at once.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                        .padding(.top, 4)
                 }
-                Text("Don't send to the same chat from Conductor and Forge at once.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted).padding(
-                    .top, 4)
             }
         } buttons: {
-            Button(sessions.busy ? "Importing…" : "Import \(preview.sessions) sessions") {
-                sessions.runImport(targets: targets, workspace: model.workspace?.id ?? "default")
+            Button(sessions.busy ? "Importing…" : picked.isEmpty ? "Import selected" : "Import selected (\(picked.count))") {
+                sessions.runImport(ids: rows.map(\.id).filter(picked.contains), workspace: model.workspace?.id ?? "default")
             }
             .buttonStyle(ForgeButton(kind: .primary, large: true))
-            .disabled(preview.sessions == 0 || sessions.busy)
+            .disabled(picked.isEmpty || sessions.busy)
         }
     }
 
-    private func dismiss() { sessions.importSheet = nil }
-
-    private func binding(_ repo: String) -> Binding<String> {
-        Binding(get: { targets[repo] ?? model.workspace?.id ?? workspaces.first?.id ?? "default" }, set: { targets[repo] = $0 })
+    private func row(_ w: Sessions.ConductorWorkspace) -> some View {
+        let on = picked.contains(w.id)
+        return HStack(spacing: 10) {
+            toggle(on: on || w.imported) {
+                if on { picked.remove(w.id) } else { picked.insert(w.id) }
+            }
+            .disabled(w.imported)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(w.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(w.imported ? "\(w.branch) · already here" : w.branch).font(Theme.mono(10)).foregroundStyle(Theme.textMuted).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(w.chats)").font(Theme.mono(12)).foregroundStyle(Theme.textSec).frame(width: 60, alignment: .trailing)
+        }
+        .opacity(w.imported ? 0.5 : 1)
+        .frame(height: 44)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !w.imported else { return }
+            if on { picked.remove(w.id) } else { picked.insert(w.id) }
+        }
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
+
+    private func toggle(on: Bool, _ flip: @escaping () -> Void) -> some View {
+        Button(action: flip) {
+            Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 14))
+                .foregroundStyle(on ? Theme.heat : Theme.textMuted)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func dismiss() { sessions.importSheet = nil }
 }

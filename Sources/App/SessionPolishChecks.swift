@@ -29,6 +29,25 @@ extension Checks {
         createPRChecks(check)
         newSessionChecks(check)
         sidebarChecks(check)
+        importChecks(check)
+    }
+
+    /// Item 11: the Conductor import lists only this workspace's repo, one row per Conductor workspace, picked by hand.
+    static func importChecks(_ check: (String, Bool) -> Void) {
+        let json = #"""
+            {"found":true,"repos":[{"repo":"acme/app","sessions":1,"chats":2,"messages":9}],
+             "workspaces":[{"id":"w1","repo":"acme/app","title":"Fix the login","branch":"omar/login","chats":2,"messages":9,"imported":false},
+                           {"id":"w2","repo":"acme/app","title":"Billing","branch":"omar/billing","chats":1,"messages":3,"imported":true}],
+             "sessions":1,"chats":2,"messages":9,"alreadyImported":1}
+            """#
+        let p = try? JSONDecoder().decode(Sessions.ConductorPreview.self, from: Data(json.utf8))
+        check("the import lists each Conductor workspace of the repo", p?.workspaces?.map(\.id) == ["w1", "w2"])
+        check("what isn't here yet starts picked; what's here can't be picked", p.map(ImportConductorSheet.initialPick) == ["w1"])
+        let body = SessionsModel.importBody(ids: ["w1"], workspace: "ws")
+        check(
+            "Import selected brings only the picked ones into this workspace",
+            body["ids"] as? [String] == ["w1"] && body["workspace"] as? String == "ws" && body["targets"] == nil)
+        check("the import asks only for this workspace's repo", SessionsClient.conductorPath(repo: "acme/app") == "/api/v1/conductor?repo=acme/app")
     }
 
     /// Item 10: the sessions list is grouped; idle and finished groups start folded and open on a click.

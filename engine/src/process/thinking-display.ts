@@ -12,7 +12,13 @@ const known = new Map<string, Promise<string[]>>();
 const PROBE = "--x-option-probe";
 const FLAG = ["--thinking-display", "summarized"];
 
-export function thinkingDisplayArgs(command: string, timeoutMs = 3000): Promise<string[]> {
+export function thinkingDisplayArgs(
+  command: string,
+  timeoutMs = 3000,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string[]> {
+  // FORGE_THINKING_DISPLAY=off skips it (the engine's tests, whose stand-in agents never answer).
+  if (env.FORGE_THINKING_DISPLAY === "off") return Promise.resolve([]);
   let answer = known.get(command);
   if (!answer) {
     answer = probe(command, timeoutMs);

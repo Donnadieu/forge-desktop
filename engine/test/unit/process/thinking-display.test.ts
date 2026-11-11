@@ -28,18 +28,18 @@ exit 0
 
 describe("thinking the person can open", () => {
   it("asks Claude Code for its thinking's words when it knows how", async () => {
-    expect(await thinkingDisplayArgs(fakeClaude(["--thinking-display"]))).toEqual([
+    expect(await thinkingDisplayArgs(fakeClaude(["--thinking-display"]), 3000, {})).toEqual([
       "--thinking-display",
       "summarized",
     ]);
   });
 
   it("leaves the flag off a Claude Code too old to know it", async () => {
-    expect(await thinkingDisplayArgs(fakeClaude([]))).toEqual([]);
+    expect(await thinkingDisplayArgs(fakeClaude([]), 3000, {})).toEqual([]);
   });
 
   it("leaves it off when the command can't be run", async () => {
-    expect(await thinkingDisplayArgs("/nonexistent/claude")).toEqual([]);
+    expect(await thinkingDisplayArgs("/nonexistent/claude", 3000, {})).toEqual([]);
   });
 
   it("leaves it off, without waiting long, when the command never answers", async () => {
@@ -48,8 +48,16 @@ describe("thinking the person can open", () => {
     writeFileSync(file, "#!/bin/sh\nsleep 30\n");
     chmodSync(file, 0o755);
     const t = Date.now();
-    expect(await thinkingDisplayArgs(file, 300)).toEqual([]);
+    expect(await thinkingDisplayArgs(file, 300, {})).toEqual([]);
     expect(Date.now() - t).toBeLessThan(2000);
+  });
+
+  it("is skipped when the engine is told to (its own tests)", async () => {
+    expect(
+      await thinkingDisplayArgs(fakeClaude(["--thinking-display"]), 3000, {
+        FORGE_THINKING_DISPLAY: "off",
+      }),
+    ).toEqual([]);
   });
 
   it("a chat passes it on when Claude Code knows it", () => {

@@ -1,5 +1,9 @@
 # What others see, and editing the workflow file
 
+> **Nov 11, 2026: the workflow file editor was removed.** Omar decided hand edits could break too much: no screen
+> shows or edits the file any more, and Forge alone writes it. See [decisions.md](../decisions.md). The "Edit workflow
+> file" section below is history.
+
 Asked for by Omar on Nov 9, 2026: he uses Forge for employer and client work and doesn't want anyone to see that
 Forge did it; he also wants to edit the workflow file himself, not only toggle stages. He picked Direction A of the
 Claude Design round (project 0af51fab): everything sits in Workflow Studio's side panel, and the file editor is its
@@ -37,7 +41,9 @@ Commits were already the person's own, with Claude Code's attribution off since 
 - A card already on a branch keeps it (`worker/branch.ts`), so a new prefix never strands an open pull request.
 Not covered: Codex agents' `gh` text (no hook point; the pre-push hook and tracker guard still apply).
 
-## Edit workflow file
+## Edit workflow file (removed Nov 11, 2026)
+- Removed. What stays: a file saved from the editor keeps its mark (`workflow-versions/edited`), and Forge's saves
+  merge into it (`WorkflowFile.merge`), so what was typed stays. Everything below describes the page as it was.
 - The page shows the on-screen project's WORKFLOW.md. `check-workflow.js` (engine) checks it with the engine's
   own schema: YAML that can't be read, tabs, unknown keys with "Did you mean", wrong types, `{{ … }}` a card can't
   fill. The app adds one rule: settings Workflow Studio or Settings own (`WorkflowFile.appKeys`) and the app's

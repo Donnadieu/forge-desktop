@@ -194,17 +194,15 @@ enum EngineSettings {
         return lines
     }
 
-    /// Writes the workflow file into an engine's folder. A file the person edited keeps their edits: only the
-    /// settings the app owns change (WorkflowFile). Throws a plain-words problem when setup isn't finished.
+    /// Writes the workflow file into an engine's folder. Only Forge writes it. A file someone edited by hand in
+    /// 0.2.23 to 0.2.32 keeps those edits: only the settings the app owns change (WorkflowFile). Throws a
+    /// plain-words problem when setup isn't finished.
     static func writeWorkflow(_ c: SetupChoices, home: URL = Paths.home, store: SetupStore? = nil) throws {
         let app = try workflowText(c, home: home, store: store)
         try FileManager.default.createDirectory(at: home.appendingPathComponent("workspaces"), withIntermediateDirectories: true)
         let file = WorkflowFile(home: home)
-        if file.edited, let mine = file.text {
-            try file.save(WorkflowFile.merge(edited: mine, app: app), edited: true)
-        } else {
-            try file.save(app, edited: false)
-        }
+        let mine = file.edited ? file.text : nil
+        try file.save(mine.map { WorkflowFile.merge(edited: $0, app: app) } ?? app)
     }
 
     /// The workflow file the app writes for these answers.

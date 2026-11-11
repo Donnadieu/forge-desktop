@@ -183,20 +183,6 @@ struct WorkflowScreen: View {
             whatOthersSee
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             backlogMoves
-            Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
-            Button {
-                model.go(AppModel.workflowFileScreen)
-            } label: {
-                HStack {
-                    Text("Edit workflow file").font(Theme.sans(11)).foregroundStyle(Theme.textSec)
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textMuted)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(restarting || changes > 0)
-            .help(changes > 0 ? "Save or undo the changes here first." : "The file the engine reads, to edit by hand.")
         }
         .padding(20)
         .panel()

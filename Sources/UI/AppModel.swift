@@ -125,8 +125,6 @@ final class AppModel: ObservableObject {
     static let projectsScreen = 9
     /// Every running workspace's cards in one Orchestrator.
     static let allWorkspacesScreen = 10
-    /// Workflow Studio's "Edit workflow file": the real WORKFLOW.md, checked before it saves.
-    static let workflowFileScreen = 11
     /// Sessions: the chats you have with agents in the workspace on screen (docs/design/sessions.md).
     static let sessionsScreen = 12
 

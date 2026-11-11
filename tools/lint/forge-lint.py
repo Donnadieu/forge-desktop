@@ -81,6 +81,13 @@ def r_process_area(path, lines, ctx):
         if re.search(r'\bProcess\s*\(\s*\)|\bposix_spawn\b|(?<![.\w])system\s*\(', code_part(l)):
             yield i, "runs a program outside Sources/EngineHost/"
 
+def r_raw_workflow_ui(path, lines, ctx):
+    """The workflow file is Forge's: no screen reads it, shows it or writes it (Omar, Nov 11 2026)."""
+    if not path.startswith("Sources/UI/"): return
+    for i, l in enumerate(lines, 1):
+        if re.search(r'\bWorkflowFile\b|\bWorkflowCheck\b|WORKFLOW\.md', code_part(l)):
+            yield i, "a screen touches the raw workflow file"
+
 # ---------------------------------------------------------------- repo-wide rules (every committed text file)
 
 BANNED_WORD = "sym" + "phony"   # split so this file doesn't trip its own rule
@@ -154,7 +161,7 @@ def r_docs_map(path, lines, ctx):
     if path.startswith("docs/") and path.endswith(".md") and path not in ctx["indexed"] and path != "docs/INDEX.md":
         yield 1, "not linked from docs/INDEX.md"
 
-SWIFT_RULES = {"file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area", "keychain-only"}
+SWIFT_RULES = {"file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area", "keychain-only", "raw-workflow-ui"}
 RULES = {
     "file-length":   (r_file_length, "Big files are hard to read and to change safely.",
                       "Move whole declarations into a new file for that area (see docs/ARCHITECTURE.md)."),
@@ -166,6 +173,8 @@ RULES = {
                       "Say it in plain words (see docs/PRODUCT_SENSE.md 'Words on screen')."),
     "process-area":  (r_process_area, "Running programs is risky; it happens in one known place.",
                       "Move the call into Sources/EngineHost/ (the code that starts and stops the engine)."),
+    "raw-workflow-ui": (r_raw_workflow_ui, "Hand edits to the workflow file broke too much; Forge alone writes it, from real controls.",
+                      "Add the setting as its own control (Workflow Studio or Settings) saved through SetupChoices; EngineSettings writes the file."),
     "keychain-only": (r_keychain_only, "Secrets live in the Keychain and nowhere else (plan section 2).",
                       "Use Keychain.get/set (Sources/Core/Keychain.swift). Settings that aren't secret go in setup.json."),
     "no-git-config-null": (r_no_git_config_null, "It drops the gh credential helper, so git asks the macOS keychain and pops a password prompt.",
@@ -189,6 +198,7 @@ CANARIES = {
     "no-browser-view": ("Sources/UI/Canary.swift", "import WebKit\n"),
     "ui-jargon": ("Sources/UI/Canary.swift", 'let t = Text("Restart the orchestrator")\n'),
     "process-area": ("Sources/UI/Canary.swift", "let p = Process()\n"),
+    "raw-workflow-ui": ("Sources/UI/Canary.swift", "let f = WorkflowFile(home: home).text\n"),
     "keychain-only": ("Sources/UI/Canary.swift", 'func f() { UserDefaults.standard.set("x", forKey: "linearKey") }\n'),
     "no-git-config-null": ("tools/canary.sh", 'GIT_CONFIG_GLOBAL=/dev/null git status\n'),
     "banned-name": ("docs/canary.md", "Based on " + BANNED_WORD.title() + ".\n"),

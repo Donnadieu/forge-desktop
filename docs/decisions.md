@@ -75,3 +75,14 @@ the bottom. Each line: the date, the plan item, the call and why.
   and remembers what it had open; one it never opened shows New session. Sessions of other workspaces keep running.
   Notifications still come from every workspace (an agent waiting on you elsewhere is worth knowing): a click opens
   that session's own workspace first, as does the Orchestrator's Open session. ⌘⌥L stays inside the workspace.
+
+## The workflow file is Forge's (Omar, 2026-11-11)
+- 2026-11-11: Omar's call: editing WORKFLOW.md by hand could break too much, so the app no longer shows the raw file
+  at all. Workflow Studio's "Edit workflow file" page went (its editor, checks, saved versions, Undo and Put back), and
+  so did the read-only view first planned in its place: no screen shows, copies or edits the file. Forge alone writes
+  it, from the controls in Workflow Studio and Settings; a setting people need comes to the UI later as its own
+  control with its own test. A file someone saved from the old editor keeps its mark, so Forge's saves still only
+  rewrite the settings the app owns and keep the rest (`WorkflowFile.merge`); the old `workflow-versions/` folder is
+  left on disk as it is. The engine's `check-workflow.js` and `config/workflow-check.ts` only served the editor and
+  were removed. Lint `raw-workflow-ui` keeps `Sources/UI` away from the file; `Checks.noRawWorkflowChecks` reads every
+  screen after setup back with Vision and fails on any sign of the file.

@@ -175,8 +175,6 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/marks.ts | new | | what others see: the marks check every guard uses, the plain user agent, the `marks` settings and the note after the lead's instructions (pull request label, Keep Forge invisible) |
 | src/workspace/marks-guard.ts | new | | Keep Forge invisible in a card's folder: Claude Code's PreToolUse hook and git's pre-push hook, checking pushes and `gh` writes |
 | src/marks-guard.ts | new | | the guard's entry, run by those two hooks |
-| src/config/workflow-check.ts | new | | checks a hand-edited workflow file: YAML, tabs, unknown keys with a suggestion, wrong kinds, by line |
-| src/check-workflow.ts | new | | `check-workflow.js`: the app's check before it saves an edited workflow file (adds the `{{ … }}` check) |
 | src/worker/branch.ts | new | | the card's branch: Workflow Studio's prefix plus the card id, else the tracker's; a card in flight keeps its branch |
 | src/sessions/types.ts | new | | sessions: what a session, chat, turn and event are (docs/design/sessions.md) |
 | src/sessions/store.ts | new | | the sessions host's SQLite file: sessions, chats, turns, events (one can be dropped), the outbox |

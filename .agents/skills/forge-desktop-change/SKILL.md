@@ -73,6 +73,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - `ViewThatFits` uses its LAST option when none fits, and that one overflows its column. A control added to a row
   that already only just fits (the composer with two chats side by side) needs a last tier that moves it into a menu
   (Skills goes into the + menu there). Check `14-sessions-side-by-side` after any composer change.
+- A selftest can't read a SwiftUI screen's words through accessibility: with no assistive app attached, an
+  `NSHostingView`'s `accessibilityChildren()` is empty (and AX on its own process needs a trust prompt). To check what a
+  screen says, draw it off screen tall enough that nothing sits below the fold and read it back with Vision
+  (`Checks.readScreen`, about half a second a screen). `Checks.noRawWorkflowChecks` does it for every screen.
 - `--render-screens` draws 1200x800 with fake traffic lights, and prominent buttons come out grey
   (the window isn't key). Don't "fix" the colour, and say the live title bar is unproven.
 

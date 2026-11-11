@@ -1,15 +1,14 @@
 import Foundation
 
-/// The workflow file as people may edit it (Workflow Studio's "Edit workflow file"). Once edited by hand, the
-/// file is theirs: a save from Workflow Studio or Settings rewrites only the settings those screens own
-/// (`appKeys`) and the app's marked part of the instructions, so everything else typed by hand stays. Each
-/// change keeps the file before it (the last 20), for "Undo last save" and "Put back". Pure apart from the
-/// folder it reads and writes.
+/// The workflow file. Only Forge writes it (Omar, Nov 11 2026: hand edits broke too much, so settings come to the
+/// screens one control at a time). 0.2.23 to 0.2.32 had an editor; a file someone saved from it carries a mark, and
+/// Forge's saves then rewrite only the settings the app owns (`appKeys`) and the app's marked part of the
+/// instructions, so what they typed stays. Pure apart from the folder it reads and writes.
 struct WorkflowFile {
     let home: URL
 
-    /// Settings the app's screens write. The rest (hooks, turns, timeouts, polling, retry) is the person's
-    /// once they edit the file.
+    /// Settings the app's screens write. The rest (hooks, turns, timeouts, polling, retry) stays as it is in a
+    /// file edited by hand.
     static let appKeys: [String] = [
         "tracker.kind", "tracker.project_slug", "tracker.account_id", "tracker.identity_id", "tracker.card_table_id",
         "tracker.status_field_id", "tracker.columns", "tracker.active_states", "tracker.promote", "board.columns",
@@ -17,44 +16,21 @@ struct WorkflowFile {
         "agent.max_concurrent_agents", "marks",
     ]
 
-    /// The ones Workflow Studio's switches own (the rest are Settings').
-    static let studioKeys: Set<String> = ["tracker.active_states", "tracker.promote", "agent.roles", "agent.max_concurrent_agents", "marks"]
-
     /// The app's part of the instructions: the board's notes and the note for stages that are off.
     static let partStart = "<!-- set by the app: edits between these lines are replaced on save -->"
     static let partEnd = "<!-- end of the app's part -->"
 
     var url: URL { home.appendingPathComponent("WORKFLOW.md") }
-    var versionsFolder: URL { home.appendingPathComponent("workflow-versions") }
-    private var editedMark: URL { versionsFolder.appendingPathComponent("edited") }
+    /// Left by the old editor (with the versions it kept, which stay on disk untouched).
+    private var editedMark: URL { home.appendingPathComponent("workflow-versions/edited") }
 
-    /// The person saved this file from the editor; app saves now merge into it.
+    /// Someone saved this file from the old editor; Forge's saves merge into it.
     var edited: Bool { FileManager.default.fileExists(atPath: editedMark.path) }
 
     var text: String? { try? String(contentsOf: url, encoding: .utf8) }
 
-    /// Earlier files, newest first.
-    func versions() -> [(date: Date, url: URL)] {
-        let files =
-            (try? FileManager.default.contentsOfDirectory(at: versionsFolder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-        return files.filter { $0.pathExtension == "md" }
-            .map { ((try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast, $0) }
-            .map { (date: $0.0, url: $0.1) }
-            .sorted { $0.date != $1.date ? $0.date > $1.date : $0.url.lastPathComponent > $1.url.lastPathComponent }
-    }
-
-    /// Writes `text` (keeping the current file as a version when it changes) and records whether the person
-    /// edited it.
-    func save(_ new: String, edited: Bool) throws {
-        let fm = FileManager.default
-        try fm.createDirectory(at: versionsFolder, withIntermediateDirectories: true)
-        if let old = text, old != new {
-            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-            try old.write(to: versionsFolder.appendingPathComponent("\(stamp)-\(UUID().uuidString.prefix(4)).md"), atomically: true, encoding: .utf8)
-            for v in versions().dropFirst(20) { try? fm.removeItem(at: v.url) }
-        }
+    func save(_ new: String) throws {
         try new.write(to: url, atomically: true, encoding: .utf8)
-        if edited { fm.createFile(atPath: editedMark.path, contents: Data()) } else { try? fm.removeItem(at: editedMark) }
     }
 
     // MARK: Merging the app's settings into a file edited by hand
@@ -69,30 +45,6 @@ struct WorkflowFile {
             front = YAMLBlocks.set(front, key, block.map { Array(appFront[$0]) })
         }
         return (["---"] + front + ["---"]).joined(separator: "\n") + "\n" + withPart(eBody, from: aBody)
-    }
-
-    /// The app-owned settings (and the app's part) a hand edit changed, each with its 1-based line: the next
-    /// app save would replace them, so the editor refuses them and says where to change them instead.
-    static func ownedChanges(edited: String, app: String) -> [(line: Int, key: String)] {
-        let (eFront, eBody) = split(edited)
-        let (aFront, aBody) = split(app)
-        guard let front = eFront, let appFront = aFront else { return [] }
-        var out: [(line: Int, key: String)] = []
-        for key in appKeys {
-            let mine = YAMLBlocks.block(front, key).map { YAMLBlocks.normalized(Array(front[$0])) }
-            let theirs = YAMLBlocks.block(appFront, key).map { YAMLBlocks.normalized(Array(appFront[$0])) }
-            if mine != theirs {
-                let line =
-                    (YAMLBlocks.block(front, key)?.lowerBound ?? YAMLBlocks.block(front, key.components(separatedBy: ".")[0])?.lowerBound ?? 0) + 2
-                out.append((line, key))
-            }
-        }
-        if let mine = part(eBody), let theirs = part(aBody), mine != theirs {
-            let before = (eFront?.count ?? 0) + 2
-            let at = eBody.components(separatedBy: "\n").firstIndex(of: partStart) ?? 0
-            out.append((before + at + 1, "the app's part"))
-        }
-        return out
     }
 
     /// The settings lines (without the --- lines) and the instructions after them.
@@ -188,10 +140,5 @@ enum YAMLBlocks {
             if shift >= 0 { return String(repeating: " ", count: shift) + l }
             return String(l.dropFirst(min(-shift, indent(l))))
         }
-    }
-
-    /// A block compared without its indentation or blank lines.
-    static func normalized(_ block: [String]) -> [String] {
-        block.filter { !blank($0) }.map { $0.trimmingCharacters(in: .whitespaces) }
     }
 }

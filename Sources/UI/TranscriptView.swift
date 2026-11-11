@@ -34,12 +34,17 @@ struct TranscriptView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .defaultScrollAnchor(.bottom)
+            .modifier(OpensAtBottom())
+            // New text or a new turn is followed only while the bottom is on screen: scrolled up, the chat stays put
+            // and Jump to latest shows. The person's own message always brings it down.
             .onChange(of: transcript.turns.last?.events.last) { _, _ in
-                if chat.working, atEnd { proxy.scrollTo("end", anchor: .bottom) }
+                if atEnd { follow(proxy) }
             }
-            // A new turn (not older ones loading at the top) brings the chat to its end.
-            .onChange(of: transcript.turns.last?.id) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
+            .onChange(of: transcript.turns.last?.id) { _, _ in
+                if atEnd { follow(proxy) }
+            }
+            .onChange(of: sessions.sent[chat.id]) { _, _ in follow(proxy) }
+            .onAppear { follow(proxy) }
             .overlay(alignment: .bottom) {
                 if !atEnd, !transcript.turns.isEmpty {
                     Button("Jump to latest") {
@@ -51,6 +56,28 @@ struct TranscriptView: View {
                     .transition(.opacity)
                 }
             }
+        }
+    }
+}
+
+extension TranscriptView {
+    /// To the end, then again once the new rows are measured (a list measures rows as they come on screen, so the
+    /// first scroll can stop short of the end and lose the follow).
+    func follow(_ proxy: ScrollViewProxy) {
+        proxy.scrollTo("end", anchor: .bottom)
+        DispatchQueue.main.async { proxy.scrollTo("end", anchor: .bottom) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { proxy.scrollTo("end", anchor: .bottom) }
+    }
+}
+
+/// Opens at the bottom without holding it there: on macOS 15 and later the anchor is for the first position only, so
+/// content growing above a reader who scrolled up doesn't move them.
+private struct OpensAtBottom: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15, *) {
+            content.defaultScrollAnchor(.bottom, for: .initialOffset)
+        } else {
+            content.defaultScrollAnchor(.bottom)
         }
     }
 }

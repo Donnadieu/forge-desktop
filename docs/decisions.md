@@ -31,3 +31,9 @@ the bottom. Each line: the date, the plan item, the call and why.
   shows lines out of context anyway, so line-by-line colouring is what a parser could give there too. The language
   comes from a code fence's name or the file's name. Colours stay in the design system's warm range: keywords in heat,
   types gold, strings soft green, numbers clay, comments muted. Edits inside tool rows are coloured the same way.
+- 2026-11-11, item 6: two things pulled a reader down: every new turn scrolled to the end whatever the position, and
+  `defaultScrollAnchor(.bottom)` held the bottom as content grew. Now the anchor is for the first position only (macOS
+  15 and later; 14 keeps the old anchor), and new text or a new turn is followed only while the end is on screen. The
+  person's own message always brings the chat down, since they just sent it. Following scrolls twice more after the
+  first try, because the list measures new rows late and a single scroll stopped short. The existing "Jump to latest"
+  pill shows whenever the end is off screen. The check drives the real list in a window far off screen.

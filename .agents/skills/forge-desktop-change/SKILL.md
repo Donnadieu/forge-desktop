@@ -191,6 +191,11 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   result line: a card session's turn ends at an assistant message with `stop_reason: end_turn` and no tool call.
   Lines with `isSidechain: true` are helpers' own conversations; skip them.
 - A run waiting for the person (hands-on) must keep touching `lastActivityAt`, or the stall check kills it.
+- `defaultScrollAnchor(.bottom)` alone also anchors size changes: content growing pulls a reader who scrolled up back
+  down. Use `defaultScrollAnchor(.bottom, for: .initialOffset)` (macOS 15+). A SwiftUI `List` measures rows as they
+  come on screen, so one `scrollTo` can stop short of the end: follow with a second scroll on the next tick. Scroll
+  behaviour is testable: host the view in a window at -20000, find its `NSScrollView`, move `contentView`, and read
+  `bounds.origin` (`Sources/App/ScrollCheck.swift`).
 
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`

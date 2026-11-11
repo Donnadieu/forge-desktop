@@ -84,6 +84,8 @@ final class SessionsModel: ObservableObject {
     @Published var importSheet: Sessions.ConductorPreview?
     @Published var showHistory = false
     @Published var drafts: [String: String] = [:]
+    /// Messages the person sent, per chat: each one brings that chat to its latest turn.
+    @Published var sent: [String: Int] = [:]
     /// Pictures waiting in each chat's message box.
     @Published var images: [String: [PastedImage]] = [:]
     @Published var pickerOpen = false
@@ -217,6 +219,7 @@ final class SessionsModel: ObservableObject {
         let pics = images[chat.id] ?? []
         guard !t.isEmpty || !pics.isEmpty else { return }
         drafts[chat.id] = ""
+        sent[chat.id, default: 0] += 1
         if let target = cardTargets[chat.sessionId] {
             guard !t.isEmpty else { return }
             Task {

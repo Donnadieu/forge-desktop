@@ -24,6 +24,7 @@ extension Checks {
         promptChecks(check)
         toolRowChecks(check)
         syntaxChecks(check)
+        scrollChecks(check)
     }
 
     /// Item 5: code is coloured by its language, in chat code blocks and in the diff.

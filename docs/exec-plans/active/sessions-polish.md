@@ -12,7 +12,7 @@ tool calls, commands and thoughts, and commenting on diff lines.
 - Tick a box only when its PR is merged to main and its check passes.
 
 ## Merged
-- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`). 3: PR #93 (`90586cc`). 4: PR #95 (`e5fd791`). 5: PR #97 (`b330255`). 6: PR #99 (`7773b31`). 7: PR #101 (`d112576`). 8: PR #102 (`8d7fda4`).
+- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`). 3: PR #93 (`90586cc`). 4: PR #95 (`e5fd791`). 5: PR #97 (`b330255`). 6: PR #99 (`7773b31`). 7: PR #101 (`d112576`). 8: PR #102 (`8d7fda4`). 9: PR #104 (`4b751c6`). 10: PR #105 (`4a88bd1`).
 
 ## Out of scope
 Codex and Kimi chats, the model picker listing every provider, the Claude Design visual pass, and the setup changes
@@ -27,6 +27,6 @@ Codex and Kimi chats, the model picker listing every provider, the Claude Design
 - [x] 6. Scroll stays put when scrolled up; a "Jump to latest" pill; auto-follow only at the bottom
 - [x] 7. Tabs: new ones named Chat 2, Chat 3; "Review" renamed Changes and shown only once there are changes; right-click Rename and Close; X on hover
 - [x] 8. Create PR sends the agent a create-PR prompt (like Conductor's create-PR skill); nothing made silently
-- [ ] 9. New session = new worktree and branch off main by default; the sheet can pick an existing branch or name a new one; repo locked to the workspace
-- [ ] 10. Sessions sidebar grouped; idle and finished groups collapse
+- [x] 9. New session = new worktree and branch off main by default; the sheet can pick an existing branch or name a new one; repo locked to the workspace
+- [x] 10. Sessions sidebar grouped; idle and finished groups collapse
 - [ ] 11. Conductor import scoped to the workspace's repo, multi-select, "Import selected", no "Into workspace" column

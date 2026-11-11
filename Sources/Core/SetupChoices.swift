@@ -23,6 +23,10 @@ struct SetupChoices: Codable, Equatable, Sendable {
     var projectName: String?
     var projectSlug: String?
     var columnsReady = false
+    /// What names this board: the project, or on Linear with no project picked, the whole team (`team:<id>`).
+    var boardSlug: String? { projectSlug ?? (board == .linear ? teamID.map { "team:\($0)" } : nil) }
+    /// Linear with a team and no project: Forge works on all of the team's cards.
+    var linearTeamOnly: String? { board == .linear && projectSlug == nil ? teamID : nil }
     // 3. GitHub and who signs
     var githubLogin: String?
     var authorName: String?
@@ -111,7 +115,7 @@ struct SetupChoices: Codable, Equatable, Sendable {
     /// The first screen that still needs an answer (6 = the board).
     var nextScreen: Int {
         if trackerUser == nil { return 0 }
-        if projectSlug == nil || !columnsReady { return 1 }
+        if boardSlug == nil || !columnsReady { return 1 }
         if githubLogin == nil || signing == nil { return 2 }
         if repo == nil || !repoChecked { return 3 }
         if worker == nil || !workerChecked { return 4 }

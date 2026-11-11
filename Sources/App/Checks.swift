@@ -219,6 +219,7 @@ enum Checks {
             WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
         harnessChecks(check)
         trackerChecks(check)
+        linearTeamChecks(check)
         moveChecks(check)
         accountChecks(check)
         workspaceChecks(check)

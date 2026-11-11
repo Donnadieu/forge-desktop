@@ -130,7 +130,7 @@ extension SetupChoices {
     func stepDone(_ step: Int) -> Bool {
         switch step {
         case 0: return trackerUser != nil
-        case 1: return projectSlug != nil && columnsReady
+        case 1: return boardSlug != nil && columnsReady
         case 2: return githubLogin != nil && signing != nil
         case 3: return repo != nil && repoChecked
         case 4: return worker != nil && workerChecked

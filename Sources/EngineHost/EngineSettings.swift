@@ -104,7 +104,7 @@ enum EngineSettings {
         return lines
     }
 
-    /// Which board the engine reads: Linear names the project; Basecamp also names the account, the card
+    /// Which board the engine reads: Linear names the project (or, with none picked, the team); Basecamp also names the account, the card
     /// table, the person Forge assigns cards to, and the column id of each pipeline column.
     static func trackerLines(_ c: SetupChoices) -> [String] {
         if c.board == .github, let g = c.githubBoard {
@@ -117,6 +117,7 @@ enum EngineSettings {
             ] + Pipeline.names.compactMap { n in cols[n].map { "    \(quoted(n)): \(quoted($0))" } }
         }
         guard c.board == .basecamp, let b = c.basecamp else {
+            if let team = c.linearTeamOnly { return ["  kind: linear", "  project_slug: \"\"", "  team_id: \(quoted(team))"] }
             return ["  kind: linear", "  project_slug: \(quoted(c.projectSlug ?? ""))"]
         }
         var lines = [
@@ -208,7 +209,7 @@ enum EngineSettings {
 
     /// The workflow file the app writes for these answers.
     static func workflowText(_ c: SetupChoices, home: URL = Paths.home, store: SetupStore? = nil) throws -> String {
-        guard c.projectSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
+        guard c.boardSlug != nil, c.repo != nil, c.worker != nil else { throw Problem(description: "Setup isn't finished yet.") }
         guard let lead = leadInstructions else { throw Problem(description: "The lead's instructions are missing from the app.") }
         let cards = home.appendingPathComponent("workspaces")
         let file = c.board == .github ? "workflow/github.md" : "workflow/basecamp.md"

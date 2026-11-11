@@ -17,6 +17,9 @@ export const WorkflowConfigSchema = z.object({
   tracker: z.object({
     kind: z.enum(["linear", "github", "jira", "basecamp"]),
     project_slug: z.string(),
+    // Linear only (Forge Desktop): the team whose cards Forge works on when no
+    // project was picked (`project_slug` is then ""). See tracker/linear-scope.ts.
+    team_id: z.string().optional(),
     endpoint: z.string().optional(),
     api_key: z.string().optional(),
     active_states: z.array(z.string()).default(["Todo", "In Progress", "Rework"]),

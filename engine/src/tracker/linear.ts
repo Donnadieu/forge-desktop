@@ -20,6 +20,7 @@ import {
   type LinearIssueRef,
   getBlockRelations as readBlockRelations,
 } from "./linear-reads.js";
+import { linearScope } from "./linear-scope.js";
 import { LinearWriteClient } from "./linear-writes.js";
 import type {
   BoardCard,
@@ -102,18 +103,15 @@ export class LinearTracker implements TrackerAdapter {
   }
 
   async fetchCandidates(config: TrackerConfig): Promise<NormalizedIssue[]> {
-    if (!config.project_slug) {
-      throw new Error("Linear project slug is required");
-    }
+    const scope = linearScope(config);
 
     try {
       const labelFragments = buildLabelFilterFragments(config.labels);
-      // PITFALL #3: Use project: { slugId: { eq: $slug } } for project filtering
       const query = `
-        query FetchCandidates($slug: String!, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
+        query FetchCandidates(${scope.varDecl}, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
           issues(
             filter: {
-              project: { slugId: { eq: $slug } }
+              ${scope.clause}
               state: { name: { in: $states } }
               ${labelFragments.clause}
             }
@@ -153,7 +151,7 @@ export class LinearTracker implements TrackerAdapter {
       `;
 
       const baseVariables: Record<string, unknown> = {
-        slug: config.project_slug,
+        ...scope.variables,
         states: config.active_states,
       };
       if (labelFragments.filter) baseVariables.labels = labelFragments.filter;
@@ -185,8 +183,7 @@ export class LinearTracker implements TrackerAdapter {
 
   // PITFALL #1: Use issues(filter: { id: { in: $ids } }), NOT nodes(ids: [...])
   async fetchBoard(config: TrackerConfig, states: string[]): Promise<BoardCard[]> {
-    if (!config.project_slug) throw new Error("Linear project slug is required");
-    return fetchBoardCards((q, v) => this.graphql(q, v), config.project_slug, states);
+    return fetchBoardCards((q, v) => this.graphql(q, v), linearScope(config), states);
   }
 
   async fetchIssueStatesByIds(ids: string[]): Promise<Map<string, string>> {

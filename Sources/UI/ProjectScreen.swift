@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Setup 2: pick the team and project from lists, see the pipeline one line per column, and create the
-/// columns the team is missing (only after a yes, since it changes the person's Linear).
+/// Setup 2: pick the team (and, if wanted, one project) from lists, see the pipeline one line per column, and
+/// create the columns the team is missing (only after a yes, since it changes the person's Linear).
 struct ProjectScreen: View {
     @ObservedObject var model: AppModel
     @State var teams: [LinearAPI.Team] = []
@@ -15,13 +15,18 @@ struct ProjectScreen: View {
     @State private var notes: [String] = []
 
     private var missing: [Column] { Pipeline.missing(existing: existing) }
-    private var ready: Bool { !projectID.isEmpty && !existing.isEmpty && missing.isEmpty }
+    private var ready: Bool { Self.canContinue(team: teamID, existing: existing) }
+
+    /// The team is enough: a project only narrows the cards. The team still needs every pipeline column.
+    static func canContinue(team: String, existing: [String]) -> Bool {
+        !team.isEmpty && !existing.isEmpty && Pipeline.missing(existing: existing).isEmpty
+    }
 
     var body: some View {
         SetupFrame(
             model: model,
-            question: "Which project should Forge work on?",
-            detail: "Pick the Linear team and project. Every card moves through these columns:",
+            question: "Which team should Forge work on?",
+            detail: "Pick the Linear team. Every card moves through these columns:",
             primary: "Continue",
             primaryEnabled: ready,
             busy: busy,
@@ -33,8 +38,8 @@ struct ProjectScreen: View {
                     ForEach(teams) { Text($0.name).tag($0.id) }
                 }
                 .fixedSize()
-                Picker("Project", selection: $projectID) {
-                    if projectID.isEmpty { Text("Choose…").tag("") }
+                Picker("Project (optional)", selection: $projectID) {
+                    Text("All projects").tag("")
                     ForEach(projects) { Text($0.name).tag($0.id) }
                 }
                 .fixedSize()
@@ -42,7 +47,11 @@ struct ProjectScreen: View {
             }
             .font(Theme.sans(13))
             .foregroundStyle(Theme.textSec)
-            .padding(.bottom, 18)
+            .padding(.bottom, 6)
+            Text("Only pick up cards from one project. With none, Forge works on all of \(teamName)'s cards.")
+                .font(Theme.sans(12))
+                .foregroundStyle(Theme.textSec)
+                .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: !teamID.isEmpty)
             if !teamID.isEmpty && !missing.isEmpty && !existing.isEmpty {
                 HStack(spacing: 12) {
@@ -96,6 +105,7 @@ struct ProjectScreen: View {
             projects = model.sample.projects
             existing = model.sample.states
             projectID = projects[0].id
+            if model.sample.scene == "team-no-project" { (existing, projectID) = (Pipeline.names, "") }
             return
         }
         guard !id.isEmpty, let api = model.linear else { return }
@@ -106,11 +116,8 @@ struct ProjectScreen: View {
             async let s = api.states(team: id)
             projects = try await p
             existing = try await s.map(\.name)
-            if let pid = model.choices.projectID, projects.contains(where: { $0.id == pid }) {
-                projectID = pid
-            } else {
-                projectID = projects.count == 1 ? projects[0].id : ""
-            }
+            let saved = model.choices.projectID
+            projectID = saved.flatMap { pid in projects.contains(where: { $0.id == pid }) ? pid : nil } ?? ""
         } catch { problem = "\(error)" }
     }
 
@@ -126,12 +133,13 @@ struct ProjectScreen: View {
     }
 
     private func finish() {
-        guard let p = projects.first(where: { $0.id == projectID }) else { return }
+        guard Self.canContinue(team: teamID, existing: existing) else { return }
+        let p = projects.first(where: { $0.id == projectID })
         model.choices.teamID = teamID
         model.choices.teamName = teamName
-        model.choices.projectID = p.id
-        model.choices.projectName = p.name
-        model.choices.projectSlug = p.slugId
+        model.choices.projectID = p?.id
+        model.choices.projectName = p?.name ?? teamName
+        model.choices.projectSlug = p?.slugId
         model.choices.columnsReady = true
         model.next()
     }

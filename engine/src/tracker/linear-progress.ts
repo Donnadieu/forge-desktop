@@ -1,5 +1,6 @@
 import { buildLabelFilterFragments } from "./linear-normalize.js";
 import { type LinearConnection, paginateConnection } from "./linear-paginate.js";
+import { linearScope } from "./linear-scope.js";
 import type { LinearGraphQLExecutor } from "./linear-writes.js";
 import type { ProgressCounts, TrackerConfig } from "./types.js";
 
@@ -35,9 +36,7 @@ export async function fetchProgressCounts(
   graphql: LinearGraphQLExecutor,
   config: TrackerConfig,
 ): Promise<ProgressCounts> {
-  if (!config.project_slug) {
-    throw new Error("Linear project slug is required");
-  }
+  const scope = linearScope(config);
 
   const terminal = new Set(config.terminal_states);
   // Build scope = states the orchestrator dispatches from or considers terminal.
@@ -46,10 +45,10 @@ export async function fetchProgressCounts(
   const labelFragments = buildLabelFilterFragments(config.labels);
   const stateNames = Array.from(scopeStates);
   const query = `
-    query FetchProgressCounts($slug: String!, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
+    query FetchProgressCounts(${scope.varDecl}, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
       issues(
         filter: {
-          project: { slugId: { eq: $slug } }
+          ${scope.clause}
           state: { name: { in: $states } }
           ${labelFragments.clause}
         }
@@ -63,7 +62,7 @@ export async function fetchProgressCounts(
   `;
 
   const baseVariables: Record<string, unknown> = {
-    slug: config.project_slug,
+    ...scope.variables,
     states: stateNames,
   };
   if (labelFragments.filter) baseVariables.labels = labelFragments.filter;

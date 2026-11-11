@@ -176,7 +176,7 @@ struct SetupStore: Codable, Equatable, Sendable {
     func project(_ id: String?) -> ProjectRecord? { id.flatMap { id in projects.first { $0.id == id } } }
 
     /// The id a project's record has: its tracker and its id there. Nil until a project is picked.
-    static func projectID(_ c: SetupChoices) -> String? { c.projectSlug.map { "\(c.connection):\($0)" } }
+    static func projectID(_ c: SetupChoices) -> String? { c.boardSlug.map { "\(c.connection):\($0)" } }
 
     /// Adds an account, or replaces the one with the same id.
     mutating func put(_ a: AIAccount) {

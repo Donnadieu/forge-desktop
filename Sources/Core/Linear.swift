@@ -101,8 +101,8 @@ struct LinearAPI: Sendable {
         let url: String
     }
 
-    /// Makes a card in the project, in the named column.
-    func createIssue(team: String, project: String, column: String, title: String, description: String) async throws -> NewIssue {
+    /// Makes a card in the team (and its project, when one was picked), in the named column.
+    func createIssue(team: String, project: String?, column: String, title: String, description: String) async throws -> NewIssue {
         guard let state = try await states(team: team).first(where: { Pipeline.normalized($0.name) == Pipeline.normalized(column) }) else {
             throw Failure(message: "The team has no \(column) column.")
         }
@@ -114,13 +114,20 @@ struct LinearAPI: Sendable {
         let q = """
             mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }
             """
-        let input: [String: Any] = ["teamId": team, "projectId": project, "stateId": state.id, "title": title, "description": description]
+        let input = Self.issueInput(team: team, project: project, state: state.id, title: title, description: description)
         let r = try await run(q, ["input": input], as: R.self)
         guard r.issueCreate.success, let issue = r.issueCreate.issue else { throw Failure(message: "Linear didn't make the card.") }
         return issue
     }
 
     /// Triage is a team switch in Linear, not a normal status. Turns it on; false if Linear refuses.
+    /// What `issueCreate` gets: no project when none was picked, so the card lands in the team.
+    static func issueInput(team: String, project: String?, state: String, title: String, description: String) -> [String: Any] {
+        var input: [String: Any] = ["teamId": team, "stateId": state, "title": title, "description": description]
+        if let project { input["projectId"] = project }
+        return input
+    }
+
     func enableTriage(team: String) async -> Bool {
         struct P: Decodable { let success: Bool }
         struct R: Decodable { let teamUpdate: P }

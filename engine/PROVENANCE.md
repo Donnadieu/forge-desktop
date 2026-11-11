@@ -66,7 +66,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/config/provider-table.ts | 05deefb0a43a | src/config/provider-table.ts | unchanged |
 | src/config/providers.ts | 05deefb0a43a | src/config/providers.ts | unchanged |
 | src/config/resolver.ts | 05deefb0a43a | src/config/resolver.ts | unchanged |
-| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min); `board.columns`; `tracker.promote` from Forge 7f02afe2a; `tracker.status_field_id` (GitHub); `agent.roles` (Forge Desktop: a provider and model per stage) |
+| src/config/schema.ts | 05deefb0a43a | src/config/schema.ts | `agent.helper_wait_ms` (default 60 min); `board.columns`; `tracker.promote` from Forge 7f02afe2a; `tracker.status_field_id` (GitHub); `agent.roles` (Forge Desktop: a provider and model per stage); `tracker.team_id` (Linear with no project) |
 | src/config/watcher.ts | 05deefb0a43a | src/config/watcher.ts | unchanged |
 | src/mcp/builders.ts | 05deefb0a43a | src/mcp/builders.ts | passes the Basecamp board's account through |
 | src/mcp/config.ts | 05deefb0a43a | src/mcp/config.ts | only the Linear tools, or the Basecamp tool (`basecamp-api-server.ts`, account and the app's token command, no token), or the GitHub tool (`github-graphql-server.ts`, the app's token command, no token); run by the engine's own Node; the Linear key is a `${LINEAR_API_KEY}` placeholder, never written |
@@ -87,7 +87,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/dispatch-issue.ts | 05deefb0a43a | src/orchestrator/dispatch-issue.ts | dropped QA bound counters; passes `helperWaitMs`; starts each card's activity line; asks the worker to end after its turn once stopped; picks the agent for the card's stage (`agentForState`) and passes `roleOf` to the worker; remembers a refused claim (`noteClaimRefused`); records whose account the run uses (`limitKey`); hands-on callbacks per run (waiting for the person keeps the run from looking stalled) |
 | src/orchestrator/dispatcher.ts | 05deefb0a43a | src/orchestrator/dispatcher.ts | comments reworded (no old project name); `effectiveAgentLimit`; cards whose claim was refused rank last for 10 minutes (`claimRefused`); a card waiting for a usage limit holds no slot; cards of a limited account aren't started (`limited`) |
 | src/orchestrator/index.ts | 05deefb0a43a | src/orchestrator/index.ts | dropped deployment, hosted-app and stamped-repo exports |
-| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent; `takeWheel` / `handBack` (hands-on.ts); the runaway guard (`workspace/runaway-guard.ts`) runs each poll, its stopped cards aren't started, Start releases them |
+| src/orchestrator/orchestrator.ts | 05deefb0a43a | src/orchestrator/orchestrator.ts | dropped factory build completion, QA bound and deployment checks; the Backlog sweep (`maybePromoteBacklog`) from Forge 7f02afe2a; dispatch counts against `effectiveAgentLimit` (the Mac-wide ceiling); the poll loop runs the leftover sweep (`workspace/leftover-sweep.ts`); cards of an account at a usage limit aren't started (`orchestrator/usage-limits.ts`); `steer` sends the person's message to a running card's agent; `takeWheel` / `handBack` (hands-on.ts); the runaway guard (`workspace/runaway-guard.ts`) runs each poll, its stopped cards aren't started, Start releases them; the empty-poll diagnostic names the team when there's no project |
 | src/orchestrator/reconciler.ts | 05deefb0a43a | src/orchestrator/reconciler.ts | unchanged |
 | src/orchestrator/refetch-dispatch.ts | 05deefb0a43a | src/orchestrator/refetch-dispatch.ts | comment reworded (no old project name); re-dispatch counts against `effectiveAgentLimit`; releases only the reservation it owns (a usage-limit wait keeps the attempt number) |
 | src/orchestrator/retry-queue.ts | 05deefb0a43a | src/orchestrator/retry-queue.ts | unchanged |
@@ -126,12 +126,12 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/tracker/linear-errors.ts | 05deefb0a43a | src/tracker/linear-errors.ts | unchanged |
 | src/tracker/linear-normalize.ts | 05deefb0a43a | src/tracker/linear-normalize.ts | unchanged |
 | src/tracker/linear-paginate.ts | 05deefb0a43a | src/tracker/linear-paginate.ts | unchanged |
-| src/tracker/linear-progress.ts | 05deefb0a43a | src/tracker/linear-progress.ts | unchanged |
-| src/tracker/linear-reads.ts | 05deefb0a43a | src/tracker/linear-reads.ts | unchanged |
+| src/tracker/linear-progress.ts | 05deefb0a43a | src/tracker/linear-progress.ts | filters by project or team (Linear with no project: `linear-scope.ts`) |
+| src/tracker/linear-reads.ts | 05deefb0a43a | src/tracker/linear-reads.ts | terminal reads filter by project or team (Linear with no project: `linear-scope.ts`) |
 | src/tracker/linear-writes.ts | 05deefb0a43a | src/tracker/linear-writes.ts | unchanged |
-| src/tracker/linear.ts | 05deefb0a43a | src/tracker/linear.ts | comment reworded (no old project name); `fetchBoard` |
+| src/tracker/linear.ts | 05deefb0a43a | src/tracker/linear.ts | comment reworded (no old project name); `fetchBoard`; candidates filter by project or team (Linear with no project: `linear-scope.ts`) |
 | src/tracker/memory.ts | 05deefb0a43a | src/tracker/memory.ts | unchanged |
-| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard` |
+| src/tracker/types.ts | 05deefb0a43a | src/tracker/types.ts | `BoardCard` (with labels and unfinished blockers), optional `fetchBoard`; `TrackerConfig.team_id` |
 | src/worker/issue-state-checker.ts | 05deefb0a43a | src/worker/issue-state-checker.ts | returns `handoff` when the card moved to another role's stage |
 | src/worker/prompt-renderer.ts | 05deefb0a43a | src/worker/prompt-renderer.ts | unchanged |
 | src/worker/runner.ts | 05deefb0a43a | src/worker/runner.ts | the lead waits for its helpers: timeouts pause, `helperWaitMs` limit, plain note on the card; a failed turn keeps the agent's reason as the run's `error`; `shouldStop` ends the run after the current turn; a card that moves to another role's stage ends the run (`handoff`) so that role's agent picks it up; Forge Desktop: `nextPrompt` (the person's message is the next turn while they hold the wheel) and `personStopped` (a turn they stopped isn't a failure) |
@@ -146,7 +146,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/leftover-sweep.ts | new | | stops dev servers left running in card workspaces: at a run's start and end, and every 3 minutes for cards no live run holds |
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | unchanged |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead; passes `tracker.team_id` on |
 | src/agent/usage-limit.ts | new | | reads a usage, spend or rate limit (and its reset time) from Claude Code, Codex, OpenRouter and Kimi failure texts |
 | src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
@@ -158,7 +158,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/activity.ts | new | | one plain line per card, the lead's helpers |
 | src/orchestrator/board-reader.ts | new | | the board: every card in the columns, with live activity; the person's moves (Backlog to Todo, Human Review to Merging or Rework); names the tracker in its problems (Linear, Basecamp, GitHub); reads an HTML workpad; a running card's agent session id and folder (card sessions); `hands_on` per running card |
 | src/orchestrator/hands-on.ts | new | | take the wheel of a running card: the run waits for the person's messages until they hand it back |
-| src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers |
+| src/tracker/linear-board.ts | new | | the board's Linear read, with each card's pull request, labels and unfinished blockers; by project or team |
+| src/tracker/linear-scope.ts | new | | which cards a Linear board covers: one project, or the whole team when no project was picked |
 | src/tracker/basecamp-board.ts | new | | the board's Basecamp read: every column, Backlog labels and pull requests from comments, kept per card until it changes |
 | src/tracker/rich-text.ts | new | | Basecamp's HTML comments as the Markdown the window reads |
 | src/tracker-factory.ts | new | | builds Linear, Basecamp or GitHub from the workflow file (adapted from Forge's `src/tracker-factory.ts` at 7f02afe2a: the token comes from the app) |

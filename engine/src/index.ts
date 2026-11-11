@@ -69,6 +69,7 @@ async function main(): Promise<void> {
   const trackerConfig: TrackerConfig = {
     kind: config.tracker.kind,
     project_slug: config.tracker.project_slug,
+    team_id: config.tracker.team_id,
     active_states: config.tracker.active_states,
     terminal_states: config.tracker.terminal_states,
     done_states: config.tracker.done_states,

@@ -348,7 +348,7 @@ extension SetupStore {
     func runnable(live: SetupChoices) -> [ProjectRecord] {
         projects.filter { p in
             guard p.workspaceID != nil, let c = runChoices(p.id, live: live) else { return false }
-            return c.projectSlug != nil && c.repo != nil && c.worker != nil && c.columnsReady
+            return c.boardSlug != nil && c.repo != nil && c.worker != nil && c.columnsReady
         }
     }
 

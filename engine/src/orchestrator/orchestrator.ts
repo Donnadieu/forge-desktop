@@ -424,10 +424,13 @@ export class Orchestrator {
     if (candidates.length === 0 && neverWorked && trackerEmpty) {
       this.consecutiveEmptyPolls++;
       if (this.consecutiveEmptyPolls >= 3) {
-        const slug = this.config.trackerConfig.project_slug;
+        const { project_slug: slug, team_id: team } = this.config.trackerConfig;
         const diagnostic =
-          `No candidates found for ${this.consecutiveEmptyPolls} consecutive polls ` +
-          `(project_slug: "${slug}"). Verify the slug is a valid Linear project slugId.`;
+          slug || !team
+            ? `No candidates found for ${this.consecutiveEmptyPolls} consecutive polls ` +
+              `(project_slug: "${slug}"). Verify the slug is a valid Linear project slugId.`
+            : `No candidates found for ${this.consecutiveEmptyPolls} consecutive polls ` +
+              `(team_id: "${team}"). Verify the team id is a valid Linear team.`;
         // Surface to the status endpoint (via onTick → lastPollError), not just
         // the logger — this is the actual reason a build never starts.
         this.emptyPollDiagnostic = diagnostic;

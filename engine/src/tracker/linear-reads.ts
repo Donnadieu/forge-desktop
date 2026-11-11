@@ -5,6 +5,7 @@ import {
   type RawLinearIssue,
 } from "./linear-normalize.js";
 import { type LinearConnection, paginateConnection } from "./linear-paginate.js";
+import { linearScope } from "./linear-scope.js";
 import type { LinearGraphQLExecutor } from "./linear-writes.js";
 import type { NormalizedIssue, TrackerConfig } from "./types.js";
 
@@ -191,17 +192,15 @@ export async function fetchTerminalIssues(
   graphql: LinearGraphQLExecutor,
   config: TrackerConfig,
 ): Promise<NormalizedIssue[]> {
-  if (!config.project_slug) {
-    throw new Error("Linear project slug is required");
-  }
+  const scope = linearScope(config);
 
   try {
     const labelFragments = buildLabelFilterFragments(config.labels);
     const query = `
-      query FetchTerminalIssues($slug: String!, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
+      query FetchTerminalIssues(${scope.varDecl}, $states: [String!]!, $first: Int!, $after: String${labelFragments.varDecl}) {
         issues(
           filter: {
-            project: { slugId: { eq: $slug } }
+            ${scope.clause}
             state: { name: { in: $states } }
             ${labelFragments.clause}
           }
@@ -241,7 +240,7 @@ export async function fetchTerminalIssues(
     `;
 
     const baseVariables: Record<string, unknown> = {
-      slug: config.project_slug,
+      ...scope.variables,
       states: config.terminal_states,
     };
     if (labelFragments.filter) baseVariables.labels = labelFragments.filter;

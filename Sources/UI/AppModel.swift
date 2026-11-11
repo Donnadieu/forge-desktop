@@ -196,10 +196,10 @@ final class AppModel: ObservableObject {
     func makeCard(title: String, description: String) async throws -> (identifier: String, url: String) {
         switch choices.board {
         case .linear:
-            guard let api = linear, let team = choices.teamID, let project = choices.projectID else {
-                throw BasecampLogin.Failure(description: "Forge lost track of your Linear project. Go back to the Project screen.")
+            guard let api = linear, let team = choices.teamID else {
+                throw BasecampLogin.Failure(description: "Forge lost track of your Linear team. Go back to the Project screen.")
             }
-            let card = try await api.createIssue(team: team, project: project, column: "Todo", title: title, description: description)
+            let card = try await api.createIssue(team: team, project: choices.projectID, column: "Todo", title: title, description: description)
             return (card.identifier, card.url)
         case .basecamp:
             guard let api = basecampAPI, let b = choices.basecamp, let p = b.projectID.flatMap(Int.init),

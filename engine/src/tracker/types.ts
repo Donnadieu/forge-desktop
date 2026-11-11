@@ -27,6 +27,8 @@ export interface NormalizedIssue {
 export interface TrackerConfig {
   kind: string;
   project_slug: string;
+  /** Linear with no project picked: the team whose cards to work on (tracker/linear-scope.ts). */
+  team_id?: string;
   active_states: string[];
   terminal_states: string[];
   /**

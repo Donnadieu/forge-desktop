@@ -7,6 +7,7 @@
  * New in Forge Desktop.
  */
 import { type LinearConnection, paginateConnection } from "./linear-paginate.js";
+import type { LinearScope } from "./linear-scope.js";
 import type { LinearGraphQLExecutor } from "./linear-writes.js";
 import type { BoardCard } from "./types.js";
 
@@ -35,10 +36,10 @@ const FINISHED = new Set(["completed", "canceled"]);
 
 const PR_URL = /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/;
 
-const QUERY = `
-  query BoardCards($slug: String!, $states: [String!]!, $first: Int!, $after: String) {
+const query = (scope: LinearScope) => `
+  query BoardCards(${scope.varDecl}, $states: [String!]!, $first: Int!, $after: String) {
     issues(
-      filter: { project: { slugId: { eq: $slug } }, state: { name: { in: $states } } }
+      filter: { ${scope.clause}, state: { name: { in: $states } } }
       first: $first
       after: $after
     ) {
@@ -86,12 +87,12 @@ export function toBoardCard(raw: RawBoardIssue): BoardCard {
 
 export async function fetchBoardCards(
   graphql: LinearGraphQLExecutor,
-  slug: string,
+  scope: LinearScope,
   states: string[],
 ): Promise<BoardCard[]> {
   const nodes = await paginateConnection<
     { issues: LinearConnection<RawBoardIssue> },
     RawBoardIssue
-  >(graphql, QUERY, { slug, states }, (data) => data.issues, 50);
+  >(graphql, query(scope), { ...scope.variables, states }, (data) => data.issues, 50);
   return nodes.map(toBoardCard);
 }

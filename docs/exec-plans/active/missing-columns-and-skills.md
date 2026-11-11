@@ -16,4 +16,4 @@ build all six together, one goal, one release.
 - [x] 4. Parking: In Progress done with no next column = stays In Progress, nothing posted, parked "Waiting on you" in forge.sqlite, draft PR, no retry loop, the tracker wins, easy to see (PR #100)
 - [x] 5. Orchestrator "Next step": stage moves only (AI review, QA, human review, rework, merge); a column moves the card, no column runs it locally and parks it again (PR #103)
 - [x] 6. Skills in sessions: found in the repo, ~/.claude/skills, Codex and Forge's own; a Skills button and "/" open the same searchable list; cached, refreshed on change; nothing read outside skill folders (PR #107)
-- [ ] Ship: make check, one signed and notarized release, zip and dmg seals verified
+- [x] Ship: make check, one signed and notarized release, zip and dmg seals verified (v0.2.30)

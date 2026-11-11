@@ -54,12 +54,52 @@ extension AppModel {
         if !preview { store.save() }
     }
 
-    /// Forgets the workspace on screen and opens another; sign-ins stay on the Mac.
-    func deleteWorkspace() async {
-        guard let gone = workspace, let other = store.workspaceList.first(where: { $0.id != gone.id }) else { return }
-        await open(workspace: other.id)
+    /// Deletes a workspace (nil = the one on screen). Its engines stop; the one on screen switches away first, to a
+    /// fresh empty workspace when it was the last; then its projects and their engine folders go. Sign-ins stay.
+    func deleteWorkspace(_ id: String? = nil) async {
+        guard let gone = id == nil ? workspace : store.workspace(id) else { return }
+        let shown = gone.id == workspace?.id
+        let mine = store.projects(in: gone.id)
+        var keys = mine.map(\.id)
+        if shown, !keys.contains(viewedProject ?? "") { keys.append(viewedProject ?? "") }
+        store.setRunning(gone.id, false)
+        for k in keys {
+            await links[k]?.close()
+            (links[k], states[k], problems[k]) = (nil, nil, nil)
+        }
+        if shown {
+            // The engine just stopped must not restart with the answers left behind.
+            settingsChanged = false
+            let next = store.workspaceList.first { $0.id != gone.id } ?? store.addWorkspace(name: "My workspace", color: "heat")
+            await open(workspace: next.id)
+        }
         store.removeWorkspace(gone.id)
-        if !preview { store.save() }
+        guard !preview else { return }
+        store.save()
+        let (folders, root) = (mine.map(\.folder), Paths.home)
+        await Task.detached { WorkspaceCleanup.remove(folders: folders, root: root) }.value
+    }
+
+    /// Cards of a workspace (nil = the one on screen) whose folders hold work that isn't pushed.
+    func unpushedCards(in id: String? = nil) async -> Int {
+        guard !preview, let w = id == nil ? workspace : store.workspace(id) else { return 0 }
+        var hosts = store.projects(in: w.id).map { host(for: $0.id) }
+        if w.id == workspace?.id, store.project(viewedProject) == nil { hosts.append(link.host) }
+        var count = 0
+        for h in hosts { count += await WorkspaceCleanup.unpushed(cards: h.cards) }
+        return count
+    }
+
+    /// The delete sheet's paragraph: what goes, and, only when something would be lost, what.
+    static func deleteLead(running: Int, unpushed: Int) -> String {
+        let lead =
+            "Forge forgets this workspace and the projects it manages, and clears their card folders on this Mac. "
+            + "Your cards, repos and sign-ins stay; another workspace can use them."
+        var lost: [String] = []
+        if running > 0 { lost.append(running == 1 ? "1 card is being worked on" : "\(running) cards are being worked on") }
+        if unpushed > 0 { lost.append(unpushed == 1 ? "1 card has work that isn't pushed" : "\(unpushed) cards have work that isn't pushed") }
+        guard !lost.isEmpty else { return lead }
+        return lead + "\n\n" + lost.joined(separator: " and ") + ". Deleting stops those agents and throws that work away."
     }
 
     /// The projects the workspace on screen manages, the one on screen first.

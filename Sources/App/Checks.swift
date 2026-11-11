@@ -222,6 +222,7 @@ enum Checks {
         moveChecks(check)
         accountChecks(check)
         workspaceChecks(check)
+        workspaceDeleteChecks(check)
         workflowFileChecks(check)
         limitChecks(check)
         sessionChecks(check)

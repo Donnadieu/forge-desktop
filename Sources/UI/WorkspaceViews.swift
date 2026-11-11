@@ -208,6 +208,8 @@ struct WorkspaceSheet: View {
     let ask: WorkspaceAsk
     @State private var name = ""
     @State private var color = "heat"
+    /// Cards of the workspace being deleted with work that isn't pushed (read when the sheet opens).
+    @State private var unpushed = 0
 
     var body: some View {
         switch ask {
@@ -258,16 +260,17 @@ struct WorkspaceSheet: View {
                 close()
             }
         case .delete:
+            let running = model.agentsWorking(in: model.workspace?.id)
             ForgeSheet(
                 title: "Delete \(model.workspace?.name ?? "")?",
-                lead: "Forge forgets this workspace and the projects it manages. Your cards, repos and sign-ins stay; "
-                    + "another workspace can use them.",
-                action: "Delete", cancel: close
+                lead: AppModel.deleteLead(running: running, unpushed: unpushed),
+                action: running + unpushed > 0 ? "Delete anyway" : "Delete", cancel: close
             ) {
                 EmptyView()
             } act: {
                 run { await model.deleteWorkspace() }
             }
+            .task { unpushed = await model.unpushedCards() }
         }
     }
 

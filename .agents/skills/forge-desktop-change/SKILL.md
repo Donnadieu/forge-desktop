@@ -82,6 +82,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   the second time it shows up instead of retrying: reproduce with 4 parallel runs x 5, show the old code
   fails and the new code passes.
 - README release links must be absolute URLs: `docs-map` flags `../../releases`.
+- A selftest that makes scratch git repos sets `git config commit.gpgsign false` in each one: the person's global
+  git config may sign every commit with a key that isn't there, and the check then fails for the wrong reason.
+- Deleting a workspace (`AppModel.deleteWorkspace`) closes its projects' links before the switch, and clears
+  `settingsChanged`: `open()` restarts the project left when settings changed, which would start the deleted engine again.
 - `mise` can't record trust for `.mise.toml` in sandboxed shells; `tools/engine.sh` falls back to
   mise's installed Node 22 directly.
 - Verifying a release zip: always extract with `ditto -x -k build/Forge.zip <dir>`, never plain

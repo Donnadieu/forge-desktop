@@ -9,6 +9,9 @@ struct SettingsScreen: View {
 
     private var c: SetupChoices { model.choices }
 
+    /// Settings offers Delete workspace on any workspace, the last one too (a fresh empty one takes its place).
+    static func offersDelete(_ store: SetupStore) -> Bool { store.current != nil }
+
     var body: some View {
         VStack(spacing: 0) {
             TopBar(suffix: "Settings") {
@@ -26,7 +29,7 @@ struct SettingsScreen: View {
                     ) {
                         HStack(spacing: 8) {
                             Button("Rename") { model.ask = .rename }.buttonStyle(ForgeButton(kind: .ghost))
-                            if model.store.workspaceList.count > 1 {
+                            if Self.offersDelete(model.store) {
                                 Button("Delete workspace") { model.ask = .delete }.buttonStyle(ForgeButton(kind: .ghost, icon: "trash"))
                             }
                         }

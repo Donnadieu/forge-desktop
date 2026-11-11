@@ -9,6 +9,8 @@ const sessionArg = process.argv.indexOf("--session-id");
 const resumeArg = process.argv.indexOf("--resume");
 const sessionId = process.argv[(sessionArg > 0 ? sessionArg : resumeArg) + 1] ?? "fake";
 const out = (o) => process.stdout.write(`${JSON.stringify(o)}\n`);
+// Like Claude Code 2.1.32x: with --replay-user-messages each message is echoed back when the agent reads it.
+const replay = process.argv.includes("--replay-user-messages");
 let turn = null;
 let n = 0;
 
@@ -40,11 +42,13 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     return;
   }
   out({ type: "system", subtype: "init", session_id: sessionId, model: "fake" });
+  if (replay) out({ type: "user", isReplay: true, message: { role: "user", content: text } });
   const toolId = `toolu_${++n}`;
   out({ type: "assistant", message: { id: `msg_${n}`, content: [{ type: "tool_use", id: toolId, name: "Bash", input: { command: "sleep 0.4", description: "Wait a moment" } }] } });
   turn = { text, steer: null };
   turn.timer = setTimeout(() => {
     out({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: "ok" }] } });
+    if (replay && turn.steer) out({ type: "user", isReplay: true, message: { role: "user", content: turn.steer } });
     finish(turn.steer ? `steered: ${turn.steer}` : `answer: ${turn.text}`, false);
   }, 400);
 });

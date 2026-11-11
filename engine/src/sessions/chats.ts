@@ -29,6 +29,8 @@ interface Live {
   rec: TurnRecorder;
   stopping: boolean;
   closing: boolean;
+  /** Steers written to the agent and not echoed back yet ("sending"), oldest first. */
+  steers: { id: string; text: string }[];
 }
 
 export function contextWindow(model: string): number {
@@ -52,7 +54,8 @@ export class Chats {
 
   private save(c: ChatRecord): void {
     this.store.putChat(c);
-    this.o.notify({ type: "chat", chat: c, queued: this.store.queued(c.id).length });
+    const queue = this.store.queued(c.id).map((q) => q.text);
+    this.o.notify({ type: "chat", chat: c, queued: queue.length, queue });
     this.o.touched(c.sessionId);
   }
 
@@ -107,12 +110,32 @@ export class Chats {
       resume: !c.startSessionId && c.providerSessionId !== null,
       permissionMode: permissionMode(c),
       thinkingDisplay,
-      onLine: (raw) => rec.line(raw),
+      onLine: (raw) => {
+        if (raw.type === "user" && raw.isReplay === true) return this.delivered(l, raw);
+        rec.line(raw);
+      },
       onExit: (code, stderr) => this.exited(c.id, code, stderr),
     });
-    l = { proc, rec, stopping: false, closing: false };
+    l = { proc, rec, stopping: false, closing: false, steers: [] };
     this.live.set(c.id, l);
     return l;
+  }
+
+  /** Claude Code echoed a message back: the agent has read it, so its steer bubble says delivered. */
+  private delivered(l: Live, raw: Record<string, unknown>): void {
+    const content = (raw.message as { content?: unknown } | undefined)?.content;
+    const text =
+      typeof content === "string"
+        ? content
+        : Array.isArray(content)
+          ? (content as Record<string, unknown>[])
+              .map((b) => (typeof b.text === "string" ? b.text : ""))
+              .join("")
+          : "";
+    const i = l.steers.findIndex((s) => s.text === text);
+    if (i < 0) return;
+    const [s] = l.steers.splice(i, 1);
+    if (s) l.rec.mark(s.id, { delivery: "delivered" });
   }
 
   private setState(chatId: string, state: ChatRecord["state"]): void {
@@ -138,7 +161,8 @@ export class Chats {
     }
     if (working) {
       const l = await this.open(c);
-      l.rec.add("user", text, { name: "steered" });
+      const e = l.rec.add("user", text, { name: "steered", data: { delivery: "sending" } });
+      l.steers.push({ id: e.id, text });
       l.proc.send(text);
       return;
     }

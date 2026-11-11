@@ -122,6 +122,32 @@ enum SampleSessions {
             ], files: 2)
     }
 
+    /// Omar's ATC-1742 card (Nov 11): he steers it mid-turn and the agent answers. `steer: false` is what Forge showed
+    /// before 0.2.32 (no bubble of his own, only the agent's reply); `delivery` is the steer's state.
+    static func steerTurn(steer: Bool = true, delivery: String = "delivered") -> Sessions.Turn {
+        let t = "t4"
+        let dir = "cd \"/Users/donnadieu/Library/Application Support/Forge/projects/linear-48f9b12f_40b5296c6411/workspaces/ATC-1742\""
+        let mine = event(
+            "s0", t, "c4", "user", "Why do we have 17961 files changed?", name: "steered", data: .object(["delivery": .string(delivery)]))
+        let before: [Sessions.Event] = [
+            event("s1", t, "c4", "tool", "Ran \(dir)/backend && grep -rn \"mount Sourcing\" app/api", name: "Bash"),
+            event("s2", t, "c4", "thinking", "Sourcing::List gets mounted straight under the api namespace, so its own prefix decides the path."),
+            event("s3", t, "c4", "tool", "Read talents/recommendations/retrieve.rb", name: "Read"),
+        ]
+        let after: [Sessions.Event] = [
+            event(
+                "s4", t, "c4", "thinking",
+                "The 17961 changed files are most likely coming from the vendored bundle I installed to `backend/vendor/bundle`."),
+            event("s5", t, "c4", "text", "Good catch — let me check what's going on."),
+            event("s6", t, "c4", "tool", "Ran \(dir) && git status --short | wc -l", name: "Bash"),
+            event("s7", t, "c4", "thinking", "Git status is showing only 30 lines, so the 17,961 figure doesn't match what's actually changed."),
+            event("s8", t, "c4", "tool", "Ran \(dir) && git check-ignore -v backend/vendor/bundle", name: "Bash"),
+        ]
+        return turn(
+            t, "c4", "You are working on a Linear ticket `ATC-1742`.", status: "working",
+            events: Array(before.prefix(1)) + (steer ? [mine] : []) + before.dropFirst() + after)
+    }
+
     /// The prompt Forge sends a card's agent, as it arrives in the card's session (Omar's PER-32, Nov 11).
     static let cardPrompt = """
         You are working on a Linear ticket `PER-32`.
@@ -254,6 +280,27 @@ enum SampleSessions {
         switch scene {
         case "sessions-new": m.composing = true
         case "sessions-card": m.selected = "s4"
+        case "sessions-steer-before", "sessions-steer-sending", "sessions-steer":
+            // Omar's ATC-1742 steer (Nov 11): before the fix, sent and not read yet, and read by the agent.
+            m.selected = "s4"
+            if let i = m.sessions.firstIndex(where: { $0.id == "s4" }) {
+                m.sessions[i].title = "ATC-1742 Serve Directory → Talent from cached talent rows"
+                m.sessions[i].branch = "serve-directory-talent-from-cached-talent-rows-atc-1742"
+                m.sessions[i].repo = "andela-technology/andela"
+                m.sessions[i].chats[0].title = "ATC-1742"
+            }
+            let turn = steerTurn(steer: scene != "sessions-steer-before", delivery: scene == "sessions-steer-sending" ? "sending" : "delivered")
+            m.setTranscript(Transcript(chatID: "c4", turns: [turn]))
+        case "sessions-queued":
+            // A chat of your own: a steer the agent hasn't read yet, and a message queued for after this turn.
+            m.selected = "s1"
+            var t = buildTurn
+            if let i = t.events.firstIndex(where: { $0.name == "steered" }) { t.events[i].data = .object(["delivery": .string("sending")]) }
+            m.setTranscript(Transcript(chatID: "c1", turns: [t]))
+            if let i = m.sessions.firstIndex(where: { $0.id == "s1" }) {
+                m.sessions[i].chats[0].queue = ["Then run make check and open the PR."]
+                m.sessions[i].chats[0].queued = 1
+            }
         case "sessions-code":
             // Code coloured by its language: a Swift block in the chat and a Swift file's diff.
             m.selected = "s1"

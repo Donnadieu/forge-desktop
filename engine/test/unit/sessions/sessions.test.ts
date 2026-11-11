@@ -160,7 +160,12 @@ describe("a chat (stand-in agent)", () => {
     expect(t.status).toBe("done");
     expect(t.events.map((e) => e.kind)).toEqual(["user", "tool", "user", "tool_result", "text"]);
     expect(t.events[2].name).toBe("steered");
+    // Claude Code echoes the message back when the agent reads it (--replay-user-messages): delivered.
+    expect(t.events[2].data).toEqual({ delivery: "delivered" });
     expect(t.events.at(-1)?.text).toBe("steered: change course");
+    const sending = frames.find((f) => (f.event as { name?: string })?.name === "steered")
+      ?.event as { data?: unknown };
+    expect(sending?.data).toEqual({ delivery: "sending" });
     expect(frames.some((f) => f.type === "event")).toBe(true);
   });
 
@@ -179,6 +184,10 @@ describe("a chat (stand-in agent)", () => {
     const c = host.newChat("s1", "opus[1m]", "high", "Chat");
     await host.chats.send(c.id, "first", "steer");
     await host.chats.send(c.id, "second", "queue");
+    // Waiting its turn, it already shows in the chat, in order.
+    const s1 = store.session("s1");
+    expect(s1 && host.view(s1).chats[0]?.queue).toEqual(["second"]);
+    expect(frames.filter((f) => f.type === "chat").at(-1)?.queue).toEqual(["second"]);
     await sleep(1500);
     await idle(c.id);
     const turns = store.turns(c.id, null, 10);

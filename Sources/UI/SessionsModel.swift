@@ -50,6 +50,8 @@ final class Transcript: ObservableObject {
 
     func apply(_ e: Sessions.Event) {
         guard let i = turns.lastIndex(where: { $0.id == e.turnId }) else { return }
+        // A steer that became a turn of its own leaves the turn it was shown in.
+        if e.kind == "dropped" { return turns[i].events.removeAll { $0.id == e.id } }
         if let j = turns[i].events.firstIndex(where: { $0.id == e.id }) {
             turns[i].events[j] = e
         } else {

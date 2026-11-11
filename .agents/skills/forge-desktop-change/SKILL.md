@@ -112,6 +112,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   an `&&` chain before the commit, or the commit never runs.
 
 ### Engine, agents and bundled skills
+- Claude Code 2.1.32x never writes a message sent mid-turn (stream-json stdin) as a `user` line in its transcript. It
+  writes `queue-operation` enqueue (right away), a `queued_command` attachment and `remove … absorbed_mid_turn` (once the
+  agent reads it), and folds the text into the next tool result. Anything that rebuilds a session from the transcript
+  (`sessions/cards.ts`) must read those, or the person's steer never shows (Omar's ATC-1742, Nov 11). Skip
+  `<task-notification>` entries: those are Forge's background-task notices, not the person. On the live stdout side,
+  `--replay-user-messages` echoes each message (`isReplay: true`) when the agent reads it. Test transcript parsing with
+  lines copied from a real `~/.claude/projects/*/<session>.jsonl`, not the shape you expect.
+- A watcher that reads a transcript from offset 0 again (host restart) must rebuild the chat's turns from it, not add
+  to them: the old card watcher doubled every turn on each restart.
 - A card's `agent.session_id`/`folder` (what gates "Open session" and card steer/Stop in the UI) come only from
   `RunningEntry.sessionId`/`workspacePath`, and nothing wrote those live: `WorkerCallbacks` had `onEvent`/
   `onTurnStart`/`onTurnEnd` but no hook for the session becoming known, so they stayed `null` for a running card's

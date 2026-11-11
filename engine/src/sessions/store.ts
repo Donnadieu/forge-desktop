@@ -171,6 +171,10 @@ export class SessionStore {
     this.db.prepare("DELETE FROM turns WHERE chat_id = ? AND seq >= ?").run(chatId, seq);
   }
 
+  dropEvent(id: string): void {
+    this.db.prepare("DELETE FROM events WHERE id = ?").run(id);
+  }
+
   putEvent(e: EventRecord): void {
     this.db
       .prepare(

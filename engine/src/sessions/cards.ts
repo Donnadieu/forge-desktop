@@ -3,6 +3,8 @@
  * tells the host which cards run (their folder and Claude Code session); the host follows each one's Claude Code
  * transcript (~/.claude/projects/…/<session>.jsonl) as it grows and records it with the same recorder a chat uses.
  * Steering a card goes to the card's own engine, which holds its agent (server/local-api.ts, cards/<id>/message).
+ * Claude Code 2.1.32x writes such a message as a queue entry (`queue-operation` enqueue, then a `queued_command`
+ * attachment once the agent reads it), never as a `user` line: the steer bubble comes from those.
  *
  * New in Forge Desktop.
  */
@@ -31,6 +33,8 @@ interface Follow {
   rest: string;
   rec: TurnRecorder;
   turn: TurnRecord | null;
+  /** Steers shown but not read by the agent yet ("sending"), oldest first. */
+  pending: { id: string; text: string }[];
 }
 
 const MAX_READ = 4 * 1024 * 1024;
@@ -103,9 +107,10 @@ export class CardWatcher {
       updatedAt: now,
     };
     this.store.putSession(s);
-    // A new run of the card (a new agent session) starts its history again.
-    const fresh = !prev || this.store.chat(chatId)?.providerSessionId !== c.sessionId;
-    if (fresh) this.store.dropTurnsFrom(chatId, 1);
+    // The transcript is read again from its start (a new run of the card, or the host restarted): its history is
+    // rebuilt from it, so nothing shows twice.
+    this.store.dropTurnsFrom(chatId, 1);
+    this.notify({ type: "reverted", chatId, seq: 1 });
     const chat: ChatRecord = {
       id: chatId,
       sessionId: id,
@@ -139,7 +144,7 @@ export class CardWatcher {
       },
       () => false,
     );
-    this.follows.set(c.key, { card: c, offset: 0, rest: "", rec, turn: null });
+    this.follows.set(c.key, { card: c, offset: 0, rest: "", rec, turn: null, pending: [] });
     this.touched(id);
   }
 
@@ -183,9 +188,52 @@ export class CardWatcher {
     }
   }
 
+  /** A message the person sent mid-turn (`queue-operation`, `queued_command`): their own prompts, not Forge's
+   *  task notifications. */
+  private steer(f: Follow, raw: Record<string, unknown>): boolean {
+    const prompt = (t: unknown): string | null =>
+      typeof t === "string" && t.trim() && !t.trimStart().startsWith("<task-notification>")
+        ? t
+        : null;
+    if (raw.type === "queue-operation") {
+      const text = prompt(raw.content);
+      if (raw.operation === "enqueue" && text && f.turn?.status === "working") {
+        // Shown as soon as Claude Code takes it in, before the agent reads it.
+        const e = f.rec.add("user", text, { name: "steered", data: { delivery: "sending" } });
+        f.pending.push({ id: e.id, text });
+      } else if (raw.operation === "remove" && raw.reason === "absorbed_mid_turn" && text) {
+        this.delivered(f, text, false);
+      }
+      return true;
+    }
+    if (raw.type === "attachment") {
+      const a = raw.attachment as Record<string, unknown> | undefined;
+      if (a?.type !== "queued_command") return false;
+      const text = prompt(a.prompt);
+      if (text && (a.commandMode === undefined || a.commandMode === "prompt"))
+        this.delivered(f, text, true);
+      return true;
+    }
+    return false;
+  }
+
+  /** The agent read the steer: its bubble says delivered. The `queued_command` attachment also shows it when its
+   *  queue entry was missed (`add`); the `remove` line that follows it never adds a second one. */
+  private delivered(f: Follow, text: string, add: boolean): void {
+    const i = f.pending.findIndex((e) => e.text === text);
+    if (i >= 0) {
+      const [e] = f.pending.splice(i, 1);
+      if (e) f.rec.mark(e.id, { delivery: "delivered" });
+      return;
+    }
+    if (add && f.turn?.status === "working")
+      f.rec.add("user", text, { name: "steered", data: { delivery: "delivered" } });
+  }
+
   /** A transcript line: a person's or Forge's message starts a turn; the rest goes to the recorder. */
   private line(f: Follow, raw: Record<string, unknown>): void {
     if (raw.isSidechain === true) return; // a helper's own conversation: the lead's line about it is enough
+    if (this.steer(f, raw)) return;
     const chatId = `${CardWatcher.sessionId(f.card.key)}-chat`;
     const msg = raw.message as { content?: unknown } | undefined;
     const isPrompt =
@@ -207,6 +255,12 @@ export class CardWatcher {
       }
       if (f.turn)
         this.store.putTurn({ ...f.turn, status: "done", endedAt: new Date().toISOString() });
+      // A steer that came too late for the last turn starts this one: its bubble moves here.
+      const late = f.pending.findIndex((e) => e.text === text);
+      if (late >= 0) {
+        const [e] = f.pending.splice(late, 1);
+        if (e) f.rec.drop(e.id);
+      }
       const seq = this.store.lastTurnSeq(chatId) + 1;
       f.turn = {
         id: `${chatId}-${f.card.sessionId.slice(0, 8)}-${seq}`,

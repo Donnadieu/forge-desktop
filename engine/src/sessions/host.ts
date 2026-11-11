@@ -123,6 +123,7 @@ export class SessionsHost {
       chats: chats.map((c) => ({
         ...c,
         queued: this.store.queued(c.id).length,
+        queue: this.store.queued(c.id).map((q) => q.text),
         turns: this.store.turnCount(c.id),
       })),
     };

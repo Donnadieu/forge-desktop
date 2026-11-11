@@ -119,6 +119,23 @@ export class TurnRecorder {
     return e;
   }
 
+  /** Replaces an event's data (a steer's delivery state) and sends it again. */
+  mark(id: string, data: Record<string, unknown>): void {
+    const e = this.store.event(id);
+    if (!e) return;
+    const next = { ...e, data };
+    this.store.putEvent(next);
+    this.hooks.emit(next, false);
+  }
+
+  /** Takes an event out of the transcript (a pending steer that became a turn of its own). */
+  drop(id: string): void {
+    const e = this.store.event(id);
+    if (!e) return;
+    this.store.dropEvent(id);
+    this.hooks.emit({ ...e, kind: "dropped" }, false);
+  }
+
   private update(id: string, text: string, live: boolean): void {
     const e = this.store.event(id);
     if (!e) return;

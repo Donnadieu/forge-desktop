@@ -28,6 +28,12 @@ struct TranscriptView: View {
                         .listRowBackground(Color.clear).listRowSeparator(.hidden)
                         .id(t.id)
                 }
+                // Messages waiting for the turn to end show at once, in order, under the turn they follow.
+                ForEach(Array((chat.queue ?? []).enumerated()), id: \.offset) { _, text in
+                    SteerBubble(text: text, label: "You · queued")
+                        .listRowInsets(EdgeInsets(top: 4, leading: 24, bottom: 4, trailing: 24))
+                        .listRowBackground(Color.clear).listRowSeparator(.hidden)
+                }
                 Color.clear.frame(height: 8).id("end").listRowBackground(Color.clear).listRowSeparator(.hidden)
                     .onAppear { atEnd = true }
                     .onDisappear { atEnd = false }
@@ -102,7 +108,7 @@ struct TurnView: View {
                 switch e.kind {
                 case "user":
                     if e.name == "steered" {
-                        SteerBubble(text: e.text)
+                        SteerBubble(text: e.text, delivery: e.delivery)
                     } else {
                         UserBubble(text: e.text, unfold: sessions.session(of: chat)?.origin == "card" ? "Show full prompt" : "Show full message") {
                             revertButton
@@ -209,10 +215,18 @@ struct UserBubble<Revert: View>: View {
 
 struct SteerBubble: View {
     let text: String
+    /// "sending" until the agent has read it, then "delivered" (nil: an older steer, no state shown).
+    var delivery: String? = nil
+    var label = "You · steered"
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            SectionLabel(text: "You · steered")
+            HStack(spacing: 6) {
+                SectionLabel(text: label)
+                if let delivery {
+                    Text(delivery == "delivered" ? "Delivered" : "Sending…").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                }
+            }
             Text(text).font(Theme.sans(13)).foregroundStyle(Theme.text).textSelection(.enabled)
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.borderHover, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))

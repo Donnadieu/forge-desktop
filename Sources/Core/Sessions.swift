@@ -45,6 +45,8 @@ enum Sessions {
         var contextTokens: Int
         var contextWindow: Int
         var queued: Int?
+        /// The messages waiting for the turn to end, oldest first: shown in the transcript at once.
+        var queue: [String]? = nil
         var turns: Int?
         /// Closed (⌘W): kept in the store, not shown.
         var hidden: Bool? = nil
@@ -79,6 +81,9 @@ enum Sessions {
         var size: Int
         var ref: String?
         var isError: Bool
+
+        /// A steer's state: "sending" until the agent has read it, then "delivered". Nil for older events.
+        var delivery: String? { data?["delivery"]?.string }
     }
 
     struct FileChange: Decodable, Sendable, Equatable, Identifiable {
@@ -162,6 +167,7 @@ enum Sessions {
         var session: Session?
         var chat: Chat?
         var queued: Int?
+        var queue: [String]?
         var turn: TurnHead?
         var event: Event?
         var chatId: String?
@@ -188,6 +194,7 @@ enum Sessions {
         case "chat":
             guard var c = f.chat else { return nil }
             c.queued = f.queued
+            c.queue = f.queue
             return .chat(c)
         case "turn":
             guard let t = f.turn else { return nil }

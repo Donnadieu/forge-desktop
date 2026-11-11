@@ -49,6 +49,8 @@ export function claudeArgs(
     "stream-json",
     "--verbose",
     "--include-partial-messages",
+    // Each message the person sends is echoed back once the agent reads it: a steer's bubble then says delivered.
+    "--replay-user-messages",
     "--permission-prompt-tool",
     "stdio",
     "--permission-mode",

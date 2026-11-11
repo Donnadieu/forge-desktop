@@ -88,7 +88,9 @@ export type EventKind =
   | "question"
   | "plan"
   | "note"
-  | "error";
+  | "error"
+  /** Sent once when an event leaves the transcript (the app removes it); never stored. */
+  | "dropped";
 
 export interface EventRecord {
   id: string;

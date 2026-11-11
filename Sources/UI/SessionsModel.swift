@@ -280,18 +280,43 @@ final class SessionsModel: ObservableObject {
     /// Review: a new chat in the same folder reviews the branch's changes.
     func review(_ s: Sessions.Session) { newChat(in: s, title: "Review", message: Sessions.Prompt.review) }
 
-    func create(workspace: String, repo: SessionRepo, message: String, model: String, effort: String, done: @escaping (Bool) -> Void) {
+    /// Where a new session's branch comes from: a new one off the base (Forge names it when `name` is empty), or one
+    /// that already exists.
+    enum BranchChoice: Equatable {
+        case new(String)
+        case existing(String)
+    }
+
+    static func createBody(
+        workspace: String, repo: SessionRepo, message: String, model: String, effort: String, branch: BranchChoice
+    ) -> [String: Any] {
+        var b: [String: Any] = [
+            "workspaceId": workspace, "repo": repo.repo, "local": repo.local ?? "", "base": repo.base ?? "main", "prefix": "auto",
+            "message": message, "model": model, "effort": effort, "existing": false,
+        ]
+        switch branch {
+        case .new(let name):
+            let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !n.isEmpty { b["branch"] = n }
+        case .existing(let name):
+            b["branch"] = name
+            b["existing"] = true
+        }
+        return b
+    }
+
+    func create(
+        workspace: String, repo: SessionRepo, message: String, model: String, effort: String, branch: BranchChoice = .new(""),
+        done: @escaping (Bool) -> Void
+    ) {
         guard let client else { return done(false) }
         busy = true
         problem = nil
         Task {
             defer { busy = false }
             do {
-                let s = try await client.create([
-                    "workspaceId": workspace, "repo": repo.repo, "local": repo.local ?? "", "base": repo.base ?? "main",
-                    "prefix": "auto", "message": message, "model": model, "effort": effort,
-                ])
-                if let s {
+                let body = Self.createBody(workspace: workspace, repo: repo, message: message, model: model, effort: effort, branch: branch)
+                if let s = try await client.create(body) {
                     apply(.session(s))
                     open(s)
                 }
@@ -301,6 +326,11 @@ final class SessionsModel: ObservableObject {
                 done(false)
             }
         }
+    }
+
+    /// The branches a new session can open in this repo (fetched first), main first.
+    func branches(of repo: SessionRepo) async -> [String] {
+        (try? await client?.branches(repo: repo.repo, local: repo.local, base: repo.base ?? "main")) ?? []
     }
 
     func showDiff(_ s: Sessions.Session, _ path: String) {

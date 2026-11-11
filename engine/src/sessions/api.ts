@@ -3,7 +3,8 @@
  * the OS picks, every request carries the launch token, and changes reach the app over one WebSocket.
  *
  *   GET  /api/v1/sessions                        every session with its chats and status
- *   POST /api/v1/sessions                        new session: repo, base, first message, model, effort
+ *   POST /api/v1/sessions                        new session: repo, base, first message, model, effort; a typed or existing branch
+ *   POST /api/v1/sessions/branches               the branches a new session can open (repo, local, base)
  *   POST /api/v1/sessions/<id>/chats             another chat in the session
  *   POST /api/v1/sessions/<id>/read              mark it read
  *   GET  /api/v1/sessions/<id>/changes           files changed against the base branch
@@ -91,8 +92,15 @@ export async function startSessionsApi(deps: {
         model: s(b.model, "opus[1m]"),
         effort: s(b.effort, "high"),
         title: s(b.title) || undefined,
+        branch: s(b.branch) || undefined,
+        existing: b.existing === true,
       });
       return jsonResponse(res, r.ok ? 200 : 409, r);
+    }
+    if (path === "/api/v1/sessions/branches" && post) {
+      const b = await body(req);
+      const list = await h.branches(s(b.repo), s(b.local) || null, s(b.base, "main"));
+      return jsonResponse(res, 200, { branches: list });
     }
     if (path === "/api/v1/conductor") return jsonResponse(res, 200, previewImport(deps.store));
     if (path === "/api/v1/conductor/import" && post) {

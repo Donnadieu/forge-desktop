@@ -180,9 +180,9 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/sessions/recorder.ts | new | | Claude Code's lines as the chat's events: text as it's written, folded tool calls with one-line summaries, results cut to a preview, questions, plans and permissions |
 | src/sessions/chats.ts | new | | every chat's turns: start, steer, queue, stop, answer, settings; a snapshot before and after each turn; recovery after a restart; asks for thinking summaries when Claude Code knows the flag |
 | src/sessions/checkpoints.ts | new | | per-turn changes, going back to before a turn (files and the agent's transcript cut there) |
-| src/sessions/git.ts | new | | the session's folder (a worktree on its own branch from `origin/<base>`), snapshots to private refs, the diff against the base, the gh account that reaches the repo |
+| src/sessions/git.ts | new | | the session's folder (a worktree on its own branch from `origin/<base>`), snapshots to private refs, the diff against the base, the gh account that reaches the repo; an existing branch in its own folder, a branch name no other branch has, the repo's branches |
 | src/sessions/github.ts | new | | the session's pull request, its review threads (GraphQL `reviewThreads`) and the merge |
-| src/sessions/host.ts | new | | the sessions host: make, list, archive, restore and merge sessions; changes, pull request, review comments, revert |
+| src/sessions/host.ts | new | | the sessions host: make, list, archive, restore and merge sessions; changes, pull request, review comments, revert; a typed or existing branch for a new session, and the branches to pick from |
 | src/sessions/conductor.ts | new | | import from Conductor: its database read immutable, open workspaces as sessions in place, chats with their history and Claude Code session ids |
 | src/sessions/api.ts | new | | the sessions host's local API (127.0.0.1, launch token, HTTP + live WebSocket) |
 | src/sessions/attachments.ts | new | | pictures in a message: kept as files, one `[image: <path>]` line each, image blocks for Claude Code |

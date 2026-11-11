@@ -27,6 +27,23 @@ extension Checks {
         scrollChecks(check)
         tabChecks(check)
         createPRChecks(check)
+        newSessionChecks(check)
+    }
+
+    /// Item 9: a new session gets its own folder and branch off main by default, or a branch the person names or picks.
+    static func newSessionChecks(_ check: (String, Bool) -> Void) {
+        let repo = SessionRepo(repo: "acme/app", local: "/r/app", base: "main")
+        func body(_ b: SessionsModel.BranchChoice) -> [String: Any] {
+            SessionsModel.createBody(workspace: "w", repo: repo, message: "Fix login", model: "opus", effort: "high", branch: b)
+        }
+        let auto = body(.new(""))
+        check(
+            "by default a session branches off main, named by Forge",
+            auto["base"] as? String == "main" && auto["branch"] == nil && auto["existing"] as? Bool == false)
+        let named = body(.new(" fix-login "))
+        check("a new branch can be named", named["branch"] as? String == "fix-login" && named["existing"] as? Bool == false)
+        let open = body(.existing("feature/login"))
+        check("an existing branch can be opened", open["branch"] as? String == "feature/login" && open["existing"] as? Bool == true)
     }
 
     /// Item 8: Create PR asks the agent, the way Conductor's create-PR prompt does; nothing is made behind its back.

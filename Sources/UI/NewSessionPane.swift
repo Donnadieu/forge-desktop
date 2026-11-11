@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// New session: pick the repo and the branch to start from, write the first message, pick the model, Send. Send
-/// makes the session's own folder and branch, then starts the first chat.
+/// New session: the workspace's repo (locked to it), the branch (a new one off main by default, named by Forge or by
+/// the person, or an existing one), the first message, the model, Send. Send makes the session's own folder (a git
+/// worktree) on that branch, so sessions never collide, then starts the first chat.
 struct NewSessionPane: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
@@ -12,6 +13,11 @@ struct NewSessionPane: View {
     @State private var effort: String?
     @State private var adding = false
     @State private var newRepo = ""
+    @State private var existing = false
+    @State private var branchName = ""
+    @State private var branchPick: String?
+    @State private var branchList: [String] = []
+    @State private var loadingBranches = false
 
     private var repos: [SessionRepo] { model.sessionRepos }
     private var picked: SessionRepo? { repos.first { $0.repo == repo } ?? repos.first }
@@ -23,7 +29,8 @@ struct NewSessionPane: View {
             Text("What should we build?").font(Theme.display(40)).foregroundStyle(Theme.text).padding(.top, 8)
             HStack(spacing: 8) {
                 repoMenu
-                baseMenu
+                Segmented(options: [(false, "New branch"), (true, "Existing branch")], selection: $existing).frame(width: 250)
+                if existing { existingMenu } else { newBranch }
                 Spacer()
                 if !sessions.sessions.isEmpty, sessions.current != nil {
                     Button("Back to the chat") { sessions.composing = false }.buttonStyle(ForgeButton(kind: .ghost))
@@ -32,12 +39,8 @@ struct NewSessionPane: View {
             .padding(.top, 20)
             if adding { addRow.padding(.top, 8) }
             box.padding(.top, 20)
-            Text(
-                picked?.local != nil
-                    ? "Send makes a folder and branch from your checkout in \(picked?.local ?? ""), then starts the first chat."
-                    : "Send makes a folder and branch for this session, then starts the first chat."
-            )
-            .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.top, 12)
+            Text(footnote)
+                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.top, 12)
             if let p = sessions.problem { Notice(title: p).padding(.top, 12) }
             Spacer(minLength: 24)
         }
@@ -50,29 +53,78 @@ struct NewSessionPane: View {
         }
     }
 
-    private var repoMenu: some View {
-        Menu {
-            ForEach(repos) { r in Button(r.repo) { pick(r) } }
-            Divider()
-            Button("Add a repo…") { adding = true }
-        } label: {
-            Label(picked?.repo ?? "Pick a repo", systemImage: "folder").font(Theme.mono(12)).foregroundStyle(Theme.text)
+    private var footnote: String {
+        let from = picked?.local != nil ? "your checkout in \(picked?.local ?? "")" : "a fresh copy of the repo"
+        if existing {
+            return "Send opens \(branchPick ?? "the branch") in its own folder from \(from), then starts the first chat."
         }
-        .menuStyle(.borderlessButton).fixedSize()
-        .padding(.horizontal, 12).frame(height: 34)
-        .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+        let name = branchName.trimmingCharacters(in: .whitespaces)
+        return "Send makes its own folder from \(from) on a new branch \(name.isEmpty ? "" : "\(name) ")off \(base.isEmpty ? "main" : base), "
+            + "so it never touches another session's work, then starts the first chat."
     }
 
-    private var baseMenu: some View {
+    /// The workspace's repo, locked to it. A workspace with no repo yet can add one here.
+    @ViewBuilder private var repoMenu: some View {
+        if repos.count > 1 {
+            Menu {
+                ForEach(repos) { r in Button(r.repo) { pick(r) } }
+            } label: {
+                Label(picked?.repo ?? "Pick a repo", systemImage: "lock").font(Theme.mono(12)).foregroundStyle(Theme.text)
+            }
+            .menuStyle(.borderlessButton).fixedSize()
+            .modifier(Field())
+        } else if let r = picked {
+            Label(r.repo, systemImage: "lock").font(Theme.mono(12)).foregroundStyle(Theme.text).fixedSize().modifier(Field())
+                .help("This workspace's sessions work on its repo")
+        } else {
+            Button("Add the repo…") { adding = true }.buttonStyle(ForgeButton(kind: .secondary, icon: "folder", large: true))
+        }
+    }
+
+    private var newBranch: some View {
         HStack(spacing: 6) {
             Image(systemName: "arrow.triangle.branch").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-            Text("Branch from").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
-            TextField("", text: $base).textFieldStyle(.plain).font(Theme.mono(12)).foregroundStyle(Theme.text).frame(width: 90)
+            TextField("", text: $branchName).textFieldStyle(.plain).font(Theme.mono(12)).foregroundStyle(Theme.text).frame(width: 150)
+                .background(alignment: .leading) {
+                    if branchName.isEmpty {
+                        Text("name it (optional)").font(Theme.mono(12)).foregroundStyle(Theme.textMuted).allowsHitTesting(false)
+                    }
+                }
+            Text(verbatim: "off").font(Theme.sans(12)).foregroundStyle(Theme.textSec).fixedSize()
+            TextField("", text: $base).textFieldStyle(.plain).font(Theme.mono(12)).foregroundStyle(Theme.text).frame(width: 70)
         }
-        .padding(.horizontal, 12).frame(height: 34)
-        .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+        .modifier(Field())
+    }
+
+    private var existingMenu: some View {
+        Menu {
+            if branchList.isEmpty {
+                Text(loadingBranches ? "Reading the branches…" : "No branches found")
+            }
+            ForEach(branchList, id: \.self) { b in Button(b) { branchPick = b } }
+        } label: {
+            Label(branchPick ?? (loadingBranches ? "Reading the branches…" : "Pick a branch"), systemImage: "arrow.triangle.branch")
+                .font(Theme.mono(12)).foregroundStyle(Theme.text)
+        }
+        .menuStyle(.borderlessButton).fixedSize()
+        .modifier(Field())
+        .task(id: picked?.repo) { await loadBranches() }
+    }
+
+    private func loadBranches() async {
+        guard let r = picked else { return }
+        loadingBranches = true
+        branchList = await sessions.branches(of: r)
+        loadingBranches = false
+    }
+
+    private struct Field: ViewModifier {
+        func body(content: Content) -> some View {
+            content
+                .padding(.horizontal, 12).frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surface))
+                .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
+        }
     }
 
     private var addRow: some View {
@@ -109,7 +161,9 @@ struct NewSessionPane: View {
                 Button(sessions.busy ? "Making the folder…" : "Send") { send() }
                     .buttonStyle(ForgeButton(kind: .primary, hint: "⌘↵", icon: "paperplane", large: true))
                     .keyboardShortcut(.return, modifiers: .command)
-                    .disabled(sessions.busy || picked == nil || message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(
+                        sessions.busy || picked == nil || (existing && branchPick == nil)
+                            || message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(16)
@@ -128,8 +182,12 @@ struct NewSessionPane: View {
         let m = chatModel ?? model.sessionModel
         let e = effort ?? model.sessionEffort
         model.keepSessionDefaults(model: m, effort: e)
-        sessions.create(workspace: model.workspace?.id ?? "default", repo: r, message: message, model: m, effort: e) { ok in
-            if ok { message = "" }
+        let branch: SessionsModel.BranchChoice = existing ? .existing(branchPick ?? "") : .new(branchName)
+        sessions.create(workspace: model.workspace?.id ?? "default", repo: r, message: message, model: m, effort: e, branch: branch) { ok in
+            if ok {
+                message = ""
+                branchName = ""
+            }
         }
     }
 }

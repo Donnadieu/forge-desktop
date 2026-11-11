@@ -13,9 +13,11 @@ import { Chats, contextWindow } from "./chats.js";
 import { cutTranscript, restore } from "./checkpoints.js";
 import {
   accountFor,
+  branches,
   branchName,
   changes,
   fileDiff,
+  freeBranch,
   ghToken,
   makeFolder,
   run,
@@ -38,6 +40,9 @@ export interface NewSession {
   model: string;
   effort: string;
   title?: string;
+  /** A branch name the person typed for the new branch, or the existing branch to open (with `existing`). */
+  branch?: string;
+  existing?: boolean;
 }
 
 export interface HostOptions {
@@ -132,6 +137,16 @@ export class SessionsHost {
     if (s) this.o.notify({ type: "session", session: this.view(s) });
   }
 
+  private mirrorFor(repo: string): string {
+    return join(this.o.home, "repos", repo.replace("/", "-"));
+  }
+
+  /** The branches a new session can open: the person's checkout's, else Forge's own clone's. */
+  async branches(repo: string, local: string | null, base: string): Promise<string[]> {
+    const root = local && existsSync(join(local, ".git")) ? local : this.mirrorFor(repo);
+    return branches(root, await this.token(await accountFor(repo)), base);
+  }
+
   private folderFor(repo: string, name: string): string {
     const base = join(this.o.home, "folders", repo.replace("/", "-"));
     let folder = join(base, name);
@@ -146,16 +161,24 @@ export class SessionsHost {
     const name = slug(n.title ?? n.message, 4);
     // "auto": the GitHub login that reaches the repo, as Conductor did (donnadieu/<slug>).
     const prefix = n.prefix === "auto" ? (login ?? "") : n.prefix;
-    const branch = branchName(prefix, n.title ?? n.message);
-    const folder = this.folderFor(n.repo, name);
+    const local = n.local && existsSync(join(n.local, ".git")) ? n.local : null;
+    const mirror = this.mirrorFor(n.repo);
+    const typed = n.branch?.trim().replace(/\s+/g, "-");
+    if (n.existing && !typed) return { ok: false, problem: "Pick the branch to open." };
+    // A new branch never takes a name another branch has, so sessions never collide.
+    const branch = n.existing
+      ? (typed as string)
+      : await freeBranch(local ?? mirror, typed || branchName(prefix, n.title ?? n.message));
+    const folder = this.folderFor(n.repo, n.existing ? slug(branch, 6) : name);
     const made = await makeFolder({
-      local: n.local && existsSync(join(n.local, ".git")) ? n.local : null,
-      mirror: join(this.o.home, "repos", n.repo.replace("/", "-")),
+      local,
+      mirror,
       folder,
       branch,
       base: n.base,
       repo: n.repo,
       token: await this.token(login),
+      existing: n.existing === true,
     });
     if (!made.ok) return made;
     const now = new Date().toISOString();

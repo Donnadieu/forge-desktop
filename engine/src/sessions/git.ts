@@ -109,11 +109,14 @@ export interface FolderPlan {
   base: string;
   repo: string;
   token: string | null;
+  /** Open this existing branch (the person's own or on GitHub) instead of making a new one off the base. */
+  existing?: boolean;
 }
 
 /**
  * Makes the session's folder: fetch first, then a worktree on a new branch from `origin/<base>`, so it starts
- * from the latest remote commit even when the person's checkout is behind. Copies `.env*` files git ignores.
+ * from the latest remote commit even when the person's checkout is behind; or, for an existing branch, a worktree
+ * on that branch at its latest commit. Copies `.env*` files git ignores.
  */
 export async function makeFolder(p: FolderPlan): Promise<{ ok: boolean; problem?: string }> {
   const env = p.token ? { ...process.env, GH_TOKEN: p.token } : process.env;
@@ -134,7 +137,9 @@ export async function makeFolder(p: FolderPlan): Promise<{ ok: boolean; problem?
   if (!f.ok)
     return { ok: false, problem: `Couldn't fetch ${p.base}: ${f.err.trim().slice(0, 300)}` };
   mkdirSync(dirname(p.folder), { recursive: true });
-  const w = await git(root, ["worktree", "add", "-b", p.branch, p.folder, `origin/${p.base}`]);
+  const w = p.existing
+    ? await openExisting(root, p, env)
+    : await git(root, ["worktree", "add", "-b", p.branch, p.folder, `origin/${p.base}`]);
   if (!w.ok) {
     if (/already (exists|checked out|used by worktree)/.test(w.err)) {
       return {
@@ -149,6 +154,50 @@ export async function makeFolder(p: FolderPlan): Promise<{ ok: boolean; problem?
   }
   if (p.local) copyIgnoredEnv(p.local, p.folder);
   return { ok: true };
+}
+
+/** A worktree on an existing branch: the local one if there is one, else a new local branch tracking GitHub's. */
+async function openExisting(root: string, p: FolderPlan, env: NodeJS.ProcessEnv): Promise<Run> {
+  await git(root, ["fetch", "origin", p.branch], env);
+  const mine = await git(root, ["show-ref", "--verify", "--quiet", `refs/heads/${p.branch}`]);
+  if (mine.ok) return git(root, ["worktree", "add", p.folder, p.branch]);
+  return git(root, ["worktree", "add", "--track", "-b", p.branch, p.folder, `origin/${p.branch}`]);
+}
+
+/**
+ * A branch name no other branch has, here or on GitHub (as last fetched): `name`, else `name-2`, `name-3`…, so two
+ * sessions never land on the same branch.
+ */
+export async function freeBranch(root: string | null, name: string): Promise<string> {
+  if (!root || !existsSync(join(root, ".git"))) return name;
+  const taken = async (b: string) =>
+    (await git(root, ["show-ref", "--verify", "--quiet", `refs/heads/${b}`])).ok ||
+    (await git(root, ["show-ref", "--verify", "--quiet", `refs/remotes/origin/${b}`])).ok;
+  if (!(await taken(name))) return name;
+  for (let n = 2; n < 100; n++) if (!(await taken(`${name}-${n}`))) return `${name}-${n}`;
+  return `${name}-${Date.now()}`;
+}
+
+/** The repo's branches on GitHub, freshly fetched, newest first with `main` (the base) at the top. */
+export async function branches(
+  root: string | null,
+  token: string | null,
+  base = "main",
+): Promise<string[]> {
+  if (!root || !existsSync(join(root, ".git"))) return [];
+  const env = token ? { ...process.env, GH_TOKEN: token } : process.env;
+  await run("git", ["fetch", "origin", "--prune"], root, env, 60_000);
+  const r = await git(root, [
+    "for-each-ref",
+    "--sort=-committerdate",
+    "--format=%(refname:short)",
+    "refs/remotes/origin",
+  ]);
+  const names = r.out
+    .split("\n")
+    .map((l) => l.trim().replace(/^origin\//, ""))
+    .filter((l) => l && l !== "HEAD" && l !== "origin");
+  return [...names.filter((n) => n === base), ...names.filter((n) => n !== base)];
 }
 
 /** Copies the top folder's `.env*` files into the new folder (only ones git ignores, so nothing gets committed). */

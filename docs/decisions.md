@@ -50,3 +50,11 @@ the bottom. Each line: the date, the plan item, the call and why.
   branch diff, `gh pr create --base <base>` with a short title and description of every change, reply with the link,
   and ask for help when a step fails. Conductor's own tool names are swapped for plain git. The message shows in the
   chat (folded, with "Show full message"), so Omar sees what the agent was asked. No new Forge words reach the PR.
+- 2026-11-11, item 9: sessions already got their own worktree, but on a branch named from the first message, so two
+  sessions with the same first words collided ("already open in another folder"). A new branch now takes the next
+  free name (`-2`, `-3`) against local branches and GitHub's as last fetched (`freeBranch`). The new-session row is
+  now: the workspace's repo with a lock (a menu only if the workspace already holds several repos from before; "Add
+  a repo…" is gone, and a workspace with no repo can add its one), then New branch | Existing branch. New branch: an
+  optional name (Forge names it when empty) "off" the base, main by default. Existing branch: a menu of GitHub's
+  branches (fetched, newest first, main on top); the folder opens on the local branch if there is one, else a new
+  local branch tracking GitHub's. The base for the diff stays main.

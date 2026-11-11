@@ -47,6 +47,7 @@ struct SessionsClient: Sendable {
     }
     struct Changes: Decodable { var files: [Sessions.FileChange] }
     struct Diff: Decodable { var diff: String }
+    struct Branches: Decodable { var branches: [String] }
     struct PR: Decodable { var pr: Sessions.PullRequest? }
     struct Threads: Decodable {
         var ok: Bool
@@ -64,6 +65,12 @@ struct SessionsClient: Sendable {
 
     func create(_ body: [String: Any]) async throws -> Sessions.Session? {
         try JSONDecoder().decode(Created.self, from: try await call("/api/v1/sessions", method: "POST", body: body, timeout: 900)).session
+    }
+
+    func branches(repo: String, local: String?, base: String) async throws -> [String] {
+        let data = try await call(
+            "/api/v1/sessions/branches", method: "POST", body: ["repo": repo, "local": local ?? "", "base": base], timeout: 90)
+        return (try? JSONDecoder().decode(Branches.self, from: data))?.branches ?? []
     }
 
     func newChat(session: String, model: String, effort: String, title: String, message: String = "") async throws {

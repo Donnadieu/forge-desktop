@@ -114,6 +114,17 @@ final class BoardLink {
     func refresh() async { await send(.refresh) { try await $0.refresh() } }
 
     /// Moves cards for the person, one after another; the first refusal is shown on the board.
+    /// Next step on a card: the engine moves it to that stage's column, or runs the stage here when there's none.
+    func nextStep(_ card: EngineState.Card, stage: String) async {
+        guard let client, let model, !model.preview else { return }
+        model.moveProblem = nil
+        do {
+            model.moveProblem = try await client.nextStep(card: card.id, stage: stage)
+        } catch {
+            model.moveProblem = "Forge's engine didn't answer: \(error)"
+        }
+    }
+
     func move(_ cards: [EngineState.Card], to: String) async {
         guard let client, let model, !model.preview else { return }
         model.moveProblem = nil

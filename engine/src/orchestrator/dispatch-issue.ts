@@ -12,6 +12,7 @@ import type { WorkspaceManager } from "../workspace/manager.js";
 import { claimForDispatch } from "./claim-gate.js";
 import { noteClaimRefused } from "./dispatcher.js";
 import type { HandsOn } from "./hands-on.js";
+import { promptWithStageRun } from "./next-step.js";
 import { hasNoLiveWork, liveSessionReason, logDispatchSuppressed } from "./session-guard.js";
 import { makeWorkerCallbacks } from "./turn-telemetry.js";
 import {
@@ -146,7 +147,10 @@ export async function dispatchIssue(
     readTimeoutMs: deps.config.readTimeoutMs,
     helperWaitMs: deps.config.helperWaitMs,
     approvalPolicy: deps.config.approvalPolicy,
-    promptTemplate: deps.config.promptTemplate,
+    // Forge Desktop: a step the person picked for this card from the Orchestrator (next-step.ts), once.
+    promptTemplate: promptWithStageRun(deps.state, issue.id, deps.config.promptTemplate, (id) =>
+      deps.config.stageRuns?.remove(id),
+    ),
     trackerConfig: deps.config.trackerConfig,
     mcpServers: deps.config.mcpServers,
     skillsManifest: deps.config.skillsManifest,

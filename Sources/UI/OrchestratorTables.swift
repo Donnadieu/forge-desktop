@@ -254,6 +254,8 @@ struct OrchestratorTables: View {
             }
             if mergeOn {
                 Button("Merge") { move([c], to: "Merging") }.buttonStyle(ForgeButton(kind: .primary)).lineLimit(1).fixedSize()
+            } else {
+                NextStepButton(model: model, card: c)
             }
         }
         .padding(.horizontal, 16).frame(minHeight: 52)
@@ -279,6 +281,7 @@ struct OrchestratorTables: View {
             if let pr = c.prUrl {
                 Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
             }
+            NextStepButton(model: model, card: c)
         }
         .padding(.horizontal, 16).frame(minHeight: 60)
         .background(Theme.wash2)

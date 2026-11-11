@@ -147,6 +147,11 @@ export class BoardReader {
     return { ok: true };
   }
 
+  /** The card as the board last read it (Next step uses its column). */
+  card(cardId: string): BoardCard | undefined {
+    return this.cards.find((c) => c.id === cardId);
+  }
+
   /** The card's workpad: the agent's one running note on the card (its comment that starts with a Workpad heading). */
   async workpad(cardId: string): Promise<{ workpad: string | null; comments: number }> {
     const comments = (await this.tracker.fetchIssueComments?.(cardId)) ?? [];

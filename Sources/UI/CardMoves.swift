@@ -14,6 +14,27 @@ enum CardMoves {
         return "Waiting on " + b.joined(separator: ", ")
     }
 
+    struct NextStep: Equatable, Identifiable {
+        let stage: String
+        let label: String
+        let hint: String
+        var id: String { stage }
+    }
+
+    /// Next step on a card: stage moves only. A stage with a column moves the card there; one without runs here
+    /// and the card stays in its column (parked again after); human review without a column keeps it waiting.
+    static func nextSteps(_ c: EngineState.Card, _ choices: SetupChoices) -> [NextStep] {
+        let steps = [("AI Review", "AI review"), ("QA", "QA"), ("Human Review", "Human review"), ("Rework", "Rework"), ("Merging", "Merge")]
+        return steps.filter { $0.0 != c.state }.map { stage, label in
+            let missing = choices.unavailableStages.contains(stage)
+            let hint =
+                !missing
+                ? "Moves it to \(stage)."
+                : stage == "Human Review" ? "Keeps it waiting on you." : "Runs here. The card stays in \(c.state) on \(choices.boardName)."
+            return NextStep(stage: stage, label: label, hint: hint)
+        }
+    }
+
     /// A bulk button shows only when there are two cards or more to move.
     static func showsBulk(_ cards: [EngineState.Card]) -> Bool { cards.count >= 2 }
 }

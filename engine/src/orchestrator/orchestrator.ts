@@ -97,6 +97,7 @@ export class Orchestrator {
     this.state = createInitialState();
     // Parked cards survive a restart (forge.sqlite): they still wait on the person.
     for (const p of config.parking?.list() ?? []) this.state.parked.set(p.issueId, p);
+    for (const r of config.stageRuns?.list() ?? []) this.state.stageRuns.set(r.issueId, r.stage);
     this.tracker = tracker;
     this.agent = agent;
     this.workspace = workspace;

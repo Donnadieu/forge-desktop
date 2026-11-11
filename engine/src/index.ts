@@ -31,8 +31,11 @@ import { createLogger } from "./observability/logger.js";
 import { resolveBacklogPromotion } from "./orchestrator/backlog-promotion.js";
 import { BoardReader } from "./orchestrator/board-reader.js";
 import { resolveCostCeiling } from "./orchestrator/cost-ceiling.js";
+import { takeNextStep } from "./orchestrator/next-step.js";
 import { Orchestrator } from "./orchestrator/orchestrator.js";
+import type { ParkedCard } from "./orchestrator/parking.js";
 import { SharedSlots } from "./orchestrator/shared-slots.js";
+import type { OrchestratorState } from "./orchestrator/types.js";
 import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
@@ -40,7 +43,7 @@ import { runSessionsHost } from "./sessions/main.js";
 import { openLocalStore } from "./store/local-store.js";
 import { BoardColumns, guardMoves } from "./tracker/board-columns.js";
 import { marksNote, resolveMarks } from "./tracker/marks.js";
-import type { TrackerConfig } from "./tracker/types.js";
+import type { NormalizedIssue, TrackerConfig } from "./tracker/types.js";
 import { createTrackerFromConfig } from "./tracker-factory.js";
 import { loadSkillsManifest } from "./worker/prompt-renderer.js";
 import { stopLeftoverServers } from "./workspace/leftover-sweep.js";
@@ -119,6 +122,17 @@ async function main(): Promise<void> {
   });
   const local = openLocalStore(join(home, "forge.sqlite"));
   const board = new BoardReader(tracker, trackerConfig, config.board.columns, boardColumns);
+  // Parked cards and steps picked from the board survive restarts (orchestrator/parking.ts, next-step.ts).
+  const parking = {
+    list: () => local.listParked(),
+    put: (c: ParkedCard) => local.putParked(c),
+    remove: (id: string) => local.removeParked(id),
+  };
+  const stageRuns = {
+    list: () => local.listStageRuns(),
+    put: (id: string, stage: string) => local.putStageRun(id, stage),
+    remove: (id: string) => local.removeStageRun(id),
+  };
 
   let notify = (): void => {};
   const orchestrator = new Orchestrator(
@@ -160,11 +174,8 @@ async function main(): Promise<void> {
       costCeiling: resolveCostCeiling(config.cost, { logger }),
       customWorkflows: true,
       // Cards waiting on the person stay parked across restarts (orchestrator/parking.ts).
-      parking: {
-        list: () => local.listParked(),
-        put: (c) => local.putParked(c),
-        remove: (id) => local.removeParked(id),
-      },
+      parking,
+      stageRuns,
       claimOptions: { assignee: "me" },
       backlogPromotion: resolveBacklogPromotion(config.tracker.promote, {
         customWorkflows: true,
@@ -229,6 +240,25 @@ async function main(): Promise<void> {
       const result = await board.move(id, to);
       logger.info({ issueId: id, to, ok: result.ok }, "Card moved from the board");
       if (result.ok) void orchestrator.triggerPoll();
+      return result;
+    },
+    nextStep: async (id, stage) => {
+      const card = board.card(id);
+      if (!card) return { ok: false, problem: "Forge can't find that card on the board." };
+      const result = await takeNextStep(
+        {
+          state: orchestrator.getState() as OrchestratorState,
+          tracker,
+          columns: boardColumns,
+          activeStates: trackerConfig.active_states,
+          parking,
+          stageRuns,
+        },
+        { id: card.id, identifier: card.identifier, state: card.state } as NormalizedIssue,
+        stage,
+      );
+      logger.info({ issueId: id, stage, ...result }, "Next step picked from the board");
+      if (result.ok) void board.refresh().then(() => orchestrator.triggerPoll());
       return result;
     },
     steer: (id, text) => {

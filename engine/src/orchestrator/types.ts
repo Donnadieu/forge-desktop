@@ -8,6 +8,7 @@ import type { WorkerResult } from "../worker/runner.js";
 import type { HelperActivity } from "./activity.js";
 import type { BacklogPromotionConfig } from "./backlog-promotion.js";
 import type { CostCeilingConfig } from "./cost-ceiling.js";
+import type { StageRunStore } from "./next-step.js";
 import type { ParkedCard, ParkingStore } from "./parking.js";
 
 export type { TicketTelemetry, TokenTotals, TurnTimingEntry } from "../telemetry/types.js";
@@ -16,6 +17,8 @@ export interface OrchestratorConfig {
   pollIntervalMs: number;
   /** Forge Desktop: where parked cards are kept across restarts (orchestrator/parking.ts). */
   parking?: ParkingStore;
+  /** Forge Desktop: steps picked from the Orchestrator waiting to run, kept across restarts (next-step.ts). */
+  stageRuns?: StageRunStore;
   maxConcurrentAgents: number;
   /**
    * Forge Desktop: how many agents may be in flight now, given this engine's own count (the ceiling across
@@ -321,6 +324,8 @@ export interface OrchestratorState {
   usageLimits: Map<number, LimitState>;
   /** Forge Desktop: cards waiting on the person because the next stage has no column (orchestrator/parking.ts). */
   parked: Map<string, ParkedCard>;
+  /** Forge Desktop: the step the person picked for a card whose stage has no column, run once (next-step.ts). */
+  stageRuns: Map<string, string>;
 }
 
 /** An account that hit a usage, spend or rate limit, and when Forge tries it again. */
@@ -385,6 +390,7 @@ export function createInitialState(): OrchestratorState {
     workspaceLocked: new Map(),
     claimRefused: new Map(),
     parked: new Map(),
+    stageRuns: new Map(),
     usageLimits: new Map(),
   };
 }

@@ -42,6 +42,14 @@ struct EngineClient: Sendable {
         try await post(card: card, "move", ["to": to])
     }
 
+    /// Where Next step goes: the engine moves the card or runs the stage here (engine orchestrator/next-step.ts).
+    static func nextStepPath(card: String) -> String { "/api/v1/cards/\(safeID(card))/next-step" }
+
+    /// Next step: the person picks the card's next stage. Nil when it went through, else the engine's problem.
+    func nextStep(card: String, stage: String) async throws -> String? {
+        try await post(card: card, "next-step", ["to": stage])
+    }
+
     /// The person's message to the agent working a card: it steers the turn in flight. Nil when it was sent.
     func message(card: String, text: String) async throws -> String? {
         try await post(card: card, "message", ["text": text])
@@ -53,9 +61,12 @@ struct EngineClient: Sendable {
     }
 
     /// POSTs to `/api/v1/cards/<id>/<what>`; the engine's plain-words problem when refused, nil when it worked.
+    private static func safeID(_ card: String) -> String {
+        card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card
+    }
+
     private func post(card: String, _ what: String, _ body: [String: String]) async throws -> String? {
-        let safe = card.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-"))) ?? card
-        var r = request("/api/v1/cards/\(safe)/\(what)", method: "POST")
+        var r = request("/api/v1/cards/\(Self.safeID(card))/\(what)", method: "POST")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         r.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: r)

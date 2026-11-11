@@ -9,6 +9,7 @@
  *   POST /api/v1/refresh look at the board now instead of at the next poll
  *   GET  /api/v1/cards/<id>/workpad  the card's workpad note, for the card's detail
  *   POST /api/v1/cards/<id>/move     `{"to": "<column>"}`: the person moves a card (Start, Merge, Ask for changes)
+ *   POST /api/v1/cards/<id>/next-step `{"to": "<stage>"}`: the person picks the card's next stage (Next step)
  *   POST /api/v1/cards/<id>/message  `{"text": "..."}`: the person steers the card's running agent
  *   POST /api/v1/cards/<id>/stop-turn  the person takes the wheel: the turn ends, the run waits for their message
  *   POST /api/v1/cards/<id>/hand-back  the run goes on by itself again
@@ -34,6 +35,11 @@ export interface LocalApiDeps {
   workpad?: (cardId: string) => Promise<unknown>;
   /** The person moves a card to another column (board buttons). */
   move?: (cardId: string, to: string) => Promise<{ ok: boolean; problem?: string }>;
+  /** Next step: the person picks the card's next stage; moves it there or runs it here (next-step.ts). */
+  nextStep?: (
+    cardId: string,
+    stage: string,
+  ) => Promise<{ ok: boolean; problem?: string; ran?: string }>;
   /** The person steers a running card from its session (`{"text": "..."}`). */
   steer?: (cardId: string, text: string) => boolean;
   /** Stop from the card's session (take the wheel), and Hand back to Forge. */
@@ -140,6 +146,15 @@ export async function startLocalApi(deps: LocalApiDeps): Promise<LocalApi> {
           if (!to)
             return jsonResponse(res, 400, { ok: false, problem: "Say where the card goes." });
           const result = await deps.move(move[1], to);
+          jsonResponse(res, result.ok ? 200 : 409, result);
+          return notify();
+        }
+        const step = /^\/api\/v1\/cards\/([A-Za-z0-9-]{1,64})\/next-step$/.exec(path);
+        if (step && deps.nextStep) {
+          if (!post) return methodNotAllowed(res, "POST");
+          const to = await readTo(req);
+          if (!to) return jsonResponse(res, 400, { ok: false, problem: "Say which step." });
+          const result = await deps.nextStep(step[1], to);
           jsonResponse(res, result.ok ? 200 : 409, result);
           return notify();
         }

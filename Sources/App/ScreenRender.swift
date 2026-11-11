@@ -78,6 +78,15 @@ enum ScreenRender {
             to: dir.appendingPathComponent("13-workspace-switcher.png"))
         print("\(shown ? "✓" : "✗") 13-workspace-switcher")
         if !shown { failed += 1 }
+        // Next step opens as a popover too: its list on its own, for a parked card on a board missing columns.
+        var shared = SetupChoices()
+        (shared.teamName, shared.boardColumns) = ("ATC Rewrite", Checks.sharedBoard)
+        let parked = SampleBoard.parked.cards.first { $0.parked != nil }!
+        let listed = render(
+            NextStepList(steps: CardMoves.nextSteps(parked, shared)) { _ in }, size: NSSize(width: 320, height: 350),
+            to: dir.appendingPathComponent("16-next-step.png"))
+        print("\(listed ? "✓" : "✗") 16-next-step")
+        if !listed { failed += 1 }
         return failed == 0 ? 0 : 1
     }
 

@@ -58,6 +58,10 @@ export interface LocalStore {
   listParked(): ParkedRow[];
   putParked(card: ParkedRow): void;
   removeParked(issueId: string): void;
+  /** Steps picked from the Orchestrator that wait to run (a card's stage with no column). */
+  listStageRuns(): Array<{ issueId: string; stage: string }>;
+  putStageRun(issueId: string, stage: string): void;
+  removeStageRun(issueId: string): void;
   close(): void;
 }
 
@@ -87,6 +91,10 @@ CREATE TABLE IF NOT EXISTS parked_cards (
   next_stage TEXT,
   line TEXT NOT NULL,
   parked_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS stage_runs (
+  issue_id TEXT PRIMARY KEY,
+  stage TEXT NOT NULL
 );
 `;
 
@@ -120,6 +128,11 @@ export function openLocalStore(path: string): LocalStore {
       "next_stage = excluded.next_stage, line = excluded.line, parked_at = excluded.parked_at",
   );
   const removeParked = db.prepare("DELETE FROM parked_cards WHERE issue_id = ?");
+  const listRuns = db.prepare("SELECT issue_id, stage FROM stage_runs ORDER BY rowid");
+  const putRun = db.prepare(
+    "INSERT INTO stage_runs (issue_id, stage) VALUES (?, ?) ON CONFLICT(issue_id) DO UPDATE SET stage = excluded.stage",
+  );
+  const removeRun = db.prepare("DELETE FROM stage_runs WHERE issue_id = ?");
 
   return {
     listParked: () =>
@@ -136,6 +149,17 @@ export function openLocalStore(path: string): LocalStore {
     },
     removeParked: (id) => {
       removeParked.run(id);
+    },
+    listStageRuns: () =>
+      (listRuns.all() as Array<{ issue_id: string; stage: string }>).map((r) => ({
+        issueId: String(r.issue_id),
+        stage: String(r.stage),
+      })),
+    putStageRun: (id, stage) => {
+      putRun.run(id, stage);
+    },
+    removeStageRun: (id) => {
+      removeRun.run(id);
     },
     readDesired: () => {
       const row = readDesired.get() as { desired?: string } | undefined;

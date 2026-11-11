@@ -224,6 +224,7 @@ enum Checks {
         missingColumnStudioChecks(check)
         missingColumnGatingChecks(check)
         parkingChecks(check)
+        nextStepChecks(check)
         workspaceNameChecks(check)
         moveChecks(check)
         accountChecks(check)

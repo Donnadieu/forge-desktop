@@ -145,3 +145,28 @@ extension Checks {
         check("a parked card waits in Your turn", OrchestratorTables.yourTurn(state).map(\.id) == ["c1"])
     }
 }
+
+extension Checks {
+    /// Item 5: Next step on a card offers only stage moves; a stage with a column moves the card, one without runs here.
+    static func nextStepChecks(_ check: (String, Bool) -> Void) {
+        var c = SetupChoices()
+        (c.teamID, c.teamName, c.boardColumns) = ("team-atc", "ATC Rewrite", sharedBoard)
+        let parked = EngineState.Card(
+            id: "c1", identifier: "ATC-1", title: "Login", state: "In Progress", helpers: [],
+            parked: .init(next: "AI Review", line: "Draft open.", since: nil))
+        let steps = CardMoves.nextSteps(parked, c)
+        check("Next step offers only stage moves", steps.map(\.label) == ["AI review", "QA", "Human review", "Rework", "Merge"])
+        check("a step with no column runs here, and says so", steps.first?.hint == "Runs here. The card stays in In Progress on ATC Rewrite.")
+        check(
+            "Human review with no column keeps the card waiting on you",
+            steps.first { $0.stage == "Human Review" }?.hint == "Keeps it waiting on you.")
+        check("each step names the stage the engine runs", steps.map(\.stage) == ["AI Review", "QA", "Human Review", "Rework", "Merging"])
+        var full = c
+        full.boardColumns = Pipeline.names
+        let review = EngineState.Card(id: "c2", identifier: "ATC-2", title: "Signup", state: "Human Review", prUrl: "https://x/pull/2", helpers: [])
+        let moves = CardMoves.nextSteps(review, full)
+        check("a stage with a column moves the card there", moves.first { $0.stage == "QA" }?.hint == "Moves it to QA.")
+        check("the stage a card is in isn't offered again", !moves.contains { $0.stage == "Human Review" })
+        check("the engine is asked for the step by its stage", EngineClient.nextStepPath(card: "c1") == "/api/v1/cards/c1/next-step")
+    }
+}

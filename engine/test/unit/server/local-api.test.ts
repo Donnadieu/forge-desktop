@@ -32,6 +32,10 @@ describe("local API", () => {
         calls.push(`move ${id} ${to}`);
         return to === "Done" ? { ok: false, problem: "no" } : { ok: true };
       },
+      nextStep: async (id, stage) => {
+        calls.push(`next ${id} ${stage}`);
+        return stage === "QA" ? { ok: true, ran: "here" } : { ok: false, problem: "no" };
+      },
       steer: (id, text) => {
         calls.push(`steer ${id} ${text}`);
         return id === "abc-1";
@@ -138,6 +142,29 @@ describe("local API", () => {
       (await fetch(`${base}/api/v1/cards/abc-1/move`, { method: "POST", body: "{}" })).status,
     ).toBe(401);
     expect(calls).toEqual(["move abc-1 Merging", "move abc-1 Done"]);
+  });
+
+  it("runs the next step the person picked for a card", async () => {
+    const calls: string[] = [];
+    const base = await boot({ n: 1 }, calls);
+    const headers = {
+      authorization: `Bearer ${TOKEN}`,
+      "content-type": "application/json",
+    };
+    const ok = await fetch(`${base}/api/v1/cards/abc-1/next-step`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ to: "QA" }),
+    });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ ok: true, ran: "here" });
+    const refused = await fetch(`${base}/api/v1/cards/abc-1/next-step`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ to: "simplify" }),
+    });
+    expect(refused.status).toBe(409);
+    expect(calls).toEqual(["next abc-1 QA", "next abc-1 simplify"]);
   });
 
   it("refuses a live connection without the token", async () => {

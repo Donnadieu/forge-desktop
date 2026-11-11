@@ -21,3 +21,8 @@ the bottom. Each line: the date, the plan item, the call and why.
   which one Claude Code trips on; no request is made), because an older Claude Code refuses to start with it. The
   `showThinkingSummaries` setting was tried first and did nothing through `--settings`. A thought's first line now shows
   on its row; thoughts recorded before this have no words and say so on hover.
+- 2026-11-11, item 4: tool rows get a mark per kind (terminal, file, pencil, search, helper, web, to-do, wrench for the
+  rest). Opened, a command shows as `$ command` on its own strip, its output below in a capped (240 pt) scrolling
+  panel, an edit as its removed and added lines in red and green (Write shows the new file's first 4,000 characters as
+  added lines), and a failed call is tinted with "failed" on its row. The one-line summaries the engine writes stay as
+  they are.

@@ -68,6 +68,8 @@ extension ScreenRender {
             Shot(name: "14-sessions-import", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-import"),
             Shot(name: "16-polish-card-wide", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 780, width: 1500),
             Shot(
+                name: "16-polish-card-tall", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 1300, width: 1500),
+            Shot(
                 name: "16-polish-card-narrow", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 780, width: 1100),
             Shot(name: "12-orchestrator-merge-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "merge-all", height: 1100),
             Shot(name: "12-orchestrator-start-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "start-all", height: 1100),

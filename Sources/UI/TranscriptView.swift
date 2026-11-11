@@ -212,6 +212,7 @@ struct FoldRow: View {
                 HStack(spacing: 8) {
                     Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
                         .foregroundStyle(Theme.textMuted).opacity(detail == nil ? 0.3 : 1)
+                    Image(systemName: icon).font(.system(size: 10)).foregroundStyle(Theme.textMuted).frame(width: 14)
                     Text(title).font(Theme.mono(11)).foregroundStyle(isError ? Theme.heat : Theme.textSec).lineLimit(1)
                     if running { Spinner() }
                     if let tail { Text(tail).font(Theme.sans(12)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.tail) }
@@ -227,28 +228,5 @@ struct FoldRow: View {
                     .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
             }
         }
-    }
-}
-
-struct ToolRow: View {
-    let event: Sessions.Event
-    let result: Sessions.Event?
-    let running: Bool
-
-    private var detail: String? {
-        var parts: [String] = []
-        if case .object(let input)? = event.data {
-            if let cmd = input["command"]?.string { parts.append("$ " + cmd) }
-            if let new = input["new_string"]?.string { parts.append(new) }
-            if let content = input["content"]?.string { parts.append(String(content.prefix(2000))) }
-        }
-        if let r = result, !r.text.isEmpty {
-            parts.append(r.size > r.text.count ? r.text + "\n… \(r.size - r.text.count) more characters" : r.text)
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
-    }
-
-    var body: some View {
-        FoldRow(icon: "wrench", title: event.text, detail: detail, running: running, isError: result?.isError == true)
     }
 }

@@ -49,6 +49,12 @@ enum SampleSessions {
             id: id, chatId: chat, turnId: turn, seq: 0, kind: kind, text: text, name: name, data: data, size: text.count, ref: nil, isError: false)
     }
 
+    static func result(_ id: String, _ turn: String, _ chat: String, _ tool: String, _ text: String, error: Bool = false) -> Sessions.Event {
+        Sessions.Event(
+            id: id, chatId: chat, turnId: turn, seq: 0, kind: "tool_result", text: text, name: nil, data: nil, size: text.count, ref: tool,
+            isError: error)
+    }
+
     static func turn(_ id: String, _ chat: String, _ text: String, status: String, events: [Sessions.Event], files: Int = 0) -> Sessions.Turn {
         Sessions.Turn(
             id: id, chatId: chat, seq: 1, userText: text, status: status, added: files * 40, removed: files * 3, files: files,
@@ -153,9 +159,20 @@ enum SampleSessions {
                     "p2", "t4p", "c4", "text", "Hardening mode. The card names 9 specific guardrails — that's the scope. Let me map the repo first."),
                 event(
                     "p3", "t4p", "c4", "tool", "Ran Map repo structure", name: "Bash", data: .object(["command": .string("ls -la && cat Gemfile")])),
+                result(
+                    "p3r", "t4p", "c4", "p3",
+                    "total 96\ndrwxr-xr-x  24 omar  staff   768 Nov 11 app\n-rw-r--r--   1 omar  staff  2210 Nov 11 Gemfile\nsource \"https://rubygems.org\"\ngem \"rails\", \"~> 8.1\""
+                ),
                 event("p4", "t4p", "c4", "thinking", ""),
                 event("p5", "t4p", "c4", "tool", "Read config/ci.rb", name: "Read", data: .object(["file_path": .string("config/ci.rb")])),
-                event("p6", "t4p", "c4", "tool", "Edited .github/workflows/ci.yml", name: "Edit"),
+                event(
+                    "p6", "t4p", "c4", "tool", "Edited .github/workflows/ci.yml  +2 −1", name: "Edit",
+                    data: .object([
+                        "file_path": .string(".github/workflows/ci.yml"), "old_string": .string("      - run: bin/rails test"),
+                        "new_string": .string("      - run: bin/rubocop --parallel\n      - run: bin/rails test"),
+                    ])),
+                event("p6b", "t4p", "c4", "tool", "Ran Run rubocop and brakeman", name: "Bash", data: .object(["command": .string("bin/rubocop")])),
+                result("p6c", "t4p", "c4", "p6b", "bin/rubocop: No such file or directory", error: true),
                 event("p7", "t4p", "c4", "text", "Gems aren't installed in this fresh workspace. Installing them first."),
             ], files: 1)
     }
@@ -223,6 +240,7 @@ enum SampleSessions {
                 m.sessions[i].branch = "donnadieu86/per-32-get-donnadieuintake-workspace-ready-for-agents"
             }
             m.setTranscript(Transcript(chatID: "c4", turns: [promptTurn]))
+            ToolRow.openInRender = ["p3", "p6", "p6b"]
         case "sessions-split":
             m.selected = "s2"
             m.splitChat = "c1"

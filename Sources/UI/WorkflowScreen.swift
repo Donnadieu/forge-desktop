@@ -86,20 +86,30 @@ struct WorkflowScreen: View {
         VStack(spacing: 0) {
             ForEach(Array(Pipeline.columns.enumerated()), id: \.offset) { i, c in
                 let optional = Pipeline.optionalColumns.contains(c.name)
-                let isOff = off.contains(c.name)
+                let missing = model.choices.unavailableStages.contains(c.name)
+                let isOff = off.contains(c.name) || missing
                 HStack(spacing: 16) {
                     StageDot(stage: c.name).opacity(isOff ? 0.4 : 1)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(c.name).font(Theme.sans(15, .medium)).foregroundStyle(Theme.text).opacity(isOff ? 0.4 : 1)
                         Text(c.line).font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                             .opacity(isOff ? 0.4 : 1)
-                        if isOff { Text(Pipeline.skipLine(c.name, off: Array(off))).font(Theme.mono(11)).foregroundStyle(Theme.textSec) }
+                        if case .unavailable(let why) = model.choices.stageState(c.name) {
+                            Text(why).font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                        } else if isOff {
+                            Text(Pipeline.skipLine(c.name, off: Array(off.union(model.choices.unavailableStages))))
+                                .font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     worker(c.name).opacity(isOff ? 0.4 : 1).disabled(isOff).frame(width: 290, alignment: .leading)
                     HStack {
                         Spacer(minLength: 0)
-                        if optional {
+                        if missing {
+                            // Can't be switched on until the board has the column.
+                            ForgeToggle(on: .constant(false)).opacity(0.4).allowsHitTesting(false)
+                                .help("Add a \(c.name) column to \(model.choices.boardName) to use this stage.")
+                        } else if optional {
                             ForgeToggle(on: Binding(get: { !isOff }, set: { on in if on { off.remove(c.name) } else { off.insert(c.name) } }))
                         } else {
                             SectionLabel(text: "Always on")

@@ -29,6 +29,9 @@ extension ScreenRender {
         var codex = repo
         codex.worker = .codex
         let board = AppModel.boardScreen
+        var shared = ready
+        (shared.teamName, shared.projectName, shared.projectID, shared.projectSlug) = ("ATC Rewrite", "ATC Rewrite", nil, nil)
+        shared.boardColumns = Checks.sharedBoard
         return [
             Shot(name: "3-github", screen: 2, choices: project),
             Shot(name: "4-repo", screen: 3, choices: github),
@@ -79,6 +82,7 @@ extension ScreenRender {
             Shot(name: "12-orchestrator-merge-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "merge-all", height: 1100),
             Shot(name: "12-orchestrator-start-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "start-all", height: 1100),
             Shot(name: "10-workflow", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state),
+            Shot(name: "10-workflow-shared-board", screen: AppModel.workflowScreen, choices: shared, height: 1000),
             Shot(name: "10-workflow-qa-off", screen: AppModel.workflowScreen, choices: ready, scene: "qa-off"),
             Shot(name: "10-workflow-restarting", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state, scene: "restarting"),
             Shot(name: "10-workflow-roles", screen: AppModel.workflowScreen, choices: ready, scene: "roles", height: 1500),

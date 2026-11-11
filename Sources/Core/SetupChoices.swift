@@ -138,3 +138,38 @@ struct SetupChoices: Codable, Equatable, Sendable {
         try? enc.encode(self).write(to: SetupChoices.file, options: .atomic)
     }
 }
+
+/// How a stage shows in Workflow Studio.
+enum StageState: Equatable {
+    case on, off
+    /// Its column is missing from the board: off by itself, with the reason.
+    case unavailable(String)
+}
+
+extension SetupChoices {
+    /// The board's name as the person knows it: the Linear team (its columns are the team's), else the project.
+    var boardName: String { (board == .linear ? teamName : nil) ?? projectName ?? teamName ?? "this board" }
+
+    /// Optional stages whose column the board doesn't have, in pipeline order (none when the columns aren't known).
+    var unavailableStages: [String] {
+        guard let cols = boardColumns else { return [] }
+        return Pipeline.missing(existing: cols).map(\.name).filter { !Pipeline.requiredColumns.contains($0) }
+    }
+
+    /// A missing column wins over the person's own choice, which is kept for when the column shows up.
+    func stageState(_ name: String) -> StageState {
+        if unavailableStages.contains(name) { return .unavailable("No \(name) column on \(boardName)") }
+        return stageOn(name) ? .on : .off
+    }
+
+    /// Takes the columns the board has now (from the engine's board read). True when a stage became available or
+    /// unavailable, so the workflow file needs writing again. The person's own choices are never touched.
+    mutating func refreshColumns(_ present: [String]) -> Bool {
+        let before = boardColumns.map { Pipeline.missing(existing: $0) } ?? []
+        let have = Set(present.map(Pipeline.normalized))
+        let kept = Pipeline.names.filter { have.contains(Pipeline.normalized($0)) }
+        if boardColumns == kept { return false }
+        boardColumns = kept
+        return Pipeline.missing(existing: kept) != before
+    }
+}

@@ -43,3 +43,33 @@ extension Checks {
         check("settings saved before this still load", (try? JSONDecoder().decode(SetupChoices.self, from: Data(old.utf8))) != nil)
     }
 }
+
+extension Checks {
+    /// Item 2: in Workflow Studio a stage with no column is off by itself, says why, and comes back with its column.
+    static func missingColumnStudioChecks(_ check: (String, Bool) -> Void) {
+        var c = SetupChoices()
+        (c.teamID, c.teamName, c.projectName) = ("team-atc", "ATC Rewrite", "ATC Rewrite")
+        check("settings saved before this show every stage as on", c.stageState("AI Review") == .on)
+        c.boardColumns = sharedBoard
+        check(
+            "a stage with no column is unavailable, with its reason",
+            c.stageState("AI Review") == .unavailable("No AI Review column on ATC Rewrite"))
+        check("Rework with no column is unavailable too", c.stageState("Rework") == .unavailable("No Rework column on ATC Rewrite"))
+        check("a stage the board has stays on", c.stageState("Triage") == .on)
+        check("required stages are never unavailable", c.stageState("In Progress") == .on)
+        c.stagesOff = ["QA", "Triage"]
+        check("the person's own off choice still shows where the column exists", c.stageState("Triage") == .off)
+        check("a missing column wins over the person's choice on screen", c.stageState("QA") == .unavailable("No QA column on ATC Rewrite"))
+        check(
+            "the unavailable stages are the missing optional ones, in pipeline order",
+            c.unavailableStages == ["AI Review", "QA", "Human Review", "Rework", "Merging"])
+        check("a new board read with the same columns changes nothing", !c.refreshColumns(sharedBoard + ["Canceled"]))
+        check("a new column on the board is noticed", c.refreshColumns(sharedBoard + ["AI Review"]))
+        check("its stage is available again", c.stageState("AI Review") == .on)
+        check("the person's own choice comes back with its column", c.refreshColumns(Pipeline.names) && c.stageState("QA") == .off)
+        check("the person's choices are never rewritten by the board", c.stagesOff == ["QA", "Triage"])
+        var basecamp = c
+        (basecamp.tracker, basecamp.projectName, basecamp.boardColumns) = (.basecamp, "Client site", sharedBoard)
+        check("on Basecamp the reason names the project", basecamp.stageState("QA") == .unavailable("No QA column on Client site"))
+    }
+}

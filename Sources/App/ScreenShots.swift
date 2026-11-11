@@ -32,6 +32,7 @@ extension ScreenRender {
         return [
             Shot(name: "3-github", screen: 2, choices: project),
             Shot(name: "4-repo", screen: 3, choices: github),
+            Shot(name: "4-repo-workspace-name", screen: 3, choices: github, scene: "unnamed-workspace"),
             Shot(name: "5-agent", screen: 4, choices: repo),
             Shot(name: "5-agent-signed-out", screen: 4, choices: repo, scene: "signed-out"),
             Shot(name: "5-agent-sign-in", screen: 4, choices: repo, scene: "signed-out-guide"),

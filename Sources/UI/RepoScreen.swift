@@ -9,6 +9,9 @@ struct RepoScreen: View {
     @State private var selected: String?
     @State private var pushOK: Bool?
     @State private var busy = false
+    /// The workspace's name, suggested until the person types one (`suggested` = what Forge last put there).
+    @State private var name = ""
+    @State private var suggested = ""
 
     /// The repo a GitHub Issues board files its issues in: the only one its cards may change.
     private var locked: String? { Self.lockedRepo(model.choices) }
@@ -68,6 +71,13 @@ struct RepoScreen: View {
                 ProblemLine(text: "Forge can't see \(locked) with your GitHub account. Pick the GitHub account that can push to it.")
                     .padding(.top, 10)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                SectionLabel(text: "Workspace name")
+                TextField("", text: $name)
+                    .forgeField(hint: "My workspace", empty: name.isEmpty)
+                    .frame(maxWidth: 520)
+            }
+            .padding(.top, 18)
             if let s = selected, let ok = pushOK {
                 Group {
                     if ok {
@@ -80,10 +90,18 @@ struct RepoScreen: View {
             }
         }
         .task { await load() }
-        .onChange(of: selected) { _, s in Task { await check(s) } }
+        .onChange(of: selected) { _, s in
+            if name == suggested { (name, suggested) = (suggestion(s), suggestion(s)) }
+            Task { await check(s) }
+        }
+    }
+
+    private func suggestion(_ repo: String?) -> String {
+        Self.suggestedName(current: model.workspace?.name, repo: repo, choices: model.choices)
     }
 
     private func load() async {
+        if name.isEmpty { (name, suggested) = (suggestion(selected), suggestion(selected)) }
         if model.preview {
             repos = model.sample.repos
             selected = locked ?? repos.first?.fullName
@@ -114,6 +132,22 @@ struct RepoScreen: View {
 
     private func finish() {
         guard let s = selected, let r = repos.first(where: { $0.fullName == s }) else { return }
+        Self.apply(repo: r, name: name, to: model)
+    }
+
+    /// The name setup suggests for the workspace: its own name if it has one, else the repo's, else the team's
+    /// (or project's), else "My workspace".
+    static func suggestedName(current: String?, repo: String?, choices: SetupChoices) -> String {
+        let plain = "My workspace"
+        if let current, !current.trimmingCharacters(in: .whitespaces).isEmpty, current != plain { return current }
+        let candidates = [repo.flatMap { $0.split(separator: "/").last.map(String.init) }, choices.teamName, choices.projectName]
+        return candidates.compactMap { $0 }.first { !$0.isEmpty } ?? plain
+    }
+
+    /// Continue: keeps the repo and the workspace's name, then moves on.
+    static func apply(repo r: GitHub.Repo, name: String, to model: AppModel) {
+        let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.isEmpty, typed != model.workspace?.name { model.renameWorkspace(typed, color: model.workspace?.color) }
         let old = model.choices.repo
         model.choices.repo = r.fullName
         model.choices.defaultBranch = r.defaultBranch

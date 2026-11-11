@@ -82,7 +82,11 @@ struct TurnView: View {
                         }
                     }
                 case "text": MessageText(text: e.text, writing: turn.status == "working" && i == turn.events.count - 1)
-                case "thinking": FoldRow(icon: "brain", title: "Thought", detail: e.text.isEmpty ? nil : e.text)
+                case "thinking":
+                    // Its first words show on the row; a click opens the rest. Thoughts recorded before Forge asked
+                    // Claude Code for their words have none to show.
+                    FoldRow(icon: "brain", title: "Thought", detail: e.text.isEmpty ? nil : e.text, tail: Self.firstLine(e.text))
+                        .help(e.text.isEmpty ? "Claude Code didn't keep the words of this thought" : "")
                 case "tool": ToolRow(event: e, result: res[e.id], running: turn.status == "working" && res[e.id] == nil && e.id == lastTool)
                 case "question": QuestionCard(sessions: sessions, chat: chat, event: e)
                 case "plan": PlanCard(sessions: sessions, chat: chat, event: e)
@@ -96,6 +100,11 @@ struct TurnView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onHover { hover = $0 }
+    }
+
+    static func firstLine(_ text: String) -> String? {
+        let line = text.split(whereSeparator: \.isNewline).first.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        return line.isEmpty ? nil : line
     }
 
     @ViewBuilder private var revertButton: some View {
@@ -205,7 +214,7 @@ struct FoldRow: View {
                         .foregroundStyle(Theme.textMuted).opacity(detail == nil ? 0.3 : 1)
                     Text(title).font(Theme.mono(11)).foregroundStyle(isError ? Theme.heat : Theme.textSec).lineLimit(1)
                     if running { Spinner() }
-                    if let tail { Text(tail).font(Theme.mono(10)).foregroundStyle(Theme.textMuted) }
+                    if let tail { Text(tail).font(Theme.sans(12)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.tail) }
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())

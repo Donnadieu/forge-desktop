@@ -44,7 +44,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/agent/child-env.ts | 05deefb0a43a | src/agent/child-env.ts | unchanged |
 | src/agent/claude-env.ts | 05deefb0a43a | src/agent/claude-env.ts | unchanged |
 | src/agent/claude-usage.ts | 05deefb0a43a | src/agent/claude-usage.ts | unchanged |
-| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`); `steer` writes the person's message into the running process (card sessions); `interrupt` ends the turn in flight (take the wheel) |
+| src/agent/claude.ts | 05deefb0a43a | src/agent/claude.ts | dropped the container privilege drop; follows helpers (`trackHelper`) and keeps reading past a turn end while they run (`waiting_for_helpers`); reads Claude Code's `rate_limit_event` (`mapRateLimit`); `steer` writes the person's message into the running process (card sessions); `interrupt` ends the turn in flight (take the wheel); asks for thinking summaries (`--thinking-display summarized`) when Claude Code knows the flag |
 | src/agent/codex-protocol.ts | 05deefb0a43a | src/agent/codex-protocol.ts | comments reworded (no old project name); a `turn/completed` whose turn failed (usage limit, quota) is a failed turn with its reason |
 | src/agent/codex-sandbox.ts | 05deefb0a43a | src/agent/codex-sandbox.ts | unchanged |
 | src/agent/codex.ts | 05deefb0a43a | src/agent/codex.ts | dropped the container privilege drop; comments reworded (no old project name); no OPENAI_API_KEY required (Codex can use its own sign-in) |
@@ -105,6 +105,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/process/procfs.ts | 05deefb0a43a | src/process/procfs.ts | falls back to the macOS process table (ps-table.ts) where /proc is missing |
 | src/process/ps-table.ts | new | | macOS process table (Forge reads Linux /proc only) |
 | src/process/leftovers.ts | new | | finds processes left running in card folders by cwd (`lsof`): detached, no terminal; stops them |
+| src/process/thinking-display.ts | new | | asks once per command whether Claude Code knows `--thinking-display summarized` (so Thought rows have words to open) |
 | src/process/run-tree.ts | 05deefb0a43a | src/process/run-tree.ts | unchanged |
 | src/server/http-utils.ts | 05deefb0a43a | src/server/http-utils.ts | unchanged |
 | src/server/index.ts | 05deefb0a43a | src/server/index.ts | exports the local pieces only (the hosted router stays in Forge) |
@@ -177,7 +178,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/sessions/store.ts | new | | the sessions host's SQLite file: sessions, chats, turns, events, the outbox |
 | src/sessions/claude-chat.ts | new | | one chat's long-lived `claude -p` (stream-json both ways): steer by writing mid-turn, interrupt, live model and permission mode, questions and plans routed back, resume |
 | src/sessions/recorder.ts | new | | Claude Code's lines as the chat's events: text as it's written, folded tool calls with one-line summaries, results cut to a preview, questions, plans and permissions |
-| src/sessions/chats.ts | new | | every chat's turns: start, steer, queue, stop, answer, settings; a snapshot before and after each turn; recovery after a restart |
+| src/sessions/chats.ts | new | | every chat's turns: start, steer, queue, stop, answer, settings; a snapshot before and after each turn; recovery after a restart; asks for thinking summaries when Claude Code knows the flag |
 | src/sessions/checkpoints.ts | new | | per-turn changes, going back to before a turn (files and the agent's transcript cut there) |
 | src/sessions/git.ts | new | | the session's folder (a worktree on its own branch from `origin/<base>`), snapshots to private refs, the diff against the base, the gh account that reaches the repo |
 | src/sessions/github.ts | new | | the session's pull request, its review threads (GraphQL `reviewThreads`) and the merge |

@@ -5,7 +5,9 @@
  *
  * New in Forge Desktop.
  */
+
 import { randomUUID } from "node:crypto";
+import { thinkingDisplayArgs } from "../process/thinking-display.js";
 import { changesBetween, snapshot } from "./checkpoints.js";
 import { ClaudeChat, type PermissionMode } from "./claude-chat.js";
 import { TurnRecorder } from "./recorder.js";
@@ -77,6 +79,7 @@ export class Chats {
     const s = this.store.session(c.sessionId);
     if (!s) throw new Error("no such session");
     const env = await this.o.envFor(s);
+    const thinkingDisplay = await thinkingDisplayArgs(this.o.command);
     let l!: Live;
     const rec = new TurnRecorder(
       this.store,
@@ -103,6 +106,7 @@ export class Chats {
       sessionId: c.startSessionId ?? c.providerSessionId ?? c.id,
       resume: !c.startSessionId && c.providerSessionId !== null,
       permissionMode: permissionMode(c),
+      thinkingDisplay,
       onLine: (raw) => rec.line(raw),
       onExit: (code, stderr) => this.exited(c.id, code, stderr),
     });

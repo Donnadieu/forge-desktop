@@ -14,3 +14,10 @@ the bottom. Each line: the date, the plan item, the call and why.
   language for item 5. A message folds when it's over 600 characters or 12 lines, not only a card's prompt, since a
   long pasted message has the same problem. The button says "Show full prompt" in a card's session and "Show full
   message" in the person's own chats. Folded, only the first 1,200 characters are laid out, so huge prompts stay cheap.
+- 2026-11-11, item 3: "Thought" rows couldn't open because Claude Code 2.1.32x keeps no words for a thought, only a
+  signature (checked in PER-32's transcript: 17 thoughts, all empty). Its hidden `--thinking-display summarized` flag
+  brings back a short summary in the stream and the transcript (checked live, Sonnet and Opus). Card agents and chats
+  now pass it, but only after asking the command once whether it knows the flag (an unknown option after it shows
+  which one Claude Code trips on; no request is made), because an older Claude Code refuses to start with it. The
+  `showThinkingSummaries` setting was tried first and did nothing through `--settings`. A thought's first line now shows
+  on its row; thoughts recorded before this have no words and say so on hover.

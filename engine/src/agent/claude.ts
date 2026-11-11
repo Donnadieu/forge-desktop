@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { hasExited, spawnProcessGroup, terminateChild } from "../process/process-tree.js";
+import { thinkingDisplayArgs } from "../process/thinking-display.js";
 import { scrubAgentEnv } from "./child-env.js";
 import { claudeChildEnv, claudeModelArg } from "./claude-env.js";
 import type { UsageAccountingState } from "./claude-usage.js";
@@ -109,6 +110,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     if (thinking) {
       args.push("--thinking", thinking);
     }
+    // The words of its thinking, so the card's session can open each "Thought" (agent/thinking-display.ts).
+    args.push(...(await thinkingDisplayArgs(this.command)));
 
     const abortController = new AbortController();
 

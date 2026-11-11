@@ -10,6 +10,11 @@ vi.mock("node:child_process", () => ({
   spawn: vi.fn(),
 }));
 
+// The thinking probe runs a real command; here Claude Code "knows" the flag.
+vi.mock("../../../src/process/thinking-display.js", () => ({
+  thinkingDisplayArgs: vi.fn(async () => ["--thinking-display", "summarized"]),
+}));
+
 // Mock fs.existsSync for --mcp-config file check
 vi.mock("node:fs", () => ({
   existsSync: vi.fn((path: string) => path === "/tmp/ws/.forge/mcp.json"),
@@ -95,6 +100,13 @@ describe("ClaudeCodeAdapter", () => {
       }),
     );
     expect(handle.pid).toBe(12345);
+  });
+
+  it("asks for the words of the agent's thinking, so a card's Thought rows open", async () => {
+    vi.mocked(child_process.spawn).mockReturnValue(createMockProcess([]) as any);
+    await adapter.startSession({ prompt: "Fix the bug", workspacePath: "/tmp/workspace" });
+    const spawnArgs = vi.mocked(child_process.spawn).mock.calls[0][1] as string[];
+    expect(spawnArgs.join(" ")).toContain("--thinking-display summarized");
   });
 
   it("strips the Anthropic auth overrides on the claude-subscription provider", async () => {

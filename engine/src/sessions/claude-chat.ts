@@ -27,6 +27,8 @@ export interface ClaudeChatOptions {
   sessionId: string;
   resume: boolean;
   permissionMode: PermissionMode;
+  /** `--thinking-display summarized` when this Claude Code knows it (agent/thinking-display.ts). */
+  thinkingDisplay?: string[];
   onLine: (raw: Record<string, unknown>) => void;
   onExit: (code: number | null, stderr: string) => void;
 }
@@ -34,7 +36,10 @@ export interface ClaudeChatOptions {
 export type PermissionMode = "bypassPermissions" | "default" | "plan";
 
 export function claudeArgs(
-  o: Pick<ClaudeChatOptions, "model" | "effort" | "sessionId" | "resume" | "permissionMode">,
+  o: Pick<
+    ClaudeChatOptions,
+    "model" | "effort" | "sessionId" | "resume" | "permissionMode" | "thinkingDisplay"
+  >,
 ): string[] {
   const args = [
     "-p",
@@ -52,6 +57,7 @@ export function claudeArgs(
     o.model,
   ];
   if (o.effort && o.effort !== "off") args.push("--effort", o.effort);
+  args.push(...(o.thinkingDisplay ?? []));
   args.push(o.resume ? "--resume" : "--session-id", o.sessionId);
   return args;
 }

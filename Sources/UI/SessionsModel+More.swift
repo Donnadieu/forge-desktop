@@ -44,6 +44,27 @@ extension SessionsModel {
         open(list[j])
     }
 
+    /// The name a new tab gets: Chat 2, Chat 3, and so on, skipping any number already taken.
+    static func newChatTitle(in s: Sessions.Session) -> String {
+        let taken = Set(s.chats.map(\.title))
+        var n = 2
+        while taken.contains("Chat \(n)") { n += 1 }
+        return "Chat \(n)"
+    }
+
+    /// The Changes tab shows once the session has changed something.
+    func showsChangesTab(_ s: Sessions.Session) -> Bool { !(changes[s.id] ?? []).isEmpty }
+
+    /// Renames a chat's tab (an empty name keeps the old one).
+    func rename(_ chat: Sessions.Chat, to name: String) {
+        let t = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, let i = sessions.firstIndex(where: { $0.id == chat.sessionId }),
+            let j = sessions[i].chats.firstIndex(where: { $0.id == chat.id })
+        else { return }
+        sessions[i].chats[j].title = t
+        act { try await $0.settings(chat: chat.id, ["title": t]) }
+    }
+
     /// ⌘W: closes a chat tab (kept in the store); a session keeps at least one chat, and a working chat stays.
     func close(_ chat: Sessions.Chat) {
         guard let s = session(of: chat), s.chats.count > 1, !chat.working else { return }

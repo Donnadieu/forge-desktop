@@ -26,7 +26,7 @@ enum SampleSessions {
                 pr: 64, unread: true, chats: [chat("c2", "s2", "Chat", state: "needs_you", context: 90_000)]),
             session(
                 "s1", "Add a Sessions screen", repo: "Donnadieu/forge-desktop", branch: "donnadieu/sessions-screen", status: "working",
-                chats: [chat("c1", "s1", "Build", state: "working"), chat("c1r", "s1", "Review")]),
+                chats: [chat("c1", "s1", "Build", state: "working"), chat("c1r", "s1", "Chat 2")]),
             session(
                 "s4", "AIT-3 Reject an order when the balance is too low", repo: "AI Trading Bot", branch: "forge/AIT-3", status: "working",
                 origin: "card", chats: [chat("c4", "s4", "AIT-3", state: "working", context: 240_000)]),
@@ -249,6 +249,12 @@ enum SampleSessions {
                 "Sources/UI/SessionList.swift",
                 "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -12,4 +12,6 @@ struct SessionList: View {\n     let list: [Sessions.Session]\n-    var title = \"Sessions\"\n+    @State private var folded: Set<String> = [\"idle\", \"merged\"]\n+    // Idle and merged groups start folded.\n     var body: some View {\n         ScrollView {"
             )
+        case "sessions-tabs":
+            m.selected = "s1"
+            ChatTabs.hoverInRender = "c1r"
+        case "sessions-changes-tab":
+            SampleSessions.scene(m, "sessions-code")
+            m.changesTab = ["s1"]
         case "sessions-card-long":
             // Omar's PER-32 card (Nov 11): a long branch name and the card's whole prompt as its first message.
             m.selected = "s4"

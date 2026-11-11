@@ -86,6 +86,8 @@ final class SessionsModel: ObservableObject {
     @Published var drafts: [String: String] = [:]
     /// Messages the person sent, per chat: each one brings that chat to its latest turn.
     @Published var sent: [String: Int] = [:]
+    /// Sessions showing their Changes tab instead of a chat.
+    @Published var changesTab: Set<String> = []
     /// Pictures waiting in each chat's message box.
     @Published var images: [String: [PastedImage]] = [:]
     @Published var pickerOpen = false
@@ -264,11 +266,13 @@ final class SessionsModel: ObservableObject {
 
     func revert(_ chat: Sessions.Chat, turn: Sessions.Turn) { act { try await $0.revert(chat: chat.id, turn: turn.id) } }
 
-    func newChat(in s: Sessions.Session, title: String = "Chat", message: String = "") {
+    /// A new chat tab in the session; without a title it's the next "Chat N".
+    func newChat(in s: Sessions.Session, title: String? = nil, message: String = "") {
         let base = activeChat(of: s)
+        let name = title ?? Self.newChatTitle(in: s)
         act {
             try await $0.newChat(
-                session: s.id, model: base?.model ?? Sessions.defaultModel, effort: base?.effort ?? Sessions.defaultEffort, title: title,
+                session: s.id, model: base?.model ?? Sessions.defaultModel, effort: base?.effort ?? Sessions.defaultEffort, title: name,
                 message: message)
         }
     }

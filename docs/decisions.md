@@ -37,3 +37,10 @@ the bottom. Each line: the date, the plan item, the call and why.
   person's own message always brings the chat down, since they just sent it. Following scrolls twice more after the
   first try, because the list measures new rows late and a single scroll stopped short. The existing "Jump to latest"
   pill shows whenever the end is off screen. The check drives the real list in a window far off screen.
+- 2026-11-11, item 7: + (and ⌘T) name new tabs Chat 2, Chat 3, skipping numbers already taken; the old code named the
+  second tab "Review". "Review renamed Changes, shown only once there are changes" is built as a Changes tab after the
+  chat tabs that appears when the session has changed files: it shows the file list and one file's diff (colours and
+  line comments as in the sheet), with no agent run. "Review in a new chat" stays in the Changes panel's ⋯ menu for
+  when Omar wants an agent review; it's greyed out until there are changes. Each chat tab shows an X on hover (not on
+  the last tab or a working one, which can't close) and right-click gives Rename…, Close and Open beside this one.
+  Rename saves the title through the chat's settings, which the engine already accepted.

@@ -25,6 +25,25 @@ extension Checks {
         toolRowChecks(check)
         syntaxChecks(check)
         scrollChecks(check)
+        tabChecks(check)
+    }
+
+    /// Item 7: tabs are Chat, Chat 2, Chat 3; a Changes tab only once there are changes; Rename and Close.
+    static func tabChecks(_ check: (String, Bool) -> Void) {
+        let sessions = SessionsModel(preview: true)
+        SampleSessions.fill(sessions)
+        var one = sessions.sessions.first { $0.id == "s3" }!
+        check("a session's second tab is Chat 2, not Review", SessionsModel.newChatTitle(in: one) == "Chat 2")
+        one.chats.append(SampleSessions.chat("cx", "s3", "Chat 2"))
+        one.chats.append(SampleSessions.chat("cy", "s3", "Chat 4"))
+        check("the next tab takes the next free number", SessionsModel.newChatTitle(in: one) == "Chat 3")
+        check("no Changes tab before there are changes", !sessions.showsChangesTab(sessions.sessions.first { $0.id == "s6" }!))
+        check("a Changes tab once there are changes", sessions.showsChangesTab(sessions.sessions.first { $0.id == "s1" }!))
+        let s1 = sessions.sessions.first { $0.id == "s1" }!
+        sessions.rename(s1.chats[1], to: "  Tests  ")
+        check("Rename changes the tab's name", sessions.sessions.first { $0.id == "s1" }?.chats[1].title == "Tests")
+        sessions.rename(s1.chats[1], to: "   ")
+        check("an empty name keeps the old one", sessions.sessions.first { $0.id == "s1" }?.chats[1].title == "Tests")
     }
 
     /// Item 5: code is coloured by its language, in chat code blocks and in the diff.

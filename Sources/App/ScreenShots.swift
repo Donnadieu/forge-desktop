@@ -67,6 +67,10 @@ extension ScreenRender {
             Shot(name: "14-sessions-review-comments", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-review"),
             Shot(name: "14-sessions-import", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-import"),
             Shot(name: "16-polish-code", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-code", height: 800, width: 1500),
+            Shot(name: "16-polish-tabs", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-tabs", height: 800, width: 1500),
+            Shot(
+                name: "16-polish-changes-tab", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-changes-tab", height: 800,
+                width: 1500),
             Shot(name: "16-polish-card-wide", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 780, width: 1500),
             Shot(
                 name: "16-polish-card-tall", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 1300, width: 1500),

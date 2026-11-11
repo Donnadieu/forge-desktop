@@ -130,7 +130,7 @@ struct ChangesPanel: View {
                         .keyboardShortcut("m", modifiers: [.command, .shift])
                 }
                 Menu {
-                    Button("Review in a new chat") { sessions.review(session) }
+                    Button("Review in a new chat") { sessions.review(session) }.disabled(files.isEmpty)
                     Button("Archive this session") { sessions.archive(session) }
                 } label: {
                     Image(systemName: "ellipsis")

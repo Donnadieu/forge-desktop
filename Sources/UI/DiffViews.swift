@@ -85,48 +85,15 @@ struct DiffSheet: View {
     let text: String
     var comment: ((String) -> Void)? = nil
     let close: () -> Void
-    @State private var picked: ClosedRange<Int>?
-    @State private var note = ""
 
     var body: some View {
         ZStack {
             Color.black.opacity(0.5).onTapGesture(perform: close)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text(path).font(Theme.mono(12)).foregroundStyle(Theme.text)
-                    Spacer()
-                    if comment != nil, picked == nil {
-                        Text("Click a line to comment on it").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
-                    }
-                    Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: [])
-                }
-                .padding(16)
-                DiffLines(text: text, language: Syntax.language(path: path), picked: picked, pick: comment == nil ? nil : pick)
-                if let picked, comment != nil {
-                    HStack(spacing: 8) {
-                        TextField("", text: $note).forgeField(hint: "Comment on \(Self.where(path, text, picked))", empty: note.isEmpty)
-                            .onSubmit(add)
-                        Button("Add to message", action: add).buttonStyle(ForgeButton(kind: .primary))
-                            .disabled(note.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                    .padding(12)
-                    .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
-                }
-            }
-            .frame(width: 900, height: 600)
-            .background(RoundedRectangle(cornerRadius: Theme.rXl).fill(Theme.bg))
-            .overlay(RoundedRectangle(cornerRadius: Theme.rXl).stroke(Theme.border))
+            DiffReader(path: path, text: text, comment: comment, close: close)
+                .frame(width: 900, height: 600)
+                .background(RoundedRectangle(cornerRadius: Theme.rXl).fill(Theme.bg))
+                .overlay(RoundedRectangle(cornerRadius: Theme.rXl).stroke(Theme.border))
         }
-    }
-
-    private func pick(_ id: Int, _ extend: Bool) {
-        if extend, let p = picked { picked = min(p.lowerBound, id)...max(p.upperBound, id) } else { picked = id...id }
-    }
-
-    private func add() {
-        guard let picked, let comment, !note.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        comment(Self.quote(path: path, diff: text, range: picked, note: note))
-        close()
     }
 
     /// "lines 12–14" (new-file numbers) for the picked rows.
@@ -141,5 +108,57 @@ struct DiffSheet: View {
         let rows = DiffLines.lines(diff).filter { range.contains($0.id) }
         let code = rows.map { "> " + $0.text }.joined(separator: "\n")
         return "On `\(path)` \(Self.where(path, diff, range)):\n\(code)\n\(note.trimmingCharacters(in: .whitespacesAndNewlines))"
+    }
+}
+
+/// One file's diff to read and comment on: pick a line or a range and write a comment; it joins the chat's message
+/// box. In the comment sheet (with Close) and in a session's Changes tab.
+struct DiffReader: View {
+    let path: String
+    let text: String
+    var comment: ((String) -> Void)? = nil
+    var close: (() -> Void)? = nil
+    @State private var picked: ClosedRange<Int>?
+    @State private var note = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(path).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
+                Spacer()
+                if comment != nil, picked == nil {
+                    Text("Click a line to comment on it").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                }
+                if let close { Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: []) }
+            }
+            .padding(16)
+            DiffLines(text: text, language: Syntax.language(path: path), picked: picked, pick: comment == nil ? nil : pick)
+            if let picked, comment != nil {
+                HStack(spacing: 8) {
+                    TextField("", text: $note).forgeField(hint: "Comment on \(DiffSheet.where(path, text, picked))", empty: note.isEmpty)
+                        .onSubmit(add)
+                    Button("Add to message", action: add).buttonStyle(ForgeButton(kind: .primary))
+                        .disabled(note.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(12)
+                .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+            }
+        }
+        .onChange(of: path) { _, _ in
+            picked = nil
+            note = ""
+        }
+    }
+
+    private func pick(_ id: Int, _ extend: Bool) {
+        if extend, let p = picked { picked = min(p.lowerBound, id)...max(p.upperBound, id) } else { picked = id...id }
+    }
+
+    private func add() {
+        guard let picked, let comment, !note.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        comment(DiffSheet.quote(path: path, diff: text, range: picked, note: note))
+        note = ""
+        self.picked = nil
+        close?()
     }
 }

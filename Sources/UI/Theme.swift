@@ -44,6 +44,11 @@ enum Theme {
     static let bad = Color(hex: 0x9B2B2B)
     static let badWash = bad.opacity(0.10)
     static let badBorder = bad.opacity(0.40)
+    // Code colours (Syntax.swift): warm, on the same near-black, heat for keywords.
+    static let codeKeyword = heatBright
+    static let codeType = Color(hex: 0xE3C58F)
+    static let codeString = Color(hex: 0x9DBF7A)
+    static let codeNumber = Color(hex: 0xD9A37A)
     static let info = textSec
     static let infoWash = textSec.opacity(0.08)
     static let infoBorder = textSec.opacity(0.30)

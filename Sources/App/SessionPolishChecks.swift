@@ -23,6 +23,38 @@ extension Checks {
 
         promptChecks(check)
         toolRowChecks(check)
+        syntaxChecks(check)
+    }
+
+    /// Item 5: code is coloured by its language, in chat code blocks and in the diff.
+    static func syntaxChecks(_ check: (String, Bool) -> Void) {
+        let swift = Syntax.tokens("let name = \"Forge\" // the app", language: "swift")
+        check(
+            "Swift: a keyword, a string and a comment are told apart",
+            swift.contains(.init(.keyword, "let")) && swift.contains(.init(.string, "\"Forge\"")) && swift.contains(.init(.comment, "// the app")))
+        let py = Syntax.tokens("def total(n): return n + 42  # sum", language: Syntax.language(path: "orders/total.py"))
+        check(
+            "Python, picked from the file's name: keyword, number and # comment",
+            py.contains(.init(.keyword, "def")) && py.contains(.init(.number, "42")) && py.contains(.init(.comment, "# sum")))
+        let sh = Syntax.tokens("bin/rubocop --parallel # lint", language: "sh")
+        let block = Syntax.tokens("// first\nlet a = 1", language: "swift")
+        check(
+            "a comment ends at its line; the next line is coloured too",
+            block.contains(.init(.comment, "// first")) && block.contains(.init(.keyword, "let")))
+        check("a shell line's comment is coloured", sh.contains(.init(.comment, "# lint")))
+        check("an unknown language is left plain", Syntax.tokens("let x = 1", language: nil) == [.init(.plain, "let x = 1")])
+        let tokens = Syntax.tokens("func a() {}", language: "swift")
+        check("colouring never drops or adds a character", tokens.map(\.text).joined() == "func a() {}")
+        let row = DiffLines.styled("+let a = 1", language: "swift")
+        check(
+            "a diff line is coloured after its + or −",
+            row.runs.contains { String(row[$0.range].characters) == "let" && $0.foregroundColor == Theme.codeKeyword })
+        let fence = MarkdownCache.parts("```swift\nlet a = 1\n```")
+        if case .code(_, let lang)? = fence.first {
+            check("a code block keeps the language its fence names", lang == "swift")
+        } else {
+            check("a code block keeps the language its fence names", false)
+        }
     }
 
     /// Item 4: what ran is easy to see: a mark per kind of tool, the command apart from its output, an edit as lines.

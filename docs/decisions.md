@@ -26,3 +26,8 @@ the bottom. Each line: the date, the plan item, the call and why.
   panel, an edit as its removed and added lines in red and green (Write shows the new file's first 4,000 characters as
   added lines), and a failed call is tinted with "failed" on its row. The one-line summaries the engine writes stay as
   they are.
+- 2026-11-11, item 5: syntax colours come from a small scanner in `Sources/UI/Syntax.swift` (keywords, types, strings,
+  numbers, comments for about 15 language families), not a bundled highlighter library: no new dependency, and a diff
+  shows lines out of context anyway, so line-by-line colouring is what a parser could give there too. The language
+  comes from a code fence's name or the file's name. Colours stay in the design system's warm range: keywords in heat,
+  types gold, strings soft green, numbers clay, comments muted. Edits inside tool rows are coloured the same way.

@@ -10,8 +10,11 @@ struct ChangesPanel: View {
     @ObservedObject var sessions: SessionsModel
     let session: Sessions.Session
     @State private var confirmMerge = false
-    @State private var file: String?
-    @State private var diff = ""
+    @State private var file: String? = ChangesPanel.openInRender?.path
+    @State private var diff = ChangesPanel.openInRender?.diff ?? ""
+
+    /// A file a render draws opened (`--render-screens` can't click).
+    @MainActor static var openInRender: (path: String, diff: String)?
 
     private var files: [Sessions.FileChange] { sessions.changes[session.id] ?? [] }
     private var pr: Sessions.PullRequest? { sessions.pullRequests[session.id] }
@@ -68,7 +71,7 @@ struct ChangesPanel: View {
                     .buttonStyle(ForgeButton(kind: .ghost))
                 }
                 .padding(.horizontal, 16).padding(.vertical, 8)
-                DiffLines(text: diff)
+                DiffLines(text: diff, language: Syntax.language(path: file))
             }
         }
         .frame(width: Self.width)

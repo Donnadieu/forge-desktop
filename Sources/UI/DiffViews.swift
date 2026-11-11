@@ -4,6 +4,8 @@ import SwiftUI
 /// line and a Shift-click a range, so the person can comment on it.
 struct DiffLines: View {
     let text: String
+    /// The file's language (from its name), so the code is coloured.
+    var language: String? = nil
     var picked: ClosedRange<Int>? = nil
     var pick: ((Int, Bool) -> Void)? = nil
 
@@ -39,8 +41,14 @@ struct DiffLines: View {
         List(Self.lines(text)) { l in
             HStack(spacing: 8) {
                 Text(l.number.map(String.init) ?? "").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
-                Text(l.text.isEmpty ? " " : l.text).font(Theme.mono(11)).foregroundStyle(l.text.hasPrefix("@@") ? Theme.textMuted : Theme.text)
-                    .lineLimit(1)
+                Group {
+                    if l.text.hasPrefix("@@") || l.text.isEmpty {
+                        Text(l.text.isEmpty ? " " : l.text).foregroundStyle(Theme.textMuted)
+                    } else {
+                        Text(Self.styled(l.text, language: language))
+                    }
+                }
+                .font(Theme.mono(11)).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)
             .padding(.horizontal, 8)
@@ -52,6 +60,14 @@ struct DiffLines: View {
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 18)
         .scrollContentBackground(.hidden)
+    }
+
+    /// A diff line: its + or − mark, then the code coloured by its language.
+    @MainActor static func styled(_ line: String, language: String?) -> AttributedString {
+        guard let first = line.first, "+- \\".contains(first) else { return Syntax.attributed(line, language: language) }
+        var mark = AttributedString(String(first))
+        mark.foregroundColor = first == "+" ? Theme.good : first == "-" ? Theme.heat : Theme.textMuted
+        return mark + Syntax.attributed(String(line.dropFirst()), language: first == "\\" ? nil : language)
     }
 
     private func background(_ l: String) -> Color {
@@ -85,7 +101,7 @@ struct DiffSheet: View {
                     Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: [])
                 }
                 .padding(16)
-                DiffLines(text: text, picked: picked, pick: comment == nil ? nil : pick)
+                DiffLines(text: text, language: Syntax.language(path: path), picked: picked, pick: comment == nil ? nil : pick)
                 if let picked, comment != nil {
                     HStack(spacing: 8) {
                         TextField("", text: $note).forgeField(hint: "Comment on \(Self.where(path, text, picked))", empty: note.isEmpty)

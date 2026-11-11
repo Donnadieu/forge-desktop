@@ -133,10 +133,14 @@ struct ToolRow: View {
         }
     }
 
+    /// The edited file's language, so its lines are coloured like the diff.
+    private var language: String? { event.data?["file_path"]?.string.flatMap(Syntax.language(path:)) }
+
     private func line(_ mark: String, _ text: String, _ wash: Color, _ tint: Color) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(mark).font(Theme.mono(11)).foregroundStyle(tint).frame(width: 10)
-            Text(text.isEmpty ? " " : text).font(Theme.mono(11)).foregroundStyle(Theme.text).lineLimit(1).textSelection(.enabled)
+            Text(text.isEmpty ? AttributedString(" ") : Syntax.attributed(text, language: language)).font(Theme.mono(11)).lineLimit(1)
+                .textSelection(.enabled)
         }
         .padding(.horizontal, 10).frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
         .background(wash)

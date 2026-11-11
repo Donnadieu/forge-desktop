@@ -34,9 +34,9 @@ struct MarkdownBlock: View {
                 Text(a).font(Theme.sans(13)).foregroundStyle(Theme.text).lineSpacing(3).textSelection(.enabled)
             }
             .padding(.leading, CGFloat(depth) * 18)
-        case .code(let c, _):
+        case .code(let c, let lang):
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(c).font(Theme.mono(11)).foregroundStyle(Theme.silver).textSelection(.enabled).padding(10)
+                Text(Syntax.attributed(c, language: lang)).font(Theme.mono(11)).textSelection(.enabled).padding(10)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.bg))

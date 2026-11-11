@@ -233,6 +233,22 @@ enum SampleSessions {
         switch scene {
         case "sessions-new": m.composing = true
         case "sessions-card": m.selected = "s4"
+        case "sessions-code":
+            // Code coloured by its language: a Swift block in the chat and a Swift file's diff.
+            m.selected = "s1"
+            let t = turn(
+                "t1c", "c1", "Show me how the list groups sessions.", status: "done",
+                events: [
+                    event(
+                        "c1a", "t1c", "c1", "text",
+                        "It groups by status, newest first:\n\n```swift\nstatic func groups(_ list: [Session]) -> [Group] {\n    // Needs you comes first.\n    let order = [\"needs_you\", \"working\", \"review\"]\n    return order.map { s in Group(status: s, rows: list.filter { $0.status == s }) }\n}\n```\n\nIdle and merged sessions fold away."
+                    )
+                ])
+            m.setTranscript(Transcript(chatID: "c1", turns: [t]))
+            ChangesPanel.openInRender = (
+                "Sources/UI/SessionList.swift",
+                "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -12,4 +12,6 @@ struct SessionList: View {\n     let list: [Sessions.Session]\n-    var title = \"Sessions\"\n+    @State private var folded: Set<String> = [\"idle\", \"merged\"]\n+    // Idle and merged groups start folded.\n     var body: some View {\n         ScrollView {"
+            )
         case "sessions-card-long":
             // Omar's PER-32 card (Nov 11): a long branch name and the card's whole prompt as its first message.
             m.selected = "s4"

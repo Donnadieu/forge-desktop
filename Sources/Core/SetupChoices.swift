@@ -55,6 +55,7 @@ struct SetupChoices: Codable, Equatable, Sendable {
     // The Workflow Studio screen (optional: added after 0.2.4).
     /// Optional columns turned off; cards skip them.
     var stagesOff: [String]?
+    var boardColumns: [String]?
     /// How many agents work at once (each takes one card).
     var agentsAtOnce: Int?
     // Harness engineering, per repo (optional: added after 0.2.5). See Harness.swift.

@@ -109,7 +109,8 @@ struct BasecampProjectScreen: View {
     private var project: BasecampAPI.Project? { projects.first { $0.id == projectID } }
     private var existing: [String] { table?.lists.map(\.title) ?? [] }
     private var missing: [Column] { Pipeline.missing(existing: existing) }
-    private var ready: Bool { table != nil && missing.isEmpty }
+    private var ready: Bool { Self.canContinue(hasTable: table != nil, existing: existing) }
+    static func canContinue(hasTable: Bool, existing: [String]) -> Bool { hasTable && Pipeline.missingRequired(existing: existing).isEmpty }
 
     var body: some View {
         SetupFrame(
@@ -138,15 +139,8 @@ struct BasecampProjectScreen: View {
             .foregroundStyle(Theme.textSec)
             .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: table != nil, where: "Basecamp")
-            if table != nil && !missing.isEmpty {
-                HStack(spacing: 12) {
-                    Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from this card table.")
-                        .font(Theme.sans(13))
-                        .foregroundStyle(Theme.heatBright)
-                    Button("Add them to Basecamp…") { asking = true }
-                        .buttonStyle(ForgeButton(kind: .fix))
-                }
-                .padding(.top, 14)
+            if table != nil {
+                MissingColumnsNote(existing: existing, from: "this card table", tracker: "Basecamp") { asking = true }
             }
             if project != nil && project?.cardTables.isEmpty == true {
                 ProblemLine(text: "This project has no card table. Turn on Card Table in the project's tools in Basecamp, then pick it again.")
@@ -225,6 +219,7 @@ struct BasecampProjectScreen: View {
         model.choices.projectName = p.name
         model.choices.projectSlug = String(p.id)
         model.choices.columnsReady = true
+        model.choices.boardColumns = existing
         model.next()
     }
 }

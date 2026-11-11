@@ -17,9 +17,10 @@ struct ProjectScreen: View {
     private var missing: [Column] { Pipeline.missing(existing: existing) }
     private var ready: Bool { Self.canContinue(team: teamID, existing: existing) }
 
-    /// The team is enough: a project only narrows the cards. The team still needs every pipeline column.
+    /// The team is enough: a project only narrows the cards. The team needs only the required columns;
+    /// the optional ones it lacks just don't run.
     static func canContinue(team: String, existing: [String]) -> Bool {
-        !team.isEmpty && !existing.isEmpty && Pipeline.missing(existing: existing).isEmpty
+        !team.isEmpty && !existing.isEmpty && Pipeline.missingRequired(existing: existing).isEmpty
     }
 
     var body: some View {
@@ -53,15 +54,8 @@ struct ProjectScreen: View {
                 .foregroundStyle(Theme.textSec)
                 .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: !teamID.isEmpty)
-            if !teamID.isEmpty && !missing.isEmpty && !existing.isEmpty {
-                HStack(spacing: 12) {
-                    Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from this team.")
-                        .font(Theme.sans(13))
-                        .foregroundStyle(Theme.heatBright)
-                    Button("Add them to Linear…") { asking = true }
-                        .buttonStyle(ForgeButton(kind: .fix))
-                }
-                .padding(.top, 14)
+            if !teamID.isEmpty && !existing.isEmpty {
+                MissingColumnsNote(existing: existing, from: "this team", tracker: "Linear") { asking = true }
             }
             ForEach(notes, id: \.self) { GoodLine(text: $0).padding(.top, 6) }
             ProblemLine(text: problem)
@@ -84,6 +78,7 @@ struct ProjectScreen: View {
     private func loadTeams() async {
         if model.preview {
             teams = model.sample.teams
+            if model.sample.scene == "shared-board" { teams = [LinearAPI.Team(id: "t1", name: "ATC Rewrite", key: "ATC", triageEnabled: true)] }
             teamID = teams[0].id
             return
         }
@@ -106,6 +101,7 @@ struct ProjectScreen: View {
             existing = model.sample.states
             projectID = projects[0].id
             if model.sample.scene == "team-no-project" { (existing, projectID) = (Pipeline.names, "") }
+            if model.sample.scene == "shared-board" { (existing, projectID) = (["Backlog", "Triage", "Todo", "In Progress", "Done"], "") }
             return
         }
         guard !id.isEmpty, let api = model.linear else { return }
@@ -141,6 +137,7 @@ struct ProjectScreen: View {
         model.choices.projectName = p?.name ?? teamName
         model.choices.projectSlug = p?.slugId
         model.choices.columnsReady = true
+        model.choices.boardColumns = existing
         model.next()
     }
 }
@@ -178,5 +175,43 @@ struct ColumnList: View {
             }
         }
         .panel()
+    }
+}
+
+/// Under the column list: which columns are missing, the offer to add them (only on a tap, it asks first), and
+/// one plain line saying what Forge will and won't do without them.
+struct MissingColumnsNote: View {
+    let existing: [String]
+    /// "this team", "this card table", "this project's Status".
+    let from: String
+    let tracker: String
+    let add: () -> Void
+
+    var body: some View {
+        let missing = Pipeline.missing(existing: existing)
+        let required = Pipeline.missingRequired(existing: existing)
+        if !missing.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from \(from).")
+                        .font(Theme.sans(13))
+                        .foregroundStyle(required.isEmpty ? Theme.textSec : Theme.heatBright)
+                    Button("Add them to \(tracker)…", action: add)
+                        .buttonStyle(ForgeButton(kind: required.isEmpty ? .secondary : .fix))
+                }
+                if !required.isEmpty {
+                    Text("Forge needs \(Pipeline.listed(required.map(\.name))) to start: there's nowhere to pick up or finish cards without them.")
+                        .font(Theme.sans(13))
+                        .foregroundStyle(Theme.heatBright)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let line = Pipeline.withoutLine(existing: existing) {
+                    Text(line)
+                        .font(Theme.sans(13))
+                        .foregroundStyle(Theme.textSec)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, 14)
+        }
     }
 }

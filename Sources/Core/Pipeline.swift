@@ -90,6 +90,35 @@ enum Pipeline {
         return lines.joined(separator: "\n") + "\n\n"
     }
 
+    /// The columns a board must have: without them there's nothing to pick up and nowhere to finish.
+    /// The rest are optional; a stage whose column is missing just doesn't run on that board.
+    static let requiredColumns = ["Backlog", "Todo", "In Progress", "Done"]
+
+    /// Required columns the board doesn't have.
+    static func missingRequired(existing: [String]) -> [Column] {
+        missing(existing: existing).filter { requiredColumns.contains($0.name) }
+    }
+
+    /// One plain line saying what Forge will and won't do on a board missing optional columns (nil when none are).
+    static func withoutLine(existing: [String]) -> String? {
+        let gone = missing(existing: existing).map(\.name).filter { !requiredColumns.contains($0) }
+        let steps = gone.filter { $0 != "Triage" }
+        var parts: [String] = []
+        if !steps.isEmpty {
+            let one = steps.count == 1
+            parts.append(
+                "Forge will work on Todo and In Progress cards. \(listed(steps)) \(one ? "has" : "have") no column here, so Forge won't move "
+                    + "cards into \(one ? "it" : "them"). You can still run \(one ? "that step" : "those steps") from the Orchestrator.")
+        }
+        if gone.contains("Triage") { parts.append("Triage has no column here, so Forge won't plan cards first.") }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    /// "A", "A and B", "A, B and C".
+    static func listed(_ names: [String]) -> String {
+        names.count < 2 ? names.joined() : names.dropLast().joined(separator: ", ") + " and " + names.last!
+    }
+
     /// Columns the team doesn't have yet, by name (case and spacing don't matter).
     static func missing(existing: [String]) -> [Column] {
         let have = Set(existing.map(normalized))

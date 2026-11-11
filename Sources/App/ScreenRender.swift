@@ -28,6 +28,7 @@ enum ScreenRender {
             Shot(name: "1-linear-connected", screen: 0, choices: linked),
             Shot(name: "2-project", screen: 1, choices: linked),
             Shot(name: "2-project-team-only", screen: 1, choices: linked, scene: "team-no-project"),
+            Shot(name: "2-project-shared-board", screen: 1, choices: linked, scene: "shared-board", height: 1000),
         ] + basecampShots() + githubShots() + extraShots(linked)
     }
 

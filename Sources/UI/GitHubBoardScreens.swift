@@ -116,7 +116,10 @@ struct GitHubProjectScreen: View {
         return linked + mine.filter { !linked.contains($0) }
     }
     private var movers: [String] { detail?.movers ?? [] }
-    private var ready: Bool { detail?.status != nil && missing.isEmpty && movers.isEmpty && !repo.isEmpty }
+    private var ready: Bool { Self.canContinue(hasStatus: detail?.status != nil, existing: existing, movers: movers, repo: repo) }
+    static func canContinue(hasStatus: Bool, existing: [String], movers: [String], repo: String) -> Bool {
+        hasStatus && Pipeline.missingRequired(existing: existing).isEmpty && movers.isEmpty && !repo.isEmpty
+    }
 
     var body: some View {
         SetupFrame(
@@ -147,15 +150,8 @@ struct GitHubProjectScreen: View {
             .foregroundStyle(Theme.textSec)
             .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: detail != nil, where: "GitHub")
-            if detail?.status != nil && !missing.isEmpty {
-                HStack(spacing: 12) {
-                    Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from this project's Status.")
-                        .font(Theme.sans(13))
-                        .foregroundStyle(Theme.heatBright)
-                    Button("Add them to GitHub…") { asking = true }
-                        .buttonStyle(ForgeButton(kind: .fix))
-                }
-                .padding(.top, 14)
+            if detail?.status != nil {
+                MissingColumnsNote(existing: existing, from: "this project's Status", tracker: "GitHub") { asking = true }
             }
             if !movers.isEmpty, let url = project?.url {
                 ProblemLine(
@@ -248,6 +244,7 @@ struct GitHubProjectScreen: View {
         model.choices.githubBoard = g
         (model.choices.projectID, model.choices.projectName, model.choices.projectSlug) = (p.id, p.title, p.id)
         model.choices.columnsReady = true
+        model.choices.boardColumns = existing
         model.next()
     }
 }

@@ -220,6 +220,7 @@ enum Checks {
         harnessChecks(check)
         trackerChecks(check)
         linearTeamChecks(check)
+        missingColumnSetupChecks(check)
         workspaceNameChecks(check)
         moveChecks(check)
         accountChecks(check)

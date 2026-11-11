@@ -11,10 +11,12 @@
 - [design/workspaces.md](design/workspaces.md): Workspaces, the request and requirements (design, not built yet)
   - [design/workspaces-design.md](design/workspaces-design.md): its model, migration, settings flow, screens and open questions
 - [design/sessions.md](design/sessions.md): Sessions, chatting with agents inside a workspace (Conductor-style); design, two screen directions, not built
+- [design/missing-columns-and-skills.md](design/missing-columns-and-skills.md): optional columns, parking "Waiting on you", Next step, skills in sessions
 - [design/what-others-see.md](design/what-others-see.md): Keep Forge invisible (marks removed, guards) and editing the workflow file
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress
   - [exec-plans/active/sessions.md](exec-plans/active/sessions.md): Sessions (Direction A), steps and progress
   - [exec-plans/active/sessions-polish.md](exec-plans/active/sessions-polish.md): Sessions polish (Omar's Nov 11 walkthrough)
+  - [exec-plans/active/missing-columns-and-skills.md](exec-plans/active/missing-columns-and-skills.md): missing columns and skills, six items and progress
   - [exec-plans/tech-debt-tracker.md](exec-plans/tech-debt-tracker.md): known debt, only shrinks

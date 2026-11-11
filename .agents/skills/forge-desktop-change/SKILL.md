@@ -70,6 +70,9 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   frame, and SwiftUI centres the extra over the neighbouring pane (the Changes panel's long branch chip covered the
   chat's message box). Let it shrink (`Chip(fits: true)`), and prove a pane fits with
   `NSHostingController(rootView:).sizeThatFits(in:)` in the selftest (`SessionPolishChecks.swift`).
+- `ViewThatFits` uses its LAST option when none fits, and that one overflows its column. A control added to a row
+  that already only just fits (the composer with two chats side by side) needs a last tier that moves it into a menu
+  (Skills goes into the + menu there). Check `14-sessions-side-by-side` after any composer change.
 - `--render-screens` draws 1200x800 with fake traffic lights, and prominent buttons come out grey
   (the window isn't key). Don't "fix" the colour, and say the live title bar is unproven.
 

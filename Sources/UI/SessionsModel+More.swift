@@ -122,3 +122,15 @@ extension SessionsModel {
         }
     }
 }
+
+/// Skills in a session: the list for its folder, and running one (Skills button, or "/" in the message box).
+extension SessionsModel {
+    func skills(for session: Sessions.Session) -> [Skill] {
+        if preview { return SampleSessions.skills }
+        return skillCatalog.list(SkillCatalog.roots(sessionFolder: session.folder.isEmpty ? nil : session.folder))
+    }
+
+    func run(_ skill: Skill, in chat: Sessions.Chat) {
+        send(chat, text: skill.message, queue: false)
+    }
+}

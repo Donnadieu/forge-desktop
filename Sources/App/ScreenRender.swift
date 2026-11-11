@@ -87,6 +87,14 @@ enum ScreenRender {
             to: dir.appendingPathComponent("16-next-step.png"))
         print("\(listed ? "✓" : "✗") 16-next-step")
         if !listed { failed += 1 }
+        // Skills in a session: the Skills button's list (with its search), and the list "/" opens.
+        for (name, query) in [("17-skills", nil), ("17-skills-slash", "re")] as [(String, String?)] {
+            let ok = render(
+                SkillList(skills: SampleSessions.skills, query: query) { _ in }, size: NSSize(width: 360, height: query == nil ? 470 : 230),
+                to: dir.appendingPathComponent("\(name).png"))
+            print("\(ok ? "✓" : "✗") \(name)")
+            if !ok { failed += 1 }
+        }
         return failed == 0 ? 0 : 1
     }
 

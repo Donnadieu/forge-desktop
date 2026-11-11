@@ -113,6 +113,8 @@ final class SessionsModel: ObservableObject {
     /// Set by the app: takes the wheel of a card (true) or hands it back (false); returns the problem, nil when done.
     var cardWheel: (@MainActor (String, String, Bool) async -> String?)?
     private var lastWatch: [[String: String]] = []
+    /// The skills each session can run, cached until a skill folder changes (Core/Skills.swift).
+    let skillCatalog = SkillCatalog()
 
     init(preview: Bool) {
         self.preview = preview

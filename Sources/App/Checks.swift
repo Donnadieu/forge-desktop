@@ -225,6 +225,7 @@ enum Checks {
         missingColumnGatingChecks(check)
         parkingChecks(check)
         nextStepChecks(check)
+        skillChecks(check)
         workspaceNameChecks(check)
         moveChecks(check)
         accountChecks(check)

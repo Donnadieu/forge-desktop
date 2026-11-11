@@ -93,10 +93,19 @@ struct Composer: View {
     let chat: Sessions.Chat
     var compact = false
     @FocusState private var focused: Bool
+    /// The Skills list (from its button, or the + menu in the narrowest boxes).
+    @State private var skillsOpen = false
 
     private var placeholder: String {
         let who = session.origin == "card" ? "Steer \(session.title.split(separator: " ").first ?? "")…" : "Message the agent…"
         return who + (chat.working && session.origin != "card" ? "  Enter steers · ⌥Enter queues" : "")
+    }
+
+    /// The skills list is open while the message starts with "/" and has no space yet.
+    private var slashOpen: Binding<Bool> {
+        Binding(
+            get: { SkillCatalog.slashQuery(sessions.drafts[chat.id] ?? "") != nil },
+            set: { open in if !open, SkillCatalog.slashQuery(sessions.drafts[chat.id] ?? "") != nil { sessions.drafts[chat.id] = "" } })
     }
 
     private var text: Binding<String> {
@@ -113,6 +122,13 @@ struct Composer: View {
                     Text(placeholder).font(Theme.sans(13)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1).lineLimit(1)
                 }
                 TextEditor(text: text).font(Theme.sans(13)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
+                    // "/" at the start opens the skills list, filtered by what follows; a pick runs the skill.
+                    .popover(isPresented: slashOpen, arrowEdge: .top) {
+                        SkillList(skills: sessions.skills(for: session), query: SkillCatalog.slashQuery(text.wrappedValue) ?? "") { skill in
+                            sessions.drafts[chat.id] = ""
+                            sessions.run(skill, in: chat)
+                        }
+                    }
                     .frame(minHeight: 44, maxHeight: 180).fixedSize(horizontal: false, vertical: true)
                     .focused($focused)
                     .onKeyPress(.return, phases: .down) { press in
@@ -126,11 +142,18 @@ struct Composer: View {
             ViewThatFits(in: .horizontal) {
                 controls(short: compact)
                 controls(short: true)
+                controls(short: true, skillsButton: false)
             }
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.surface))
         .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(focused ? Theme.borderHover : Theme.border))
+        .popover(isPresented: $skillsOpen, arrowEdge: .top) {
+            SkillList(skills: sessions.skills(for: session), query: nil) { skill in
+                skillsOpen = false
+                sessions.run(skill, in: chat)
+            }
+        }
         .background(
             Button("") { focused = true }.keyboardShortcut("l", modifiers: .command).opacity(0).allowsHitTesting(false)
         )
@@ -148,12 +171,13 @@ struct Composer: View {
         return hands ? "You have the wheel" : "Steering the card's agent"
     }
 
-    private func controls(short: Bool) -> some View {
+    private func controls(short: Bool, skillsButton: Bool = true) -> some View {
         HStack(spacing: 8) {
             if session.origin != "card" {
                 Menu {
                     Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
                     Button("Attach a picture…") { pickPictures() }
+                    if !skillsButton { Button("Run a skill…") { skillsOpen = true } }
                     Button(chat.planMode ? "Leave plan mode" : "Plan first (plan mode)") { sessions.set(chat, planMode: !chat.planMode) }
                     Button(chat.askBeforeChanges ? "Stop asking before changes" : "Ask before changes") {
                         sessions.set(chat, ask: !chat.askBeforeChanges)
@@ -167,6 +191,8 @@ struct Composer: View {
             } else {
                 Pill(text: wheelWords(short: short), tone: .ghost)
             }
+            // The narrowest boxes (two chats side by side) keep Skills in the + menu instead.
+            if skillsButton || session.origin == "card" { SkillsButton(open: $skillsOpen).fixedSize() }
             if chat.planMode { Pill(text: "Plan mode", tone: .info) }
             if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
             Spacer(minLength: 8)

@@ -12,7 +12,7 @@ tool calls, commands and thoughts, and commenting on diff lines.
 - Tick a box only when its PR is merged to main and its check passes.
 
 ## Merged
-- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`).
+- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`). 3: PR #93 (`90586cc`).
 
 ## Out of scope
 Codex and Kimi chats, the model picker listing every provider, the Claude Design visual pass, and the setup changes
@@ -21,7 +21,7 @@ Codex and Kimi chats, the model picker listing every provider, the Claude Design
 ## Progress
 - [x] 1. Layout: the Changes panel never spills over the chat or its composer; each pane has a clear edge at every window width
 - [x] 2. Card prompt bubble: Markdown rendered (headings, lists, bold, code), collapsed to a short preview with "Show full prompt"
-- [ ] 3. Thought rows open on click, like tool rows
+- [x] 3. Thought rows open on click, like tool rows
 - [ ] 4. A clear, compact style for commands, their output, file reads and edits
 - [ ] 5. Syntax highlighting by language in the diff panel and in chat code blocks
 - [ ] 6. Scroll stays put when scrolled up; a "Jump to latest" pill; auto-follow only at the bottom

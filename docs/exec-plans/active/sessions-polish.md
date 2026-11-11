@@ -12,7 +12,7 @@ tool calls, commands and thoughts, and commenting on diff lines.
 - Tick a box only when its PR is merged to main and its check passes.
 
 ## Merged
-- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`). 3: PR #93 (`90586cc`). 4: PR #95 (`e5fd791`). 5: PR #97 (`b330255`).
+- 1: PR #91 (`17cc65e`). 2: PR #92 (`a6463e9`). 3: PR #93 (`90586cc`). 4: PR #95 (`e5fd791`). 5: PR #97 (`b330255`). 6: PR #99.
 
 ## Out of scope
 Codex and Kimi chats, the model picker listing every provider, the Claude Design visual pass, and the setup changes
@@ -24,7 +24,7 @@ Codex and Kimi chats, the model picker listing every provider, the Claude Design
 - [x] 3. Thought rows open on click, like tool rows
 - [x] 4. A clear, compact style for commands, their output, file reads and edits
 - [x] 5. Syntax highlighting by language in the diff panel and in chat code blocks
-- [ ] 6. Scroll stays put when scrolled up; a "Jump to latest" pill; auto-follow only at the bottom
+- [x] 6. Scroll stays put when scrolled up; a "Jump to latest" pill; auto-follow only at the bottom
 - [ ] 7. Tabs: new ones named Chat 2, Chat 3; "Review" renamed Changes and shown only once there are changes; right-click Rename and Close; X on hover
 - [ ] 8. Create PR sends the agent a create-PR prompt (like Conductor's create-PR skill); nothing made silently
 - [ ] 9. New session = new worktree and branch off main by default; the sheet can pick an existing branch or name a new one; repo locked to the workspace

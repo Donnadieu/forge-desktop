@@ -82,6 +82,15 @@ enum ScreenRender {
             print("\(ok ? "✓" : "✗") \(name)")
             if !ok { failed += 1 }
         }
+        // Open in's menu opens as a popover: drawn on its own, with Cursor as the one-click app.
+        let openIn = SampleSessions.openInSample("sessions-open-in")
+        if let card = SampleSessions.all.first(where: { $0.id == "s4" }) {
+            let menu = render(
+                OpenInMenu(openIn: openIn, session: card, checkouts: []) {}, size: NSSize(width: 260, height: 300),
+                to: dir.appendingPathComponent("21-open-in-menu.png"))
+            print("\(menu ? "✓" : "✗") 21-open-in-menu")
+            if !menu { failed += 1 }
+        }
         // "Add from repo" opens as a popover: its list on its own.
         let picked = render(
             RepoFileList(found: RepoFileList.sample, picked: ["config/master.key"]) { _ in }, size: NSSize(width: 360, height: 300),

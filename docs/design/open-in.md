@@ -1,6 +1,8 @@
 # Open in…: open a session's folder in an app on the Mac
 
-Status: **design, two directions (Nov 12, 2026), waiting on Omar's pick.** Claude Design project
+Status: **built, Direction A (Omar's pick, Nov 12, 2026).** Code: `Sources/Core/OpenIn.swift` (catalog, detection,
+folder rule, launch plans, per-workspace default), `Sources/UI/OpenInButton.swift` (model, split button, menu); checks
+`Sources/App/OpenInChecks.swift`; renders `21-open-in-*` (copies in `docs/design/open-in/built/`). Claude Design project
 <https://claude.ai/design/p/998653e1-6c33-4e48-a23c-180cbc5c5e35>. Pictures in `docs/design/open-in/` (`00-conductor-reference.png`, `s0` today, `a1`-`a7`, `b1`-`b7`).
 
 Omar's words: "the ability to open the code of that particular workspace in that tree, in a terminal in an IDE.
@@ -70,7 +72,15 @@ with the Changes panel hidden. B's per-file opening is a nice extra that can com
 
 Only apps whose bundle id resolves are listed, in this order within each group.
 
-## 5. Build plan (after the pick)
+## 5. As built
+
+- The menu has no ⌘1-9 hints: on the Sessions screen ⌘1-9 already open sessions 1-9.
+- ⌘O replaces the old hard-wired "Cursor, then VS Code, else Finder" (`SessionsModel.openInEditor`, removed).
+- Windsurf's bundle id now installs as "Devin": that entry shows the app's own name (`App.ownName`).
+- A failed open shows the Notice under the header with "Choose another app"; a refused folder (none, or a main
+  checkout) says "This session has no folder of its own to open."
+
+## 6. Build plan (as planned)
 
 - `Core/OpenIn.swift`: the catalog, `AppFinder` (a protocol over `urlForApplication(withBundleIdentifier:)`), the
   per-workspace default (`UserDefaults`, key per workspace id), and `OpenIn.plan(app:folder:)` returning what to launch.

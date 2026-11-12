@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// The Sessions screen's smaller actions (notices are in AgentNotice.swift): the next chat waiting
-/// on them, closing a chat, History (archived sessions) and restoring one, and opening a session's folder in an editor.
+/// on them, closing a chat, History (archived sessions) and restoring one.
 extension SessionsModel {
     /// A comment on lines of the diff joins the open chat's message box (after what's already written).
     func addComment(_ text: String, session id: String) {
@@ -72,18 +72,6 @@ extension SessionsModel {
         act { try await $0.unarchive(session: s.id) }
         showHistory = false
         selected = s.id
-    }
-
-    /// ⌘O: the session's folder in the person's editor (Cursor, then VS Code, else Finder).
-    func openInEditor(_ s: Sessions.Session) {
-        let url = URL(fileURLWithPath: s.folder)
-        for id in ["com.todesktop.230313mzl4w4u92", "com.microsoft.VSCode"] {
-            if let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-                NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
-                return
-            }
-        }
-        NSWorkspace.shared.open(url)
     }
 }
 

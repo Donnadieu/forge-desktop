@@ -123,6 +123,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `opensFileLinks(_:root:)` sets on a transcript; Markdown parts are cached per text AND worktree, so a view without
   a worktree never gets links.
 
+- Vision (`Checks.readScreen`) misreads 11 pt words at 1x ("Open in…" came back "Openin...", a menu's lower rows went
+  missing). Draw a small view scaled up (`Checks.big`, 2.5x) before reading it.
+- A render scene that sets state for one session must not run for every scene: `SampleSetup.scene` selected s1 for any
+  `sessions-*` scene, so `14-sessions-card` showed s1's chat for weeks. Scope a scene's setup to its own names.
+- Anything that opens another app (Open in) takes its Launch Services lookup and its launch as parameters
+  (`OpenInModel(registry:defaults:launcher:)`); checks pass a fake registry and a recording launcher, and renders a
+  launch that does nothing, so no check ever puts an app on the person's screen.
+
 ### Keys, paste and text fields
 - Never give a SwiftUI `Button` a ⌘ key the text system owns (⌘V, ⌘C, ⌘X, ⌘A, ⌘Z): AppKit offers a ⌘ key to the key
   window's views before the menu bar (`-[NSApplication _handleKeyEquivalent:]`), so a hidden ⌘V button took paste
@@ -270,6 +278,8 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Claude Code (2.1.319) sends `AskUserQuestion` and `ExitPlanMode` as `can_use_tool` requests even in
   `bypassPermissions`; answer a question with `updatedInput.answers` = {question: label}. Approving a plan switches the
   session to `default`, so set the permission mode back or the next Bash call asks.
+- A chat is `idle` for a moment between a finished turn and the queued next one (`startTurn` snapshots the folder
+  first): a test that waits for idle reads that gap on a loaded machine. Wait for the turn count, then idle.
 - Test chats with `engine/test/fixtures/sessions/fake-claude.mjs` (`FORGE_CLAUDE_COMMAND`), never a real `claude`.
 - While a `can_use_tool` request (AskUserQuestion, a plan, a permission) waits, Claude Code 2.1.322 reads no message
   written to its stdin: it queues it (`queue-operation enqueue`) and echoes nothing until the request is answered, so a

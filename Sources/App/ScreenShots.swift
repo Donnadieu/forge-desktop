@@ -77,6 +77,18 @@ extension ScreenRender {
             Shot(name: "18-steer-delivered", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-steer", width: 1500),
             Shot(name: "18-steer-queued", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-queued", width: 1500),
             Shot(name: "14-sessions-side-by-side", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-split"),
+            Shot(name: "21-open-in-card", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-open-in", height: 900, width: 1440),
+            Shot(
+                name: "21-open-in-first", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-open-in-first", height: 900, width: 1440),
+            Shot(
+                name: "21-open-in-opened", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-open-in-opened", height: 900, width: 1440
+            ),
+            Shot(
+                name: "21-open-in-failed", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-open-in-failed", height: 900, width: 1440
+            ),
+            Shot(
+                name: "21-open-in-side-by-side", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-open-in-split", height: 900,
+                width: 1440),
             Shot(name: "14-sessions-review-comments", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-review"),
             Shot(name: "14-sessions-import", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-import"),
             Shot(name: "17-sessions-other-workspace", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-other-workspace"),

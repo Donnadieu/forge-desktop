@@ -6,6 +6,7 @@ struct ChatColumn: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
     @ObservedObject var terminals = Terminals.shared
+    @ObservedObject var openIn = OpenInModel.shared
     let session: Sessions.Session
     var chatID: String?
     var compact = false
@@ -16,6 +17,17 @@ struct ChatColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if let problem = openIn.problem[session.id] {
+                Notice(title: problem) {
+                    Button("Choose another app") {
+                        openIn.problem[session.id] = nil
+                        openIn.refresh()
+                        openIn.menuFor = closable ? "\(session.id):side" : session.id
+                    }
+                    .buttonStyle(ForgeButton(kind: .fix))
+                }
+                .padding(.horizontal, compact ? 12 : 24).padding(.top, 12)
+            }
             let handsOn = chat.flatMap(sessions.card(of:))?.handsOn == true
             // Only the card's own chat steers the card; another chat in its session ("Chat 2") has its own agent.
             if let chat, SessionsModel.isCardsOwn(chat, in: session), chat.working || handsOn {
@@ -72,6 +84,7 @@ struct ChatColumn: View {
                 statusPill
                 Spacer(minLength: 8)
                 if !session.archived {
+                    OpenInButton(openIn: openIn, session: session, checkouts: model.mainCheckouts(of: session), compact: compact, side: closable)
                     let open = terminals.shown.contains(session.id)
                     Button(open ? "Hide Terminal" : "Terminal") { terminals.toggle(session, env: model.sessionEnv(session.workspaceId)) }
                         .buttonStyle(ForgeButton(kind: .ghost, hint: compact ? nil : "⌃`", icon: "terminal"))

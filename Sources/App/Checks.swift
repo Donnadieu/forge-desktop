@@ -279,6 +279,7 @@ enum Checks {
         copyChecks(check)
         composerKeyChecks(check)
         questionChecks(check)
+        openInChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

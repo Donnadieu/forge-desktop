@@ -188,7 +188,9 @@ describe("a chat (stand-in agent)", () => {
     const s1 = store.session("s1");
     expect(s1 && host.view(s1).chats[0]?.queue).toEqual(["second"]);
     expect(frames.filter((f) => f.type === "chat").at(-1)?.queue).toEqual(["second"]);
-    await sleep(1500);
+    // The chat is idle for a moment between the two turns (the next one snapshots the folder first): wait for the
+    // second turn itself, not only for idle, or a slow machine reads the gap.
+    for (let i = 0; i < 200 && store.turns(c.id, null, 10).length < 2; i++) await sleep(50);
     await idle(c.id);
     const turns = store.turns(c.id, null, 10);
     expect(turns.map((t) => t.userText)).toEqual(["first", "second"]);

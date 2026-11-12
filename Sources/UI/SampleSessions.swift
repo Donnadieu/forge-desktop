@@ -284,7 +284,8 @@ enum SampleSessions {
         ChangesPanel.checksOpenInRender = false
         SessionList.hoveredInRender = nil
         BranchMenu.copiedInRender = false
-        if prPanelScene(m, scene) { return }
+        OpenInModel.shared = openInSample(scene)
+        if prPanelScene(m, scene) || openInScene(m, scene) { return }
         switch scene {
         case "sessions-new": m.composing = true
         case "sessions-card": m.selected = "s4"

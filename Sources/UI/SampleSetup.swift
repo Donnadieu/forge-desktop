@@ -26,7 +26,10 @@ enum SampleSetup {
         }
         let s = m.sessions
         guard scene.hasPrefix("sessions-"), let i = s.sessions.firstIndex(where: { $0.id == "s1" }) else { return }
-        s.selected = "s1"
+        // s1 when the scene picked no session, or the scene is about s1; a session the scene picked stays (forcing s1 on
+        // every scene drew s1's chat in 14-sessions-card).
+        let own = ["sessions-terminal", "sessions-setup-failed", "sessions-setup-running", "sessions-long-paste"]
+        if s.current == nil || own.contains(scene) { s.selected = "s1" }
         switch scene {
         case "sessions-terminal":
             s.sessions[i].folder = "~/forge/folders/acme-app/fix-login"

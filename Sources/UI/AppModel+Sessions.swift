@@ -23,6 +23,13 @@ extension AppModel {
         return dir.path
     }
 
+    /// The repo checkouts a session's workspace knows (the person's own clones): Open in never opens these, only the
+    /// session's own folder.
+    func mainCheckouts(of session: Sessions.Session) -> [String] {
+        let repos = store.workspaces?.first { $0.id == session.workspaceId }?.repos ?? []
+        return repos.compactMap(\.local) + [Self.localCheckout(session.repo)].compactMap { $0 }
+    }
+
     /// Adds a repo to the workspace on screen (from New session's repo menu).
     func addSessionRepo(_ r: SessionRepo) {
         guard let w = workspace?.id, let i = store.workspaces?.firstIndex(where: { $0.id == w }) else { return }

@@ -101,7 +101,7 @@ struct SessionsScreen: View {
     }
 
     /// Conductor's keys, so the hands keep working (design section 6): ⌘N new session, ⌘T new chat, ⌘W close chat,
-    /// ⌘1-9 and ⌘⌥↑↓ sessions, ⌘⌥L next chat needing you, ⌘O open in the editor, ⌘⇧A archive, ⌘⇧D changes,
+    /// ⌘1-9 and ⌘⌥↑↓ sessions, ⌘⌥L next chat needing you, ⌘O open in the app used last, ⌘⇧A archive, ⌘⇧D changes,
     /// ⌘⇧S the sessions list.
     private var shortcuts: some View {
         ZStack {
@@ -112,7 +112,8 @@ struct SessionsScreen: View {
             Button("") { sessions.openNeighbour(list, by: 1) }.keyboardShortcut(.downArrow, modifiers: [.command, .option])
             Button("") { if let s = sessions.current, let c = sessions.activeChat(of: s) { sessions.close(c) } }
                 .keyboardShortcut("w", modifiers: .command)
-            Button("") { if let s = sessions.current { sessions.openInEditor(s) } }.keyboardShortcut("o", modifiers: .command)
+            Button("") { if let s = sessions.current { OpenInModel.shared.openDefault(s, checkouts: model.mainCheckouts(of: s)) } }
+                .keyboardShortcut("o", modifiers: .command)
             Button("") { if let s = sessions.current { sessions.requestArchive(s) } }.keyboardShortcut("a", modifiers: [.command, .shift])
             Button("") { sessions.showChanges.toggle() }.keyboardShortcut("d", modifiers: [.command, .shift])
             Button("") { sessions.showSessions.toggle() }.keyboardShortcut("s", modifiers: [.command, .shift])

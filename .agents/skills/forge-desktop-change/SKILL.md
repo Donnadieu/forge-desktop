@@ -220,6 +220,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   Anything that can stop dispatch must reach the screen the same way, never only the log.
 
 ### Sessions
+- Claude Code finds a project's MCP servers by the folder's path in `~/.claude.json` (a git worktree resolves to its
+  main checkout, a separate clone doesn't), loads a folder's `.mcp.json` without approval in `-p` mode, and shows it
+  "Pending approval" to a person until the folder is trusted and the server is in `enabledMcpjsonServers`. A
+  `CLAUDE_CODE_OAUTH_TOKEN` (setup-token) sign-in has no `user:mcp_servers` scope, so claude.ai connectors never load
+  on it. Probe with a real `claude -p --no-session-persistence --output-format stream-json --verbose` and read the
+  `init` line's `mcp_servers` (name, status, source); a stand-in token is enough, the init line comes before any call.
+- The sessions host only gets what the app pushes (`setupPayloads`): anything an agent needs per workspace (its
+  account's sign-in) goes in that payload, and the terminal reads the same payload (`sessionEnv`), or the two drift.
+
 - Snapshots (`git commit-tree` in `sessions/git.ts`) must pass `--no-gpg-sign`: the person's global config may sign
   every commit, which would sign (and maybe prompt for) a private snapshot on every turn.
   Linux CI has no git identity and can't guess an email, so commit-tree fails there while it passes on a Mac: give it a

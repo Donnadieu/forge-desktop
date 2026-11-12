@@ -18,6 +18,8 @@ export interface ChatsOptions {
   command: string;
   /** The environment an agent of this session runs with. */
   envFor: (s: SessionRecord) => Promise<NodeJS.ProcessEnv>;
+  /** The file with the person's own MCP servers for the session's folder, if they have any. */
+  mcpConfigFor?: (s: SessionRecord) => string | undefined;
   /** Something changed: tell the app (already stored). */
   notify: (frame: Record<string, unknown>) => void;
   /** The session's status may have changed. */
@@ -142,6 +144,7 @@ export class Chats {
       resume: !c.startSessionId && c.providerSessionId !== null,
       permissionMode: permissionMode(c),
       thinkingDisplay,
+      mcpConfig: this.o.mcpConfigFor?.(s),
       onLine: (raw) => {
         l.activeAt = Date.now();
         if (raw.type === "user" && raw.isReplay === true) return this.delivered(l, raw);

@@ -32,6 +32,9 @@ final class AppModel: ObservableObject {
     var links: [String: BoardLink] = [:]
     /// Setup was changed since the engine started, so the board restarts it with the new answers.
     var settingsChanged = false
+    /// The sign-in of the account a workspace's chats and terminals run on (the Keychain; checks swap it, and a
+    /// screen render has none).
+    var accountSecret: (AIAccount) -> String? = { _ in nil }
     /// The projects the Orchestrator asked to show, in order (the selftest reads it).
     var boardRequests: [String?] = []
     /// The project on screen has had no board and no problem for `boardWait`: the Orchestrator says so.
@@ -106,6 +109,7 @@ final class AppModel: ObservableObject {
         self.store = preview ? Self.sampleStore(&c) : SetupStore.load(migrating: &c)
         self.choices = c
         self.screen = screen ?? c.nextScreen
+        if !preview { accountSecret = { WorkerCheck.secret($0) } }
         useSignIns(github: true)
         sessions.show(workspace: store.current?.id)
         connectCardSessions()

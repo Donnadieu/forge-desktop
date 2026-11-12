@@ -10,10 +10,13 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { repoFromRemote } from "../workspace/person-mcp.js";
 import { contextWindow } from "./chats.js";
 import { TurnRecorder } from "./recorder.js";
 import type { SessionStore } from "./store.js";
 import type { ChatRecord, SessionRecord, TurnRecord } from "./types.js";
+
+export { repoFromRemote };
 
 const { DatabaseSync } = createRequire(import.meta.url)(
   "node:sqlite",
@@ -26,15 +29,6 @@ export const CONDUCTOR_DB = join(
 
 interface Row {
   [k: string]: unknown;
-}
-
-/**
- * "git@github.com:acme/app.git", "https://github.com/acme/app" or an SSH host alias
- * ("git@github.com-work:acme/app.git", one per GitHub account) -> "acme/app".
- */
-export function repoFromRemote(url: string): string | null {
-  const m = /github\.com[\w.-]*[:/]([^/]+)\/([^/]+?)(\.git)?\/?$/.exec(url.trim());
-  return m ? `${m[1]}/${m[2]}` : null;
 }
 
 /** Conductor's model names to Claude Code's. */

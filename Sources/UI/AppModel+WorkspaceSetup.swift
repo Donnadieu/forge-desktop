@@ -6,16 +6,24 @@ extension AppModel {
     /// Secrets live in the Keychain; screen renders and checks never touch it.
     var secretStore: SecretStore { preview ? MemorySecrets() : KeychainSecrets() }
 
-    /// A workspace's variables, secrets read back from the Keychain (for its terminals).
+    /// What a session terminal starts with: the same variables as the workspace's chats (its own and its account's
+    /// sign-in), secrets read back from the Keychain.
     func sessionEnv(_ workspaceID: String) -> [String: String] {
-        guard let w = store.workspace(workspaceID) ?? store.current, let vars = w.setup?.env, !vars.isEmpty else { return [:] }
-        return WorkspaceEnv.values(vars, workspace: w.id, secrets: secretStore)
+        guard let w = store.workspace(workspaceID) ?? store.current else { return [:] }
+        return sessionPayload(w.id)["env"] as? [String: String] ?? [:]
     }
 
-    /// What the sessions host gets for every workspace: its copy list, scripts and variables.
+    /// What the sessions host gets for one workspace: its copy list, scripts, variables and the sign-in of the account
+    /// its chats run on (`WorkerCheck.sessionEnv`), with which values are secret.
+    func sessionPayload(_ workspaceID: String) -> [String: Any] {
+        let base = (store.workspace(workspaceID)?.setup ?? WorkspaceSetup()).payload(workspace: workspaceID, secrets: secretStore)
+        return WorkspaceSetup.withAccount(base, WorkerCheck.sessionEnv(store, workspace: workspaceID, secret: accountSecret))
+    }
+
+    /// What the sessions host gets for every workspace.
     func setupPayloads() -> [String: [String: Any]] {
         var out: [String: [String: Any]] = [:]
-        for w in store.workspaceList { out[w.id] = (w.setup ?? WorkspaceSetup()).payload(workspace: w.id, secrets: secretStore) }
+        for w in store.workspaceList { out[w.id] = sessionPayload(w.id) }
         return out
     }
 
@@ -33,7 +41,7 @@ extension AppModel {
         store.workspaces?[i].setup = next.isEmpty ? nil : next
         if !preview { store.save() }
         if old.env ?? [] != env || rows.contains(where: { $0.secret && !$0.value.isEmpty }) { settingsChanged = true }
-        sessions.pushSetup(w.id, next.payload(workspace: w.id, secrets: secretStore))
+        sessions.pushSetup(w.id, sessionPayload(w.id))
     }
 
     /// The one notifications switch, on this Mac.

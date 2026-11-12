@@ -9,6 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { personMcpServers, shareWithTerminal, writeMcpFile } from "../workspace/person-mcp.js";
 import { CardWatcher } from "./cards.js";
 import { Chats, contextWindow } from "./chats.js";
 import { cutTranscript, restore } from "./checkpoints.js";
@@ -69,6 +70,10 @@ export interface HostOptions {
   notify: (frame: Record<string, unknown>) => void;
   /** Which GitHub account reaches a repo (tests skip gh). */
   account?: (repo: string) => Promise<string | null>;
+  /** Where the person's `.claude.json` is (tests point it elsewhere). Absent ⇒ their home folder. */
+  claudeHome?: string;
+  /** Forge's own folder (`FORGE_HOME`): only checkouts in it get the terminal's `.mcp.json`. */
+  forgeHome?: string;
   /** Tests shorten how long a message may go unread and how long Stop waits (chats.ts). */
   chatTimings?: { deliveryMs?: number; stopGraceMs?: number };
 }
@@ -101,6 +106,7 @@ export class SessionsHost {
     this.chats = new Chats(store, {
       command: o.command,
       envFor: (s) => this.envFor(s),
+      mcpConfigFor: (s) => this.mcpConfigFor(s),
       notify: o.notify,
       touched: (id) => this.touched(id),
       ...o.chatTimings,
@@ -156,6 +162,18 @@ export class SessionsHost {
     env.FORGE_SESSION_BRANCH = s.branch;
     env.FORGE_SESSION_BASE = s.base;
     return env;
+  }
+
+  /**
+   * The person's own MCP servers for the session's folder (mcp/person-servers.ts), written under the host's folder
+   * (never into the person's checkout) for `--mcp-config`, and shared with the session terminal when the folder is
+   * Forge's own checkout. Undefined when they have none.
+   */
+  mcpConfigFor(s: SessionRecord): string | undefined {
+    const servers = personMcpServers(s.folder, { home: this.o.claudeHome, repo: s.repo });
+    shareWithTerminal(s.folder, servers, this.o.forgeHome ?? process.env.FORGE_HOME);
+    if (Object.keys(servers).length === 0) return undefined;
+    return writeMcpFile(join(this.o.home, "mcp", `${s.id.replace(/[^\w.-]/g, "_")}.json`), servers);
   }
 
   status(s: SessionRecord): SessionStatus {

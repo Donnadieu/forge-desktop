@@ -8,6 +8,7 @@ import { copyWorkspaceAssets, type OrgSkillFile } from "./copy-assets.js";
 import { stopLeftoverServers } from "./leftover-sweep.js";
 import { acquireWorkspaceLock, liveLockHolder, type WorkspaceLockResult } from "./lock.js";
 import { writeMcpConfig as writeMcpConfigFile } from "./mcp-config.js";
+import { mergeMcpServers, personMcpServers, shareWithTerminal } from "./person-mcp.js";
 
 export interface WorkspaceConfig {
   root: string;
@@ -18,6 +19,8 @@ export interface WorkspaceConfig {
     before_remove?: string;
   };
   hookTimeoutMs?: number;
+  /** Where the person's `.claude.json` is (tests point it elsewhere). Absent ⇒ their home folder. */
+  claudeHome?: string;
   skillsDir?: string;
   templatesDir?: string;
   sshConfigPath?: string;
@@ -196,12 +199,18 @@ export class WorkspaceManager {
     }
   }
 
-  /** Write MCP config file for agent to use in the workspace. */
+  /**
+   * The card's MCP config (`.forge/mcp.json`): Forge's tracker tool, if the board has one, and the person's own
+   * servers for this repo (mcp/person-servers.ts), theirs winning a name both use. The person's servers also go
+   * into the folder's `.mcp.json` for a `claude` started by hand in the session terminal.
+   */
   async writeMcpConfig(
     workspacePath: string,
     mcpServers: Record<string, unknown>,
   ): Promise<string> {
-    return writeMcpConfigFile(workspacePath, mcpServers);
+    const person = personMcpServers(workspacePath, { home: this.config.claudeHome });
+    shareWithTerminal(workspacePath, person, this.config.root);
+    return writeMcpConfigFile(workspacePath, mergeMcpServers(mcpServers, person));
   }
 
   /**

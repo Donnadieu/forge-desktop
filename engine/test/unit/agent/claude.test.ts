@@ -128,6 +128,33 @@ describe("ClaudeCodeAdapter", () => {
     }
   });
 
+  it("a card on an account of its own (its own login folder) gets the card's MCP config and keeps every other server", async () => {
+    const account = new ClaudeCodeAdapter({
+      model: "claude-opus-5",
+      env: {
+        PATH: "/usr/bin",
+        HOME: "/Users/p",
+        CLAUDE_CONFIG_DIR: "/forge/accounts/a1",
+        CLAUDE_CODE_OAUTH_TOKEN: "",
+      },
+    });
+    vi.mocked(child_process.spawn).mockReturnValue(createMockProcess([]) as any);
+    await account.startSession({
+      prompt: "x",
+      workspacePath: "/tmp/ws",
+      mcpConfigPath: "/tmp/ws/.forge/mcp.json",
+    });
+    const [, args, opts] = vi.mocked(child_process.spawn).mock.calls[0] as [
+      string,
+      string[],
+      { env: NodeJS.ProcessEnv },
+    ];
+    expect(args[args.indexOf("--mcp-config") + 1]).toBe("/tmp/ws/.forge/mcp.json");
+    expect(args).not.toContain("--strict-mcp-config");
+    expect(opts.env.CLAUDE_CONFIG_DIR).toBe("/forge/accounts/a1");
+    expect(opts.env.HOME).toBe("/Users/p");
+  });
+
   it("spawns on an explicit per-session env instead of process.env (FRG-2239)", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-platform");
     vi.stubEnv("DATABASE_URL", "postgres://factory");

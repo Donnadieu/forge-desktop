@@ -8,14 +8,7 @@ actor ToolPath {
 
     func value() async -> String {
         if let c = cached { return c }
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let usual = [
-            "\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
-            "/usr/bin", "/bin", "/usr/sbin", "/sbin",
-        ]
-        var parts = ToolPath.loginShellPath().split(separator: ":").map(String.init)
-        for u in usual where !parts.contains(u) { parts.append(u) }
-        let v = parts.filter { !$0.isEmpty }.joined(separator: ":")
+        let v = ToolPath.compose(login: ToolPath.loginShellPath(), home: FileManager.default.homeDirectoryForCurrentUser.path)
         cached = v
         return v
     }
@@ -39,5 +32,23 @@ actor ToolPath {
         }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8) ?? ""
+    }
+}
+
+extension ToolPath {
+    /// The login shell's PATH, the usual places, then version managers' shims when they're installed: a login shell
+    /// that isn't interactive never runs the `mise activate` in .zshrc, so `node` and `npx` were missing and the
+    /// person's MCP servers started with npx failed in every agent (Omar's Andela chats, Nov 12).
+    nonisolated static func compose(
+        login: String, home: String, exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) -> String {
+        let usual = [
+            "\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin",
+            "/usr/bin", "/bin", "/usr/sbin", "/sbin",
+        ]
+        let shims = ["\(home)/.local/share/mise/shims", "\(home)/.asdf/shims"].filter(exists)
+        var parts = login.split(separator: ":").map(String.init)
+        for u in usual + shims where !parts.contains(u) { parts.append(u) }
+        return parts.filter { !$0.isEmpty }.joined(separator: ":")
     }
 }

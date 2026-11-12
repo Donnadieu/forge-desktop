@@ -334,3 +334,15 @@ struct SetupStore: Codable, Equatable, Sendable {
         try? enc.encode(self).write(to: Self.file, options: .atomic)
     }
 }
+
+extension SetupStore {
+    /// The account a workspace's chats and session terminals run on (Omar, Nov 12: the Andela workspace's chats ran
+    /// on the Mac's own Claude Code sign-in): the one its project on screen uses, else any of its projects'. Only one
+    /// Claude Code runs on, since chats are Claude Code; nil keeps the Mac's own sign-in.
+    func sessionAccount(_ workspaceID: String) -> AIAccount? {
+        let mine = projects.filter { $0.workspaceID == workspaceID }
+        let shown = workspace(workspaceID)?.runningProject
+        let ordered = mine.filter { $0.id == shown } + mine.filter { $0.id != shown }
+        return ordered.lazy.compactMap { account($0.accountID) }.first { $0.provider == .claude || $0.provider == .openrouter }
+    }
+}

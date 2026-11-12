@@ -40,11 +40,12 @@ Layer N may import only from lower layers. Enforced by `engine/test/architecture
 | 1 | `agent/` | Claude Code, Codex, Kimi runners | process, config |
 | 1 | `tracker/` | Linear, Basecamp, GitHub Issues (and an in-memory board for tests) | observability |
 | 1 | `mcp/` | Linear, Basecamp or GitHub tools for agents | tracker, observability, config |
-| 1 | `workspace/` | one folder per card, hooks, skills copy, git identity | tracker, process |
+| 1 | `workspace/` | one folder per card, hooks, skills copy, git identity, the person's own MCP servers for a folder (`person-mcp.ts`) | tracker, process |
 | 1 | `store/` | the engine's SQLite file: Start/Stop intent, finished runs and their tokens | none |
 | 2 | `worker/` | one card's agent run, turns, the lead waiting for its helpers (`helper-wait.ts`) | agent, tracker, workspace, telemetry |
 | 3 | `orchestrator/` | the board loop: poll, claim, dispatch, retry, reconcile | agent, tracker, workspace, worker, observability, telemetry, config |
 | 3 | `server/` | the local API the app talks to (127.0.0.1 + launch token, HTTP + live WebSocket) | orchestrator, observability, config, store |
+| 3 | `sessions/` | the sessions host: chats with agents, card sessions | process, observability, server, workspace |
 | 4 | `src/index.ts` | wires it together | anything |
 
 **Never in the engine** (the test fails if any appears): `db/`, `services/`, `pipeline/`, `auth/`,

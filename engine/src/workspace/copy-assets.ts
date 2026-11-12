@@ -279,7 +279,7 @@ function clientOwnedClaudeSkills(workspacePath: string): Set<string> {
  * client's committed `.gitignore`), skipping any already listed so repeated
  * dispatches don't pile up duplicates. A no-op outside a git checkout.
  */
-function excludeFromGit(workspacePath: string, patterns: readonly string[]): void {
+export function excludeFromGit(workspacePath: string, patterns: readonly string[]): void {
   const rel = gitOutput(workspacePath, ["rev-parse", "--git-path", "info/exclude"])?.trim();
   if (!rel) return;
   const excludePath = resolve(workspacePath, rel);

@@ -29,6 +29,8 @@ export interface ClaudeChatOptions {
   permissionMode: PermissionMode;
   /** `--thinking-display summarized` when this Claude Code knows it (agent/thinking-display.ts). */
   thinkingDisplay?: string[];
+  /** The person's own MCP servers for this folder (mcp/person-servers.ts), on top of what Claude Code finds. */
+  mcpConfig?: string;
   onLine: (raw: Record<string, unknown>) => void;
   onExit: (code: number | null, stderr: string) => void;
 }
@@ -38,7 +40,7 @@ export type PermissionMode = "bypassPermissions" | "default" | "plan";
 export function claudeArgs(
   o: Pick<
     ClaudeChatOptions,
-    "model" | "effort" | "sessionId" | "resume" | "permissionMode" | "thinkingDisplay"
+    "model" | "effort" | "sessionId" | "resume" | "permissionMode" | "thinkingDisplay" | "mcpConfig"
   >,
 ): string[] {
   const args = [
@@ -60,6 +62,8 @@ export function claudeArgs(
   ];
   if (o.effort && o.effort !== "off") args.push("--effort", o.effort);
   args.push(...(o.thinkingDisplay ?? []));
+  // Never --strict-mcp-config: Claude Code keeps every server it finds itself (claude.ai connectors too).
+  if (o.mcpConfig) args.push("--mcp-config", o.mcpConfig);
   args.push(o.resume ? "--resume" : "--session-id", o.sessionId);
   return args;
 }

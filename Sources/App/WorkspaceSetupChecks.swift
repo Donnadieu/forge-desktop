@@ -10,6 +10,7 @@ extension Checks {
         envChecks(check)
         setupPayloadChecks(check)
         agentNoticeChecks(check)
+        sessionAccountChecks(check)
     }
 
     static func envChecks(_ check: (String, Bool) -> Void) {

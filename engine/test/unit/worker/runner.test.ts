@@ -503,6 +503,30 @@ describe("runWorker", () => {
     });
   });
 
+  it("writes the MCP config on a board with no tracker tool too: the person's own servers go in it", async () => {
+    const agent = createMockAgent([[{ type: "done", success: true }]]);
+    const tracker = new MemoryTracker([testIssue]);
+    tracker.updateIssueState("issue-1", "Done");
+    const workspace = createMockWorkspace();
+    await runWorker(
+      testIssue,
+      {
+        maxTurns: 1,
+        promptTemplate: "Fix it",
+        trackerConfig: {
+          kind: "memory",
+          project_slug: "test",
+          active_states: ["Todo"],
+          terminal_states: ["Done"],
+        },
+      },
+      agent,
+      tracker,
+      workspace,
+    );
+    expect(workspace.writeMcpConfig).toHaveBeenCalledWith("/tmp/test-workspace", {});
+  });
+
   it("passes approvalPolicy to agent.startSession", async () => {
     const startSessionSpy = vi.fn().mockResolvedValue({
       id: "s-1",

@@ -136,3 +136,14 @@ enum WorkerCheck {
         s.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.first { !$0.isEmpty && !$0.hasPrefix("WARNING") }
     }
 }
+
+extension WorkerCheck {
+    /// What a workspace's chats and session terminals run with: its account's sign-in, exactly as its card agents
+    /// get it (`env`). Empty when the workspace has no Claude Code account: the Mac's own sign-in then.
+    static func sessionEnv(_ store: SetupStore, workspace: String, secret find: (AIAccount) -> String? = WorkerCheck.secret)
+        -> [String: String]
+    {
+        guard let a = store.sessionAccount(workspace) else { return [:] }
+        return env(a, secret: find(a))
+    }
+}

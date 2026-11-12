@@ -28,8 +28,9 @@ const ALLOWED_DEPS: Record<string, string[]> = {
   worker: ["agent", "tracker", "workspace", "telemetry"],
   orchestrator: ["agent", "tracker", "workspace", "worker", "observability", "telemetry", "config"],
   server: ["orchestrator", "observability", "config", "store"],
-  // The sessions host (chats with agents): beside the orchestrator, sharing the process tree, logger and API helpers.
-  sessions: ["process", "observability", "server"],
+  // The sessions host (chats with agents): beside the orchestrator, sharing the process tree, logger and API helpers,
+  // and the person's own MCP servers for an agent's folder (workspace/person-mcp.ts).
+  sessions: ["process", "observability", "server", "workspace"],
 };
 
 /** Forge's web platform. None of it comes over (docs/ARCHITECTURE.md, "Never in the engine"). */

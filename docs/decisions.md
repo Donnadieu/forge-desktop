@@ -153,3 +153,24 @@ and said do all, so there was no design round; these are the calls made while bu
   sent while the agent works steers it and shows as a steer (as before). New: a paste over 4,000 characters becomes
   a .txt attachment with a chip; the host keeps the file beside the chat and Claude Code gets its whole text as a
   text block with the message (no tool call). Card sessions paste as before (their messages go to the card's engine).
+
+## The person's own MCP servers in every agent (Omar, 2026-11-12)
+Omar: in the Andela workspace Claude "was not able to reach my MCP server for Linear", and the session terminal didn't
+list his servers. Causes found live: his Linear server is a project entry in `~/.claude.json` under his own checkout's
+path, and Claude Code matches project entries by path (a git worktree maps to its main checkout, a separate clone
+doesn't), so Forge's card clones and the worktrees of Forge's clone never got it; the sessions host had no account
+variables, so Andela's chats and terminal ran on the Mac's own Claude Code sign-in (another organization); and a login
+shell that isn't interactive has no `mise activate`, so `npx` servers failed to start.
+- Agents (cards and chats) get the person's servers with `--mcp-config`: user scope, the folder's `.mcp.json`, and
+  every project entry whose checkout has the same GitHub repo, without the ones turned off there. Never
+  `--strict-mcp-config`, so whatever Claude Code finds itself (claude.ai connectors) stays. A person's server wins a
+  name Forge's tracker tool also uses. Forge's Linear tool still comes only with a Linear board.
+- The session terminal can't take flags, so Forge's own checkouts (card folders, worktrees of Forge's clone) get the
+  same servers as the folder's `.mcp.json`, approved in its `.claude/settings.local.json`, both in the checkout's
+  `info/exclude`. Never in the person's own checkout or its worktrees (those find them by themselves), never over a
+  repo's own `.mcp.json`. Forge never writes `~/.claude.json`.
+- Chats and session terminals run on the workspace's account (the account its project on screen uses), with the same
+  variables its card agents get; the sign-in is masked like a secret variable.
+- PATH adds mise's and asdf's shims after everything else, only when installed.
+- Not solved: claude.ai connectors need a full Claude sign-in (`user:mcp_servers`); a `claude setup-token` sign-in,
+  which Forge's accounts keep, can't load them.

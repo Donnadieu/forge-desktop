@@ -159,3 +159,21 @@ extension SetupStore {
 extension String {
     var isBlank: Bool { trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
+
+extension WorkspaceSetup {
+    /// Account variables that aren't secret: where its login lives and which address it talks to.
+    static let plainAccountVars: Set<String> = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "ANTHROPIC_BASE_URL"]
+
+    /// What a workspace's sessions run with: its own variables, then its account's sign-in on top (Forge's win, as on
+    /// cards). Every non-empty account value but a login folder or an address is marked secret, so the host masks it.
+    static func withAccount(_ p: [String: Any], _ account: [String: String]) -> [String: Any] {
+        var out = p
+        var env = p["env"] as? [String: String] ?? [:]
+        for (k, v) in account { env[k] = v }
+        out["env"] = env
+        let mine = Set(account.keys)
+        let secret = account.filter { !plainAccountVars.contains($0.key) && !$0.key.hasPrefix("FORGE_") && !$0.value.isEmpty }
+        out["secrets"] = (p["secrets"] as? [String] ?? []).filter { !mine.contains($0) } + secret.keys.sorted()
+        return out
+    }
+}

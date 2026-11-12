@@ -159,9 +159,8 @@ export async function runWorker(
       ISSUE_STATE: issue.state,
       ISSUE_BRANCH: issueBranch(issue, config.branchPrefix ?? "", gitHasBranch(workspacePath)),
     };
-    if (config.mcpServers) {
-      mcpConfigPath = await workspace.writeMcpConfig(workspacePath, config.mcpServers);
-    }
+    // Always: the person's own servers go in even when the board has no tracker tool.
+    mcpConfigPath = await workspace.writeMcpConfig(workspacePath, config.mcpServers ?? {});
     await workspace.runHook("before_run", workspacePath, issueEnv);
   } catch (err) {
     await lock.release();

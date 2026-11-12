@@ -11,7 +11,17 @@
 // still queued then starts a turn of its own. "ask me and hang" never answers an interrupt while its question waits
 // (a stuck agent). "think slowly" works 3 s without a tool call and reads nothing meanwhile. "work slowly" runs one
 // tool call that takes 1.5 s.
+import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+
+function mcpServerNames() {
+  const names = [];
+  process.argv.forEach((a, i) => {
+    if (a !== "--mcp-config") return;
+    names.push(...Object.keys(JSON.parse(readFileSync(process.argv[i + 1], "utf-8")).mcpServers ?? {}));
+  });
+  return names.sort().join(",") || "none";
+}
 
 const sessionArg = process.argv.indexOf("--session-id");
 const resumeArg = process.argv.indexOf("--resume");
@@ -95,7 +105,12 @@ function begin(text, carried = []) {
       if (turn.steer) echo(turn.steer);
       // "printenv NAME" answers with that variable, so tests can see what the agent was given.
       const asked = /^printenv (\w+)$/.exec(turn.text);
-      const answer = asked ? `env ${asked[1]}=${process.env[asked[1]] ?? ""}` : `answer: ${turn.text}`;
+      // "mcp servers" answers with the servers in its --mcp-config files, so tests can see what it was given.
+      const answer = asked
+        ? `env ${asked[1]}=${process.env[asked[1]] ?? ""}`
+        : turn.text === "mcp servers"
+          ? `mcp ${mcpServerNames()}`
+          : `answer: ${turn.text}`;
       finish(turn.steer ? `steered: ${turn.steer}` : answer, false);
     },
     /^work slowly/.test(text) ? 1500 : 400,

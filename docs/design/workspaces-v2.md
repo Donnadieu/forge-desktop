@@ -18,6 +18,14 @@ screens of today are `Forge --render-screens`). Builds on [workspaces-design.md]
 
 ## 2. Today, as built (0.2.26)
 
+**Since then (checked on main after 0.2.38, Nov 12):** the pick is still open and none of sections 4 to 8 is built.
+Settings is still one workspace-titled screen with Mac-wide tiles ("Projects and repos" included), a workspace still
+starts from a tracker, and the Mac-wide agent limit still sits in Workflow Studio. Shipped meanwhile, and kept by both
+directions: any workspace can be deleted (0.2.27), setup asks for the workspace's name (0.2.28), sessions show and act
+on only their own workspace's sessions (0.2.31), the Conductor import lists only the workspace's repo (0.2.29), and
+Settings gained per-workspace Workspace setup and a Mac-wide Agent notifications switch
+([workspace-settings.md](workspace-settings.md), 0.2.37). Workflow Studio no longer edits the workflow file (0.2.33).
+
 | Thing | Where it lives | Belongs to |
 |---|---|---|
 | Tracker connections (several per kind) | `store.json` trackers | the Mac |

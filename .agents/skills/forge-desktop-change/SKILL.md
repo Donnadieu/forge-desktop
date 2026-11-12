@@ -111,6 +111,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - A `List` whose rows switch between two shapes (`if header { … } else { … }` per row) drew a 5,000-line diff 3-4x
   slower (0.10 s to 0.37 s here, over the 2 s budget on CI). Keep the hot list's rows one shape and give a variant
   its own `List` (`DiffLines` with `files`). `--transcript-check` catches it; compare with the installed app.
+- A drawn view keeps working on the run loop after its first frame (a 12,000-turn chat: 1 to 2 s on a slow Mac,
+  tearing down and finishing rows). A timing check that draws one view after another must drain the run loop first
+  (`TranscriptCheck.settle()`), or the next view's time pays for the last one: the 5,000-line diff read 0.2 s or
+  1.1 to 2.2 s on CI depending on where that work landed, and failed the 2 s budget twice (0.2.34, 0.2.39).
 - A selftest can click a drawn view: an off-screen borderless window, then `NSApp.postEvent(mouseUp, atStart: false)`
   BEFORE `window.sendEvent(mouseDown)`. A press on selectable text tracks the mouse until it's let go, so sending the
   release after the press hangs the selftest forever (`Checks.linkClickChecks`). Never click anything that opens

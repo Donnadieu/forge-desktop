@@ -27,12 +27,14 @@ enum TranscriptCheck {
         let chat = SampleSessions.chat("long", "s1", "Chat")
         let all = synthetic(turns)
         // Opening a chat loads its newest 50 turns (SessionsClient.turns); older ones arrive as the top comes near.
+        settle()
         let t0 = Date()
         let opened = draw(
             TranscriptView(sessions: model, chat: chat, transcript: Transcript(chatID: "long", turns: Array(all.suffix(50)), total: turns)),
             size: NSSize(width: 900, height: 800))
         let open = Date().timeIntervalSince(t0)
         // Worst case: every turn loaded (scrolled all the way back).
+        settle()
         let t1 = Date()
         let whole = draw(
             TranscriptView(sessions: model, chat: chat, transcript: Transcript(chatID: "long", turns: all, total: turns)),
@@ -45,6 +47,7 @@ enum TranscriptCheck {
         ok("and stays under \(Int(memoryBudgetMB)) MB", used < memoryBudgetMB)
         let diff = (0..<5_000).map { i in i % 7 == 0 ? "@@ -\(i),7 +\(i),8 @@" : (i % 3 == 0 ? "+ let added\(i) = \(i)" : "  context line \(i)") }
             .joined(separator: "\n")
+        settle()
         let t2 = Date()
         let diffShown = draw(DiffLines(text: diff), size: NSSize(width: 400, height: 600))
         let diffTime = Date().timeIntervalSince(t2)
@@ -70,6 +73,18 @@ enum TranscriptCheck {
                     e("tool", "Ran make test", "Bash"),
                     e("text", "Done with **step \(i)**. The tests pass and `File\(i % 50).swift` stays under 400 lines."),
                 ])
+        }
+    }
+
+    /// Runs the main run loop until it has nothing left to do, so one measurement's leftover work never lands in the
+    /// next one's time. A drawn 12,000-turn chat keeps working on the run loop after its first frame (its rows and its
+    /// window are torn down there): on a slow Mac that took 1 to 2 s and was counted as the 5,000-line diff's draw.
+    static func settle() {
+        let limit = Date().addingTimeInterval(30)
+        var quiet = 0
+        while quiet < 3, Date() < limit {
+            let result = autoreleasepool { CFRunLoopRunInMode(.defaultMode, 0.05, true) }
+            quiet = result == .timedOut ? quiet + 1 : 0
         }
     }
 

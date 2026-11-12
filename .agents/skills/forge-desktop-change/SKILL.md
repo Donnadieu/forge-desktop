@@ -250,6 +250,18 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   send only real web links out through `FileLinks.openInBrowser`, which checks swap for a recorder so a click test
   never opens anything on the person's screen.
 
+- A selftest can type into a SwiftUI `TextEditor` with real key events: an off-screen borderless window subclassed
+  with `canBecomeKey = true`, `makeFirstResponder(<the NSTextView inside>)`, then `NSApp.sendEvent(keyDown/keyUp)`.
+  ⌘ keys (a `.keyboardShortcut` button) only fire through `window.performKeyEquivalent(with:)`, since a check has no
+  menu bar and no key window. Never touch `NSPasteboard.general` in a check: give the view a pasteboard of its own
+  (`Composer.pasteboard`), or the person's clipboard is wiped (`Checks.composerKeyChecks`).
+- A shell for the session terminal comes from `forkpty` (`EngineHost/TerminalProcess.swift`): build argv, envp and
+  the folder as C strings BEFORE the fork, since the child may only call `chdir`, `execve` and `_exit`. Keep the exit
+  watcher's handler holding the process object strongly until `waitpid` reaps it, or a closed tab leaves a zombie
+  and `kill(pid, 0)` still says it's alive.
+- Secret values reach the sessions host in memory only; `SessionStore.redact` masks them in every body it writes.
+  Anything new the host keeps on disk goes through the store, or masks with `maskSecrets` itself.
+
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`
   reads attributes only, so migration can look without a dialog. Never copy a secret to rename it: carried-over

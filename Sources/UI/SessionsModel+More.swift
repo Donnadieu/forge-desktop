@@ -1,24 +1,9 @@
 import AppKit
 import Foundation
 
-/// The Sessions screen's smaller actions: telling the person when a chat needs them or is done, the next chat waiting
+/// The Sessions screen's smaller actions (notices are in AgentNotice.swift): the next chat waiting
 /// on them, closing a chat, History (archived sessions) and restoring one, and opening a session's folder in an editor.
 extension SessionsModel {
-    /// A chat that stopped working: a macOS notification with a sound when the person isn't looking at it.
-    func notifyIfNeeded(_ next: Sessions.Chat) {
-        guard !preview, let old = chat(next.id), old.working, old.state != next.state,
-            let s = sessions.first(where: { $0.id == next.sessionId })
-        else { return }
-        let looking = NSApp.isActive && current?.id == s.id
-        guard !looking else { return }
-        switch next.state {
-        case "needs_you": LimitNotifier.shared.post("\(s.title) needs you", "The agent is waiting for your answer.", session: s.id)
-        case "idle": LimitNotifier.shared.post("\(s.title) is done", "The agent finished its turn.", session: s.id)
-        case "failed": LimitNotifier.shared.post("\(s.title) stopped", "The agent ran into a problem.", session: s.id)
-        default: break
-        }
-    }
-
     /// A comment on lines of the diff joins the open chat's message box (after what's already written).
     func addComment(_ text: String, session id: String) {
         guard let s = sessions.first(where: { $0.id == id }), let c = activeChat(of: s) else { return }
@@ -132,5 +117,15 @@ extension SessionsModel {
 
     func run(_ skill: Skill, in chat: Sessions.Chat) {
         send(chat, text: skill.message, queue: false)
+    }
+}
+
+/// Review comments as one block in the message box: file:line, reviewer, what they said, link.
+enum ReviewBlock {
+    static func text(number: Int, _ threads: [Sessions.ReviewThread]) -> String {
+        let items = threads.map { t in
+            "- \(t.place) (\(t.author)): \(t.body.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " "))\n  \(t.url)"
+        }
+        return "Review comments on PR #\(number):\n" + items.joined(separator: "\n")
     }
 }

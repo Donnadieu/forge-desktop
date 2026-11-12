@@ -109,6 +109,7 @@ final class AppModel: ObservableObject {
         useSignIns(github: true)
         sessions.show(workspace: store.current?.id)
         connectCardSessions()
+        connectWorkspaceSetup()
     }
 
     static let screenTitles = ["Tracker", "Project", "GitHub", "Repo", "Intelligence provider", "Harness engineering", "Orchestrator"]
@@ -127,6 +128,8 @@ final class AppModel: ObservableObject {
     static let allWorkspacesScreen = 10
     /// Sessions: the chats you have with agents in the workspace on screen (docs/design/sessions.md).
     static let sessionsScreen = 12
+    /// Workspace setup: files new sessions get, setup and cleanup scripts, the environment (from Settings).
+    static let workspaceSetupScreen = 13
 
     /// Set when a setup step was opened from Settings: Continue and Back return there instead of walking on.
     @Published var returnTo: Int?
@@ -169,7 +172,7 @@ final class AppModel: ObservableObject {
     }
 
     func go(_ s: Int) {
-        screen = max(0, min(Self.sessionsScreen, s))
+        screen = max(0, min(Self.workspaceSetupScreen, s))
         if screen >= Self.boardScreen { returnTo = nil }
         if screen != Self.harnessScreen { harnessOffer = nil }
     }

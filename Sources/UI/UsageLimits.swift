@@ -167,15 +167,18 @@ final class LimitNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// Posts one notification; `session` makes a click open that session.
     func post(_ title: String, _ body: String, session: String? = nil) {
+        let c = UNMutableNotificationContent()
+        c.title = title
+        c.body = body
+        c.sound = .default
+        if let session { c.userInfo = ["session": session] }
+        post(content: c)
+    }
+
+    /// Posts one notification as it is (agent notices bring their own, silent, with the chime played apart).
+    func post(content c: UNMutableNotificationContent) {
         let center = UNUserNotificationCenter.current()
-        let send = {
-            let c = UNMutableNotificationContent()
-            c.title = title
-            c.body = body
-            c.sound = .default
-            if let session { c.userInfo = ["session": session] }
-            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
-        }
+        let send = { center.add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil)) }
         if asked { return send() }
         asked = true
         center.delegate = self

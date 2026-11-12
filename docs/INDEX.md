@@ -14,6 +14,7 @@
 - [design/sidebar-pr-panel.md](design/sidebar-pr-panel.md): both sidebars resize, the Changes panel in sync with GitHub (one status, one button), branch rename, archive on hover; Direction A, built
 - [design/missing-columns-and-skills.md](design/missing-columns-and-skills.md): optional columns, parking "Waiting on you", Next step, skills in sessions
 - [design/what-others-see.md](design/what-others-see.md): Keep Forge invisible (marks removed, guards); its workflow file editor was removed Nov 11
+- [design/workspace-settings.md](design/workspace-settings.md): Workspace setup (files to copy, setup and cleanup scripts, environment with Keychain secrets), agent notifications, the session terminal, message box defaults
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is
 - [exec-plans/README.md](exec-plans/README.md): plans in progress, done, and the debt list
   - [exec-plans/active/scaffold.md](exec-plans/active/scaffold.md): the build order and its progress

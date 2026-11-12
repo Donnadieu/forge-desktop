@@ -20,7 +20,7 @@ Dependencies point one way: **App -> UI -> EngineHost -> Core**. Each area is a 
 | `Sources/App/` | the entry point, the scene, check modes (`--selftest`, `--window-check`) | UI, Core |
 | `Sources/UI/` | SwiftUI views and the app's one model (`AppModel`): setup screens, the board | EngineHost, Core |
 | `Sources/Core/` | plain logic and facts every layer reads; Foundation only | nothing above it |
-| `Sources/EngineHost/` | the only code that starts programs: the engine (`EngineHost`, single-flight start, watch, drain), the person's PATH (`ToolPath`), their tools for setup (`Tools`, `GitHub`, `GitHubSignIn`, `ForgeSigningKey`, `WorkerCheck`), the updater (`Updater`), `--engine-check`, `--github-check`, `--worker-check`, `--check-update` | Core |
+| `Sources/EngineHost/` | the only code that starts programs: the engine (`EngineHost`, single-flight start, watch, drain), the person's PATH (`ToolPath`), their tools for setup (`Tools`, `GitHub`, `GitHubSignIn`, `ForgeSigningKey`, `WorkerCheck`), the session terminal's shells (`TerminalProcess`, a PTY), the updater (`Updater`), `--engine-check`, `--github-check`, `--worker-check`, `--check-update` | Core |
 
 Enforced by `tools/lint/forge-lint.py`: `core-imports` (no SwiftUI/AppKit in Core), `process-area`
 (programs start only from `Sources/EngineHost/`), `no-browser-view`, `file-length` (400).

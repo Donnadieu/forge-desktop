@@ -106,6 +106,12 @@ final class SessionsModel: ObservableObject {
     @Published var changesTab: Set<String> = []
     /// Pictures waiting in each chat's message box.
     @Published var images: [String: [PastedImage]] = [:]
+    /// Long pastes waiting in each chat's message box, as .txt attachments.
+    @Published var texts: [String: [PastedText]] = [:]
+    /// Checks see each message sent (chat, text, queued, attachments) here.
+    var onSend: ((Sessions.Chat, String, Bool, [PastedText]) -> Void)?
+    /// Each workspace's setup for the host, told on every connect before anything else (the host keeps it in memory).
+    var setups: (() -> [String: [String: Any]])?
     @Published var pickerOpen = false
     @Published var connected = false
 
@@ -167,6 +173,7 @@ final class SessionsModel: ObservableObject {
         do {
             let c = try await EngineHost.sessions.ensureStarted()
             let cl = SessionsClient(port: c.port, token: c.token)
+            for (id, body) in setups?() ?? [:] { try? await cl.workspaceSetup(id, body) }
             client = cl
             sessions = try await cl.sessions()
             connected = true
@@ -240,9 +247,11 @@ final class SessionsModel: ObservableObject {
     func send(_ chat: Sessions.Chat, text: String, queue: Bool) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let pics = images[chat.id] ?? []
-        guard !t.isEmpty || !pics.isEmpty, isHere(chat) else { return }
+        let pasted = cardTargets[chat.sessionId] == nil ? texts[chat.id] ?? [] : []
+        guard !t.isEmpty || !pics.isEmpty || !pasted.isEmpty, isHere(chat) else { return }
         drafts[chat.id] = ""
         sent[chat.id, default: 0] += 1
+        onSend?(chat, t, queue, pasted)
         if let target = cardTargets[chat.sessionId] {
             guard !t.isEmpty else { return }
             Task {
@@ -254,7 +263,8 @@ final class SessionsModel: ObservableObject {
             return
         }
         images[chat.id] = nil
-        act { try await $0.send(chat: chat.id, text: t, queue: queue, images: pics.map(\.body)) }
+        texts[chat.id] = nil
+        act { try await $0.send(chat: chat.id, text: t, queue: queue, images: pics.map(\.body), texts: pasted.map(\.body)) }
     }
 
     /// Adds pictures to a chat's message box.
@@ -384,14 +394,4 @@ final class SessionsModel: ObservableObject {
         reviewSheet = nil
     }
 
-}
-
-/// Review comments as one block in the message box: file:line, reviewer, what they said, link.
-enum ReviewBlock {
-    static func text(number: Int, _ threads: [Sessions.ReviewThread]) -> String {
-        let items = threads.map { t in
-            "- \(t.place) (\(t.author)): \(t.body.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " "))\n  \(t.url)"
-        }
-        return "Review comments on PR #\(number):\n" + items.joined(separator: "\n")
-    }
 }

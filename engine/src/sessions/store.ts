@@ -43,6 +43,11 @@ export interface OutboxItem {
 
 export class SessionStore {
   private db: Db;
+  /**
+   * Masks secret values in everything written (sessions, chats, turns, events): a workspace's secret variables
+   * never reach the file, even when an agent or script prints one. The host sets it (workspace-setup.ts).
+   */
+  redact: (json: string) => string = (json) => json;
 
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
@@ -62,7 +67,7 @@ export class SessionStore {
       .prepare(
         "INSERT INTO sessions (id, body, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at",
       )
-      .run(s.id, JSON.stringify(s), s.updatedAt);
+      .run(s.id, this.redact(JSON.stringify(s)), s.updatedAt);
   }
 
   session(id: string): SessionRecord | null {
@@ -87,7 +92,7 @@ export class SessionStore {
       .prepare(
         "INSERT INTO chats (id, session_id, body) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
       )
-      .run(c.id, c.sessionId, JSON.stringify(c));
+      .run(c.id, c.sessionId, this.redact(JSON.stringify(c)));
   }
 
   chat(id: string): ChatRecord | null {
@@ -115,7 +120,7 @@ export class SessionStore {
       .prepare(
         "INSERT INTO turns (id, chat_id, seq, body) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
       )
-      .run(t.id, t.chatId, t.seq, JSON.stringify(t));
+      .run(t.id, t.chatId, t.seq, this.redact(JSON.stringify(t)));
   }
 
   turn(id: string): TurnRecord | null {
@@ -180,7 +185,7 @@ export class SessionStore {
       .prepare(
         "INSERT INTO events (id, chat_id, turn_id, seq, body) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET body = excluded.body",
       )
-      .run(e.id, e.chatId, e.turnId, e.seq, JSON.stringify(e));
+      .run(e.id, e.chatId, e.turnId, e.seq, this.redact(JSON.stringify(e)));
   }
 
   event(id: string): EventRecord | null {

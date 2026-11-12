@@ -82,10 +82,16 @@ struct SessionsClient: Sendable {
         try await get("/api/v1/chats/\(chat)/turns?limit=\(limit)" + (before.map { "&before=\($0)" } ?? ""), as: Turns.self)
     }
 
-    func send(chat: String, text: String, queue: Bool, images: [[String: String]] = []) async throws {
+    func send(chat: String, text: String, queue: Bool, images: [[String: String]] = [], texts: [[String: String]] = []) async throws {
         try await call(
-            "/api/v1/chats/\(chat)/messages", method: "POST", body: ["text": text, "mode": queue ? "queue" : "steer", "images": images],
+            "/api/v1/chats/\(chat)/messages", method: "POST",
+            body: ["text": text, "mode": queue ? "queue" : "steer", "images": images, "texts": texts],
             timeout: images.isEmpty ? 30 : 120)
+    }
+
+    /// The workspace's setup (files to copy, scripts, environment with secret values), kept in the host's memory only.
+    func workspaceSetup(_ workspace: String, _ body: [String: Any]) async throws {
+        try await call("/api/v1/workspaces/\(workspace)/setup", method: "POST", body: body, timeout: 15)
     }
 
     func stop(chat: String) async throws { try await call("/api/v1/chats/\(chat)/stop", method: "POST", body: [:]) }

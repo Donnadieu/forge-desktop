@@ -94,6 +94,56 @@ enum SessionsCheck {
         ok("Stop ends the running turn", after?.turns.last?.status == "stopped")
         let files = try? await client.changes(session: s.id)
         ok("the changes read back (none yet)", files?.isEmpty == true)
+        await setupCheck(client, local: local, scratch: scratch, ok)
         return failed == 0 ? 0 : 1
+    }
+
+    /// Workspace setup through the real host: the app's payload, a git-ignored file copied in, the setup script run
+    /// with the workspace's variables (the secret masked in its output), and no secret anywhere in the host's folder.
+    private static func setupCheck(_ client: SessionsClient, local: URL, scratch: URL, _ ok: (String, Bool) -> Void) async {
+        let secret = "sk_sessions_check_\(UUID().uuidString.prefix(8))"
+        try? "*.key\n".write(to: local.appendingPathComponent(".gitignore"), atomically: true, encoding: .utf8)
+        _ = sh(["git", "add", ".gitignore"], in: local)
+        _ = sh(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "ignore"], in: local)
+        _ = sh(["git", "push", "-q", "origin", "HEAD:main"], in: local)
+        try? "master-key".write(to: local.appendingPathComponent("master.key"), atomically: true, encoding: .utf8)
+        let secrets = MemorySecrets()
+        let env = WorkspaceEnv.save(
+            [EnvRow(key: "APP_MODE", value: "check", secret: false), EnvRow(key: "API_KEY", value: secret, secret: true)], workspace: "ws-setup",
+            old: [], secrets: secrets)
+        let setup = WorkspaceSetup(
+            copy: ["master.key"], setupScript: "cat master.key; echo \" mode=$APP_MODE key=$API_KEY\"", cleanupScript: nil, env: env)
+        let pushed = (try? await client.workspaceSetup("ws-setup", setup.payload(workspace: "ws-setup", secrets: secrets))) != nil
+        ok("the host takes a workspace's setup", pushed)
+        let s = try? await client.create([
+            "workspaceId": "ws-setup", "repo": "acme/check", "local": local.path, "base": "main", "prefix": "",
+            "message": "set up", "model": "haiku", "effort": "low",
+        ])
+        var run = s?.setup
+        for _ in 0..<100 where run?.state == "running" {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            run = (try? await client.sessions())?.first { $0.id == s?.id }?.setup
+        }
+        ok("a new session's folder gets the git-ignored file", s.map { FileManager.default.fileExists(atPath: $0.folder + "/master.key") } == true)
+        ok(
+            "its setup script ran there with the workspace's variables, the secret masked",
+            run?.state == "done" && run?.output.contains("master-key mode=check key=\(WorkspaceEnv.mask)") == true)
+        let home = Paths.home.path
+        let leaked = FileManager.default.enumerator(atPath: home)?.contains { item in
+            guard let p = item as? String, let d = FileManager.default.contents(atPath: home + "/" + p) else { return false }
+            return d.range(of: Data(secret.utf8)) != nil
+        }
+        ok("the secret value is in no file of the host's folder", leaked == false)
+        guard let chat = s?.chats.first else { return ok("the new session has a chat", false) }
+        for _ in 0..<50 {
+            if (try? await client.turns(chat: chat.id))?.turns.first?.status == "done" { break }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let long = String(repeating: "a long log line\n", count: 400)
+        try? await client.send(chat: chat.id, text: "read this", queue: false, texts: [["name": "Pasted text.txt", "text": long]])
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        let sent = (try? await client.turns(chat: chat.id))?.turns.last?.userText ?? ""
+        let path = sent.split(separator: "\n").first { $0.hasPrefix("[text: ") }.map { String($0.dropFirst(7).dropLast()) }
+        ok("a long paste reaches the host as a .txt file beside the chat", path.flatMap { try? String(contentsOfFile: $0, encoding: .utf8) } == long)
     }
 }

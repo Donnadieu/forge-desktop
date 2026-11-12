@@ -37,6 +37,14 @@ import {
 } from "./github.js";
 import type { SessionStore } from "./store.js";
 import type { ChatRecord, SessionRecord, SessionStatus } from "./types.js";
+import {
+  copyFiles,
+  maskSecrets,
+  NO_SETUP,
+  runScript,
+  type ScriptRun,
+  type WorkspaceSetup,
+} from "./workspace-setup.js";
 
 export interface NewSession {
   workspaceId: string;
@@ -59,6 +67,8 @@ export interface HostOptions {
   home: string;
   command: string;
   notify: (frame: Record<string, unknown>) => void;
+  /** Which GitHub account reaches a repo (tests skip gh). */
+  account?: (repo: string) => Promise<string | null>;
 }
 
 const TITLE_WORDS = 8;
@@ -74,6 +84,8 @@ export class SessionsHost {
   readonly cards: CardWatcher;
   private prs = new Map<string, PullRequest | null>();
   private tokens = new Map<string, string | null>();
+  /** Each workspace's setup, as the app last told it (memory only: secret values never reach a file). */
+  private setups = new Map<string, WorkspaceSetup>();
 
   /** The host's folder (sessions.sqlite, repos/, folders/, attachments/). */
   get home(): string {
@@ -91,6 +103,32 @@ export class SessionsHost {
       touched: (id) => this.touched(id),
     });
     this.cards = new CardWatcher(store, o.notify, (id) => this.touched(id));
+    store.redact = (json) => this.redact(json);
+  }
+
+  setWorkspaceSetup(id: string, s: WorkspaceSetup): void {
+    this.setups.set(id, s);
+  }
+
+  private setupOf(workspaceId: string): WorkspaceSetup {
+    return this.setups.get(workspaceId) ?? NO_SETUP;
+  }
+
+  /** Every workspace's secret values masked, as they'd appear raw or inside JSON. */
+  private redact(json: string): string {
+    let out = json;
+    for (const s of this.setups.values()) {
+      if (s.secrets.length === 0) continue;
+      out = maskSecrets(out, s);
+      const escaped: WorkspaceSetup = {
+        ...s,
+        env: Object.fromEntries(
+          s.secrets.map((k) => [k, JSON.stringify(s.env[k] ?? "").slice(1, -1)]),
+        ),
+      };
+      out = maskSecrets(out, escaped);
+    }
+    return out;
   }
 
   private async token(login: string | null): Promise<string | null> {
@@ -106,6 +144,8 @@ export class SessionsHost {
       if (k.startsWith("FORGE_") || k.startsWith("GIT_CONFIG_")) continue;
       env[k] = v;
     }
+    // The workspace's own variables, under Forge's.
+    Object.assign(env, this.setupOf(s.workspaceId).env);
     const token = await this.token(s.githubLogin);
     if (token) env.GH_TOKEN = token;
     env.FORGE_SESSION_ID = s.id;
@@ -168,7 +208,7 @@ export class SessionsHost {
   async create(n: NewSession): Promise<{ ok: boolean; problem?: string; session?: unknown }> {
     if (!/^[\w.-]+\/[\w.-]+$/.test(n.repo)) return { ok: false, problem: "Pick a repo first." };
     if (!n.message.trim()) return { ok: false, problem: "Write the first message." };
-    const login = await accountFor(n.repo);
+    const login = await (this.o.account ?? accountFor)(n.repo);
     const name = slug(n.title ?? n.message, 4);
     // "auto": the GitHub login that reaches the repo, as Conductor did (donnadieu/<slug>).
     const prefix = n.prefix === "auto" ? (login ?? "") : n.prefix;
@@ -192,6 +232,8 @@ export class SessionsHost {
       existing: n.existing === true,
     });
     if (!made.ok) return made;
+    const setup = this.setupOf(n.workspaceId);
+    if (local && setup.copy.length > 0) copyFiles(local, folder, setup.copy);
     const now = new Date().toISOString();
     const s: SessionRecord = {
       id: randomUUID(),
@@ -212,12 +254,72 @@ export class SessionsHost {
       archiveRef: null,
       createdAt: now,
       updatedAt: now,
+      root: local ?? mirror,
+      setup: setup.setup.trim() ? this.started() : null,
     };
     this.store.putSession(s);
     const chat = this.newChat(s.id, n.model, n.effort, "Chat");
-    await this.chats.send(chat.id, n.message, "steer");
+    if (s.setup) {
+      // The setup runs first; the agent gets the first message when it ends, whether it passed or not.
+      void this.runSetup(s.id, local ?? mirror, "setup").then(() =>
+        this.chats.send(chat.id, n.message, "steer"),
+      );
+    } else {
+      await this.chats.send(chat.id, n.message, "steer");
+    }
     this.touched(s.id);
     return { ok: true, session: this.view(s) };
+  }
+
+  private started(): ScriptRun {
+    return {
+      state: "running",
+      exitCode: null,
+      output: "",
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+    };
+  }
+
+  /**
+   * Runs the workspace's setup or cleanup script in the session's folder with the agents' environment plus
+   * `FORGE_ROOT_PATH` (the checkout) and `FORGE_SESSION_PATH`; its output (secrets masked) goes on the session as
+   * it comes, at most every 250 ms.
+   */
+  private async runSetup(id: string, root: string, kind: "setup" | "cleanup"): Promise<void> {
+    const s = this.store.session(id);
+    if (!s) return;
+    const setup = this.setupOf(s.workspaceId);
+    const script = kind === "setup" ? setup.setup : setup.cleanup;
+    const env = {
+      ...(await this.envFor(s)),
+      FORGE_ROOT_PATH: root,
+      FORGE_SESSION_PATH: s.folder,
+    };
+    const startedAt = new Date().toISOString();
+    let last = 0;
+    const save = (run: ScriptRun, force = false) => {
+      const cur = this.store.session(id);
+      if (!cur) return;
+      this.store.putSession({ ...cur, [kind]: run });
+      if (force || Date.now() - last > 250) {
+        last = Date.now();
+        this.touched(id);
+      }
+    };
+    const running = (output: string) =>
+      save({ state: "running", exitCode: null, output, startedAt, endedAt: null });
+    const r = await runScript(script, s.folder, env, (t) => maskSecrets(t, setup), running);
+    save(
+      {
+        state: r.code === 0 ? "done" : "failed",
+        exitCode: r.code,
+        output: r.output,
+        startedAt,
+        endedAt: new Date().toISOString(),
+      },
+      true,
+    );
   }
 
   newChat(sessionId: string, model: string, effort: string, title: string): ChatRecord {
@@ -422,12 +524,15 @@ export class SessionsHost {
     }
     const ref = `refs/forge/archive/${s.id}`;
     const sha = existsSync(s.folder) ? await snapshot(s.folder, ref) : null;
+    if (existsSync(s.folder) && this.setupOf(s.workspaceId).cleanup.trim()) {
+      await this.runSetup(id, s.root ?? this.mirrorFor(s.repo), "cleanup");
+    }
     if (existsSync(s.folder)) {
       const r = await run("git", ["worktree", "remove", "--force", s.folder], s.folder);
       if (!r.ok) rmSync(s.folder, { recursive: true, force: true });
     }
     const next = {
-      ...s,
+      ...(this.store.session(id) ?? s),
       archived: true,
       archiveRef: sha ? ref : null,
       updatedAt: new Date().toISOString(),

@@ -49,6 +49,8 @@ extension SessionsModel {
     func merge(_ s: Sessions.Session) { acted(s) { try await $0.merge(session: s.id) } }
 
     func archive(_ s: Sessions.Session) {
+        // Its Terminal tabs close first: their shells end with the session (Terminals.swift).
+        Terminals.shared.closeAll(s.id)
         act { try await $0.archive(session: s.id) }
         if selected == s.id { selected = nil }
     }

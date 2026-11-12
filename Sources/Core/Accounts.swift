@@ -164,6 +164,8 @@ struct SetupStore: Codable, Equatable, Sendable {
     var githubAccounts: [GitHubAccountRecord]?
     /// The most agents at once across every running workspace on this Mac (nil = `defaultCeiling`).
     var agentCeiling: Int?
+    /// Agent notifications: a chime and a notification when an agent finishes, needs you or stops (nil = on).
+    var agentNotifications: Bool?
 
     static let defaultCeiling = 6
 

@@ -69,8 +69,9 @@ def r_ui_jargon(path, lines, ctx):
             # "Harness engineering" is the name of the Settings tile and setup step Omar asked for.
             s = s.replace("Harness engineering", "")
             for word in JARGON:
-                # "Orchestrator" with a capital is the main screen's name; the engine word stays out.
-                flags = 0 if word == "orchestrator" else re.I
+                # "Orchestrator" with a capital is the main screen's name; "Terminal" with a capital is the session's
+                # Terminal panel Omar asked for (Nov 12). The lower-case words (and "use a terminal" steps) stay out.
+                flags = 0 if word in ("orchestrator", "terminal") else re.I
                 if re.search(r'(?<![\w/.-])' + re.escape(word) + r'(?![\w/.-])', s, flags):
                     yield i, f'"{word}" in UI text: "{s[:50]}"'
 

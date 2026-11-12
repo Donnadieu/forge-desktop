@@ -29,10 +29,11 @@ import type { AddressInfo } from "node:net";
 import type { Logger } from "pino";
 import { WebSocket, WebSocketServer } from "ws";
 import { jsonResponse, notFound, readJsonBody } from "../server/http-utils.js";
-import { attachImages } from "./attachments.js";
+import { attachImages, attachTexts } from "./attachments.js";
 import { previewImport, runImport } from "./conductor.js";
 import type { SessionsHost } from "./host.js";
 import type { SessionStore } from "./store.js";
+import { parseSetup } from "./workspace-setup.js";
 
 function tokenMatches(header: string | undefined, token: string): boolean {
   const given = header?.startsWith("Bearer ") ? header.slice(7) : "";
@@ -97,6 +98,12 @@ export async function startSessionsApi(deps: {
         existing: b.existing === true,
       });
       return jsonResponse(res, r.ok ? 200 : 409, r);
+    }
+    const wm = /^\/api\/v1\/workspaces\/([\w.-]{1,80})\/setup$/.exec(path);
+    if (wm && post) {
+      // Kept in memory only (secret values among them): never logged, never written.
+      h.setWorkspaceSetup(wm[1] ?? "", parseSetup(await body(req)));
+      return jsonResponse(res, 200, { ok: true });
     }
     if (path === "/api/v1/sessions/branches" && post) {
       const b = await body(req);
@@ -192,14 +199,17 @@ export async function startSessionsApi(deps: {
           const images = Array.isArray(b.images)
             ? (b.images as Body[]).map((i) => ({ mediaType: s(i.mediaType), data: s(i.data) }))
             : [];
-          if (!s(b.text).trim() && images.length === 0)
+          const texts = Array.isArray(b.texts)
+            ? (b.texts as Body[]).map((t) => ({ name: s(t.name), text: s(t.text) }))
+            : [];
+          if (!s(b.text).trim() && images.length === 0 && texts.length === 0)
             return jsonResponse(res, 400, { ok: false, problem: "Write something first." });
           if (id.startsWith("card-"))
             return jsonResponse(res, 409, {
               ok: false,
               problem: "A card's agent takes messages through its own engine.",
             });
-          const text = attachImages(h.home, id, s(b.text), images);
+          const text = attachTexts(h.home, id, attachImages(h.home, id, s(b.text), images), texts);
           await h.chats.send(id, text, b.mode === "queue" ? "queue" : "steer");
           return jsonResponse(res, 200, { ok: true });
         }

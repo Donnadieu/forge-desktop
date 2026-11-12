@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync as exists, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { attachImages, claudeContent } from "../../../src/sessions/attachments.js";
+import { attachImages, attachTexts, claudeContent } from "../../../src/sessions/attachments.js";
 
 // A 1x1 PNG.
 const PNG =
@@ -38,5 +38,26 @@ describe("pictures in a message", () => {
     expect(content[1]).toEqual({ type: "text", text: "Look" });
     expect(claudeContent("just words")).toBe("just words");
     expect(claudeContent("[image: /no/such/file.png]")).toBe("[image: /no/such/file.png]");
+  });
+
+  it("keeps a long paste as a .txt file and gives Claude Code its whole text with the message", () => {
+    const long = "log line\n".repeat(600);
+    const text = attachTexts(home, "chat-1", "Why did the job fail?", [
+      { name: "Pasted text.txt", text: long },
+    ]);
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("Why did the job fail?");
+    const path = /^\[text: (.+\.txt)\]$/.exec(lines[1] ?? "")?.[1] ?? "";
+    expect(path.startsWith(join(home, "attachments", "chat-1"))).toBe(true);
+    expect(exists(path)).toBe(true);
+    expect(readFileSync(path, "utf-8")).toBe(long);
+    const content = claudeContent(text) as Record<string, unknown>[];
+    expect(content).toEqual([
+      {
+        type: "text",
+        text: `Pasted text.txt (${long.length.toLocaleString("en-US")} characters):\n\n${long}`,
+      },
+      { type: "text", text: "Why did the job fail?" },
+    ]);
   });
 });

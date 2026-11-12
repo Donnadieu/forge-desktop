@@ -276,7 +276,8 @@ enum EngineSettings {
         // One ceiling on agents across every engine on this Mac (engine orchestrator/shared-slots.ts).
         env["FORGE_AGENT_CEILING"] = String(store.agentCeiling ?? SetupStore.defaultCeiling)
         env["FORGE_AGENT_SLOTS_DIR"] = Paths.home.appendingPathComponent("slots").path
-        return env
+        // The workspace's own variables (Workspace setup), under Forge's.
+        return withWorkspaceEnv(env, workspaceEnv(c, store: store))
     }
 
     /// The roles' accounts as prefixed variables, and which variables are the default account's.

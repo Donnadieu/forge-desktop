@@ -240,6 +240,9 @@ enum Checks {
         steerChecks(check)
         sessionIsolationChecks(check)
         chatRenderChecks(check)
+        workspaceSetupChecks(check)
+        terminalChecks(check)
+        composerKeyChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

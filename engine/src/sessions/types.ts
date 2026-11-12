@@ -8,6 +8,8 @@
  * New in Forge Desktop.
  */
 
+import type { ScriptRun } from "./workspace-setup.js";
+
 export type SessionOrigin = "person" | "card" | "import";
 export type SessionStatus = "working" | "needs_you" | "review" | "merged" | "idle" | "archived";
 
@@ -33,6 +35,12 @@ export interface SessionRecord {
   archiveRef: string | null;
   createdAt: string;
   updatedAt: string;
+  /** The checkout its folder hangs off (the person's, or Forge's own clone). */
+  root?: string;
+  /** The workspace's setup script's run in this session's folder (workspace-setup.ts), if it has one. */
+  setup?: ScriptRun | null;
+  /** The cleanup script's run when the session was archived. */
+  cleanup?: ScriptRun | null;
 }
 
 export type ChatState = "idle" | "working" | "needs_you" | "stopped" | "failed";

@@ -56,6 +56,10 @@ struct SettingsScreen: View {
                         }
                         GridRow {
                             harness
+                            workspaceSetup
+                        }
+                        GridRow {
+                            notifications
                             Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                         }
                     }
@@ -183,6 +187,50 @@ struct SettingsScreen: View {
                 } action: {
                     EmptyView()
                 }
+            }
+        }
+    }
+
+    /// Workspace setup: what new sessions get and the environment; Change opens its screen.
+    private var workspaceSetup: some View {
+        let s = WorkspaceSetup.summary(model.workspace?.setup ?? WorkspaceSetup())
+        return group("Workspace setup") {
+            row {
+                field("Files copied", s.files, mono: true)
+            } action: {
+                Button("Change") { model.go(AppModel.workspaceSetupScreen) }.buttonStyle(ForgeButton(kind: .ghost))
+            }
+            row {
+                field("Setup script", s.setup, mono: s.setup != "None")
+            } action: {
+                EmptyView()
+            }
+            row {
+                field("Cleanup script", s.cleanup, mono: s.cleanup != "None")
+            } action: {
+                EmptyView()
+            }
+            row {
+                field("Environment", s.env)
+            } action: {
+                EmptyView()
+            }
+        }
+    }
+
+    /// The one notifications switch (this Mac): a chime and a notification when an agent finishes, needs you or stops.
+    private var notifications: some View {
+        group("Agent notifications") {
+            row {
+                Text("A chime and a notification when an agent finishes, needs you or stops. Nothing for the session you're looking at.")
+                    .font(Theme.sans(13)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+            } action: {
+                ForgeToggle(on: Binding(get: { model.store.agentNotificationsOn }, set: { model.setAgentNotifications($0) }))
+            }
+            row {
+                field("Applies to", "Every workspace on this Mac")
+            } action: {
+                EmptyView()
             }
         }
     }

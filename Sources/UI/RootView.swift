@@ -24,6 +24,7 @@ struct RootView: View {
             case AppModel.projectsScreen: ProjectsScreen(model: model)
             case AppModel.allWorkspacesScreen: AllWorkspacesScreen(model: model)
             case AppModel.sessionsScreen: SessionsScreen(model: model, sessions: model.sessions)
+            case AppModel.workspaceSetupScreen: WorkspaceSetupScreen(model: model)
             default: OrchestratorScreen(model: model)
             }
         }

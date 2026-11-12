@@ -51,20 +51,24 @@ enum MessageImages {
         .filter { $0.data.count <= maxBytes }
     }
 
-    /// A message's words and the pictures it carries (`[image: <path>]` lines, engine sessions/attachments.ts).
-    static func split(_ text: String) -> (words: String, paths: [String]) {
-        guard text.contains("[image: ") else { return (text, []) }
+    /// A message's words, the pictures it carries (`[image: <path>]` lines) and its long pastes (`[text: <path>]`
+    /// lines), as engine sessions/attachments.ts writes them.
+    static func split(_ text: String) -> (words: String, paths: [String], texts: [String]) {
+        guard text.contains("[image: ") || text.contains("[text: ") else { return (text, [], []) }
         var words: [Substring] = []
         var paths: [String] = []
+        var texts: [String] = []
         for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
             let t = line.trimmingCharacters(in: .whitespaces)
             if t.hasPrefix("[image: "), t.hasSuffix("]") {
                 paths.append(String(t.dropFirst(8).dropLast()))
+            } else if t.hasPrefix("[text: "), t.hasSuffix(".txt]") {
+                texts.append(String(t.dropFirst(7).dropLast()))
             } else {
                 words.append(line)
             }
         }
-        return (words.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), paths)
+        return (words.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines), paths, texts)
     }
 }
 

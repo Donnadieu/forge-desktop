@@ -41,6 +41,7 @@ enum ScreenRender {
         // FORGE_SHOTS=14-sessions,16- draws only the shots whose names start with one of these.
         let only = ProcessInfo.processInfo.environment["FORGE_SHOTS"]?.split(separator: ",").map(String.init) ?? []
         for shot in shots() where only.isEmpty || only.contains(where: { shot.name.hasPrefix($0) }) {
+            Terminals.shared = Terminals()
             let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
             model.engine = shot.engine
             model.sample.scene = shot.scene
@@ -53,6 +54,7 @@ enum ScreenRender {
             if shot.scene == "late" { model.boardLate = true }
             if shot.scene == "unnamed-workspace" { model.renameWorkspace("My workspace", color: model.workspace?.color) }
             if let scene = shot.scene, scene.hasPrefix("sessions") { SampleSessions.scene(model.sessions, scene) }
+            SampleSetup.scene(model, shot.scene)
             if shot.scene == "fleet" { AppModel.sampleRunning(model) }
             if shot.scene == "sessions-other-workspace" { SampleSessions.otherWorkspace(model) }
             if shot.scene == "sessions-first-workspace" { SampleSessions.otherWorkspace(model, back: true) }
@@ -97,6 +99,12 @@ enum ScreenRender {
             print("\(ok ? "✓" : "✗") \(name)")
             if !ok { failed += 1 }
         }
+        // "Add from repo" opens as a popover: its list on its own.
+        let picked = render(
+            RepoFileList(found: RepoFileList.sample, picked: ["config/master.key"]) { _ in }, size: NSSize(width: 360, height: 300),
+            to: dir.appendingPathComponent("18-add-from-repo.png"))
+        print("\(picked ? "✓" : "✗") 18-add-from-repo")
+        if !picked { failed += 1 }
         return failed == 0 ? 0 : 1
     }
 

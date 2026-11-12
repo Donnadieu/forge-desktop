@@ -46,7 +46,7 @@ extension Checks {
         check(
             "a comment on a range joins the message quoted with the file and lines",
             quote == "On `x` lines 11–12:\n> +new one\n> +new two\nName these better")
-        let (words, paths) = MessageImages.split("Look at this\n[image: /tmp/a.png]")
+        let (words, paths, _) = MessageImages.split("Look at this\n[image: /tmp/a.png]")
         check("a message's pictures show apart from its words", words == "Look at this" && paths == ["/tmp/a.png"])
         model.sessions.drafts["c1"] = "First"
         model.sessions.addComment("On `x` line 3:\n> a\nWhy?", session: "s1")

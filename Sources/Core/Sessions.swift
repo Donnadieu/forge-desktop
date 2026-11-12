@@ -22,6 +22,8 @@ enum Sessions {
         var status: String
         var chats: [Chat]
         var updatedAt: String
+        /// The workspace's setup script for this session, and the cleanup script once archived (nil = none).
+        var setup: ScriptRun?
 
         var origins: String {
             switch origin {
@@ -30,6 +32,15 @@ enum Sessions {
             default: return "Started by you"
             }
         }
+    }
+
+    /// A setup or cleanup script's run: "running", "done" or "failed", its exit code and output (secrets masked).
+    struct ScriptRun: Decodable, Sendable, Equatable {
+        var state: String
+        var exitCode: Int?
+        var output: String
+        var startedAt: String?
+        var endedAt: String?
     }
 
     struct Chat: Decodable, Sendable, Equatable, Identifiable {

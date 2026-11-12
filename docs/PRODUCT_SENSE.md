@@ -47,7 +47,8 @@ workspace (a group of trackers, projects, repos and intelligence providers; neve
 connection (one sign-in to a tracker), session (one piece of work on one repo: its folder, branch, chats, changes and
 pull request), chat, steer.
 Never: orchestrator as an engine word, MCP, harness on its own,
-sidecar, token, config, JSON, CLI, terminal (lint rule `ui-jargon`).
+sidecar, token, config, JSON, CLI, terminal as a place to go (lint rule `ui-jargon`). "Terminal" with a capital is the
+name of a session's Terminal panel (Nov 12); no screen ever asks the person to type in one.
 
 ## Never
 - A browser page or web view. Forge is a native Mac window.

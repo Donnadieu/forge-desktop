@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // A stand-in for `claude -p --input-format stream-json --output-format stream-json`, for the sessions tests.
 // Each user message starts a turn that "works" for 400 ms (one tool call), then answers with the last message
-// it read. A message that arrives during a turn steers it (the answer names it). An interrupt control request
+// it read ("printenv NAME" answers with that variable). A message that arrives during a turn steers it (the answer names it). An interrupt control request
 // ends the turn at once with error_during_execution. The process stays alive between turns.
 import { createInterface } from "node:readline";
 
@@ -49,6 +49,9 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   turn.timer = setTimeout(() => {
     out({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: toolId, content: "ok" }] } });
     if (replay && turn.steer) out({ type: "user", isReplay: true, message: { role: "user", content: turn.steer } });
-    finish(turn.steer ? `steered: ${turn.steer}` : `answer: ${turn.text}`, false);
+    // "printenv NAME" answers with that variable, so tests can see what the agent was given.
+    const asked = /^printenv (\w+)$/.exec(turn.text);
+    const answer = asked ? `env ${asked[1]}=${process.env[asked[1]] ?? ""}` : `answer: ${turn.text}`;
+    finish(turn.steer ? `steered: ${turn.steer}` : answer, false);
   }, 400);
 });

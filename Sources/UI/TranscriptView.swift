@@ -188,6 +188,7 @@ struct UserBubble<Revert: View>: View {
             let long = Self.isLong(parts.words)
             VStack(alignment: .leading, spacing: 8) {
                 if !parts.paths.isEmpty { ImageStrip(paths: parts.paths) }
+                if !parts.texts.isEmpty { SentTexts(paths: parts.texts) { NSWorkspace.shared.open(URL(fileURLWithPath: $0)) } }
                 if !parts.words.isEmpty {
                     // Folded, only the start is drawn: a prompt of thousands of lines stays cheap in the list.
                     let shown = long && !open ? String(parts.words.prefix(1200)) : String(parts.words.prefix(40_000))

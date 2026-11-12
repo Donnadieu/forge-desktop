@@ -112,3 +112,38 @@ the bottom. Each line: the date, the plan item, the call and why.
 - Renaming a branch is offered only before a pull request is open: GitHub closes a PR whose branch is renamed and
   can't reopen it (tested on a throwaway PR).
 - Archiving a card's session only hides it; the card keeps running on the board and keeps its folder.
+
+## Workspace setup, notifications, environment, terminal ([design/workspace-settings.md](design/workspace-settings.md))
+Omar, Nov 12 2026, after going through Conductor's settings: "I don't want to be Conductor." He kept five things
+and said do all, so there was no design round; these are the calls made while building.
+- Conductor's Scripts and Miscellaneous are one Forge screen, Workspace setup (Settings > Workspace setup >
+  Change): files to copy, setup script, cleanup script, environment, one Save. No run script, no per-repo setup:
+  the list and scripts apply to every repo of the workspace, paths relative to its top folder.
+- Files to copy: only from the person's own checkout (Forge's clone has no ignored files), only paths inside it,
+  never over a file the branch already has (that one belongs to the repo). `.env*` files still come along by
+  themselves, as before. "Add from repo" lists `git ls-files --others --ignored --directory`; folders end in `/`.
+- The setup script runs before the first message reaches the agent, in the session's folder, with the agents'
+  environment plus `FORGE_ROOT_PATH` and `FORGE_SESSION_PATH`, in the person's login shell (their PATH). Its output
+  shows live in a strip at the top of the chat. A failure shows red with its last lines and the agent starts anyway
+  ("without blocking the chat"). A finished run shows until the first turn ends. 15-minute limit.
+- The cleanup script runs on archive after the snapshot and before the folder is removed (same environment and
+  limit as setup); its result is kept on the session.
+- Environment: secret values go only to the Keychain (`workspace-env.<workspace>.<key>`), never `store.json`; the
+  host gets them in memory on every connect and on Save, and the sessions store masks them in everything it writes,
+  so an agent or script that prints one never puts it in a file. Keys `FORGE_*` are refused. Card agents get the
+  variables too (the project's engine environment, Forge's own variables win), from the next engine restart, which
+  Save sets up the same way other settings do. Claude Code's own transcripts in `~/.claude/projects` are outside
+  Forge's reach: an agent that prints a secret puts it there, as it would in any terminal.
+- Agent notifications: one switch on the Settings screen, on by default, for the whole Mac (it was always on before,
+  with macOS's default sound). The chime is macOS's Glass, played once by Forge; the notification itself is silent,
+  so it never sounds twice. Same three moments as before (done, needs you, stopped), nothing for the session on
+  screen while Forge is in front. No sound picker.
+- Terminal: a real login shell on a PTY (`forkpty`) and Forge's own small VT screen (xterm subset: colours,
+  cursor moves, erase, scroll regions, alternate screen, cursor reports) drawn in DM Mono. No package manager, so no
+  SwiftTerm: the app has no dependencies and builds with `swiftc`. A bottom panel under the chat, toggled with the
+  session's Terminal button or ⌃`, resized by its top edge, several tabs per session. Hiding keeps the shells running;
+  archiving ends them (SIGHUP to the process group, SIGKILL a second later). No text selection or copy yet.
+- Message box defaults, no settings: Enter sends, Shift-Enter is a new line, ⌥Enter queues (all as before); a message
+  sent while the agent works steers it and shows as a steer (as before). New: a paste over 4,000 characters becomes
+  a .txt attachment with a chip; the host keeps the file beside the chat and Claude Code gets its whole text as a
+  text block with the message (no tool call). Card sessions paste as before (their messages go to the card's engine).

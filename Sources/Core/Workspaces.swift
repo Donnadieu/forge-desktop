@@ -23,6 +23,8 @@ struct Workspace: Codable, Equatable, Identifiable, Sendable {
     /// What a new chat starts with (nil = Opus 5.5 · 1M on high effort).
     var sessionModel: String?
     var sessionEffort: String?
+    /// Workspace setup (Nov 12): files copied into new sessions, setup and cleanup scripts, environment.
+    var setup: WorkspaceSetup?
 
     static let colors = ["heat", "green", "cream", "grey", "red", "gold"]
 

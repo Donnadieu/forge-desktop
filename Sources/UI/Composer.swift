@@ -93,6 +93,8 @@ struct Composer: View {
     let chat: Sessions.Chat
     var compact = false
     @FocusState private var focused: Bool
+    /// Where ⌘V reads from; checks use a pasteboard of their own.
+    static var pasteboard = NSPasteboard.general
     /// The Skills list (from its button, or the + menu in the narrowest boxes).
     @State private var skillsOpen = false
 
@@ -116,6 +118,9 @@ struct Composer: View {
         VStack(alignment: .leading, spacing: 10) {
             if let pics = sessions.images[chat.id], !pics.isEmpty {
                 PendingImages(images: pics) { p in sessions.images[chat.id]?.removeAll { $0 == p } }
+            }
+            if let pasted = sessions.texts[chat.id], !pasted.isEmpty {
+                PendingTexts(texts: pasted) { p in sessions.texts[chat.id]?.removeAll { $0.id == p.id } }
             }
             ZStack(alignment: .topLeading) {
                 if text.wrappedValue.isEmpty {
@@ -222,17 +227,30 @@ struct Composer: View {
             }
             Button("Send") { sessions.send(chat, text: text.wrappedValue, queue: false) }
                 .buttonStyle(ForgeButton(kind: .primary, icon: "paperplane", large: true))
-                .disabled(text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (sessions.images[chat.id] ?? []).isEmpty)
+                .disabled(
+                    text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (sessions.images[chat.id] ?? []).isEmpty
+                        && (sessions.texts[chat.id] ?? []).isEmpty)
         }
     }
 
-    /// ⌘V: a picture on the clipboard joins the message (not for card sessions); anything else pastes as usual.
+    /// Pasted text longer than this joins the message as a .txt file instead of filling the box (no setting).
+    static let longPaste = 4000
+
+    /// ⌘V: a long text or a picture on the clipboard joins the message (not for card sessions); anything else pastes
+    /// as usual.
     private func paste() {
-        let pics = focused && session.origin != "card" ? MessageImages.fromPasteboard() : []
-        if !pics.isEmpty, NSPasteboard.general.string(forType: .string) == nil {
+        let board = Self.pasteboard
+        let string = board.string(forType: .string)
+        let mine = focused && session.origin != "card"
+        if mine, let string, string.count > Self.longPaste { return sessions.attachText(string, to: chat) }
+        let pics = mine ? MessageImages.fromPasteboard(board) : []
+        if !pics.isEmpty, string == nil {
             sessions.attach(pics, to: chat)
-        } else {
+        } else if board == .general {
             NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+        } else if let string {
+            // A pasteboard of its own (the selftest's): its text joins the box as a paste would.
+            sessions.drafts[chat.id] = (sessions.drafts[chat.id] ?? "") + string
         }
     }
 

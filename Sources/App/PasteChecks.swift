@@ -314,6 +314,12 @@ extension Checks {
         settle()
         put(board, "echo pasted-into-the-shell")
         command(window, "v", code: 9, menu: editMenu())
-        check("⌘V pastes into the session's Terminal", waitFor(10) { tab.screen.text.contains("echo pasted-into-the-shell") })
+        // A narrow panel wraps the line, so it's read with the wraps taken out.
+        let landed = waitFor(10) { tab.screen.text.replacingOccurrences(of: "\n", with: "").contains("echo pasted-into-the-shell") }
+        check("⌘V pastes into the session's Terminal", landed)
+        if !landed {
+            print("  the Terminal showed (\(tab.screen.cols) columns, first responder \(window.firstResponder?.className ?? "none")):")
+            print(tab.screen.text.split(separator: "\n").suffix(8).map { "  | " + $0 }.joined(separator: "\n"))
+        }
     }
 }

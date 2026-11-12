@@ -38,6 +38,8 @@ struct RootView: View {
         .background(Theme.bg)
         .foregroundStyle(Theme.text)
         .font(Theme.sans(13))
+        // A link outside a session's chat never reaches the system as a path (a card's workpad).
+        .environment(\.openURL, FileLinks.webOnly)
         .tint(Theme.heat)
         .preferredColorScheme(.dark)
         .ignoresSafeArea()

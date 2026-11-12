@@ -339,12 +339,15 @@ enum SampleSessions {
             let t = turn(
                 "t5", "c4", "Run the nuclear review.", status: "done", events: [write, event("rv2", "t5", "c4", "text", SampleReview.summary)])
             m.setTranscript(Transcript(chatID: "c4", turns: [t]))
-        case "sessions-file-markdown", "sessions-file-diff":
-            // A click on one of the summary's paths: the review rendered, or the saved diff coloured.
+        case "sessions-file-markdown", "sessions-file-diff", "sessions-file-missing":
+            // A click on one of the summary's paths: the review rendered, the saved diff coloured, or a gone file.
             SampleSessions.scene(m, "sessions-review-summary")
             let root = SampleReview.worktree()
-            let path = scene == "sessions-file-markdown" ? SampleReview.reviewPath : SampleReview.diffPath
-            m.openFile = FileLinks.Opened(url: URL(fileURLWithPath: root).appendingPathComponent(path), root: root)
+            let path =
+                scene == "sessions-file-markdown"
+                ? SampleReview.reviewPath : scene == "sessions-file-diff" ? SampleReview.diffPath : "tmp/code-reviews/gone.md"
+            m.openFile = FileLinks.Opened(
+                url: URL(fileURLWithPath: root).appendingPathComponent(path), root: root, missing: scene == "sessions-file-missing")
         case "sessions-card-long":
             // Omar's PER-32 card (Nov 11): a long branch name and the card's whole prompt as its first message.
             m.selected = "s4"

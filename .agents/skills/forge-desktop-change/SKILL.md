@@ -229,6 +229,11 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   workspace while `selected` was Mac-wide, so another workspace's running card stayed open, steerable, after a switch.
   Read `SessionsModel.current`/`split` (both filtered), guard actions with `isHere`, and open another workspace's
   session through `AppModel.showSession`, which switches first. `Checks.sessionIsolationChecks` covers it.
+- A chat link handler (`OpenURLAction`) must never return `.systemAction` for a path. SwiftUI's Markdown keeps a link
+  whose target is a path (relative, or absolute with `%20` for spaces) as a URL with no scheme, not a file URL, and macOS
+  answers one with a "The application can't be opened. -50" alert. Route every path through `FileLinks.open` and
+  send only real web links out through `FileLinks.openInBrowser`, which checks swap for a recorder so a click test
+  never opens anything on the person's screen.
 
 ### Intelligence provider accounts
 - An account's secret is a Keychain item named at run time (`Keychain.get/set/delete(named:)`); `Keychain.has(named:)`

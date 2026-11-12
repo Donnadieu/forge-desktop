@@ -91,7 +91,20 @@ enum Theme {
     static func display(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Black", size: size) }
     static func serifItalic(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Italic", size: size) }
     /// `sans(size)` for AppKit views (the message box's text view).
-    static func sansFont(_ size: CGFloat) -> NSFont { NSFont(name: "DMSans-Regular", size: size) ?? .systemFont(ofSize: size) }
+    static func sansFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> NSFont {
+        let name =
+            switch weight {
+            case .medium: "DMSans-Medium"
+            case .semibold: "DMSans-SemiBold"
+            case .bold, .heavy, .black: "DMSans-Bold"
+            default: "DMSans-Regular"
+            }
+        return NSFont(name: name, size: size) ?? .systemFont(ofSize: size)
+    }
+    /// `mono(size)` for AppKit views.
+    static func monoFont(_ size: CGFloat) -> NSFont {
+        NSFont(name: "DMMono-Regular", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+    }
     static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         switch weight {
         case .medium: return .custom("DMSans-Medium", size: size)

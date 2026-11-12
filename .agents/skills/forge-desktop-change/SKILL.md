@@ -135,6 +135,12 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - A check never touches the person's clipboard: `Checks.withPrivateClipboard` swaps `+generalPasteboard` for a
   private board, and AppKit's own paste reads it. A right-click check catches the menu (`Checks.rightClickMenu`) and
   sends no click if it can't, or a real menu shows on the screen.
+- SwiftUI can't select across `Text` views (each `.textSelection` Text is its own field), so a chat message is one
+  AppKit text (`RichText` builds it, `ChatTextView` shows it, TextKit 1 for code panels and tables). A List row is
+  still its own view: a drag can't run from one message into the next.
+- An AppKit view in a selftest window ignores the first click unless `acceptsFirstMouse` says yes (the window isn't
+  in front), and a release left in the queue ends the next drag: `Checks.mouseDrag` clears leftover releases. A view
+  that picks with the mouse tracks it from `mouseDown` with `nextEvent(matching:)`, so queued test events reach it.
 - NSTextView's undo doesn't always reach its delegate's `textDidChange`: keep a binding in step from the text
   storage's delegate (`MessageBox.Coordinator`).
 

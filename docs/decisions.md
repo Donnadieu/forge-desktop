@@ -182,3 +182,14 @@ shell that isn't interactive has no `mise activate`, so `npx` servers failed to 
   characters becomes a .txt chip, a picture alone on the clipboard joins the message, anything else is pasted as
   text. No SwiftUI button holds ⌘V any more, so the other fields and the Terminal paste too.
 
+## Copying from the Terminal and the chat (Omar, 2026-11-12)
+
+- Terminal: a drag picks text, ⌥-drag a block, a double-click a word, a triple-click the line; ⌘C, Edit > Copy and
+  the right-click menu copy it. ⌘ keys never reach the shell, so ⌘C can't send ⌃C; ⌃C still interrupts.
+- Chat: each message is one selectable text, so a drag runs across its paragraphs, lists, code blocks and tables;
+  a copy gives readable text (table rows as `a | b`). On hover a message shows Copy and Copy as Markdown (also in
+  its right-click menu); each code block has its own Copy (the code only). Each says Copied for a moment.
+- Not built: a drag from one message into another. The transcript is a list of separate rows; one text for the
+  whole chat would undo the long-chat budget (docs/design/sessions.md section 7). The copy buttons cover a whole
+  message instead.
+

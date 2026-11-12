@@ -6,6 +6,7 @@ import SwiftUI
 ///   Forge --version             prints the version
 ///   Forge --pane-check          the Sessions screen's panes only: resize by drag, header lines, the panel's fit, rows
 ///   Forge --paste-check         paste, the Edit keys, right-click and dictation in the message box and the other fields
+///   Forge --copy-check          copying out of the Terminal (drag, word, line, block, ⌘C vs ⌃C) and the chat
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
 ///   Forge --workspaces-check    opens a copy of Forge's folder (FORGE_HOME) and prints its workspaces after the upgrade
 ///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
@@ -35,6 +36,15 @@ enum Checks {
             }
             pasteChecks(check)
             composerKeyChecks(check)
+            return failed == 0 ? 0 : 1
+        }
+        if args.contains("--copy-check") {
+            setvbuf(stdout, nil, _IONBF, 0)
+            var failed = 0
+            copyChecks { name, ok in
+                print("\(ok ? "✓" : "✗") \(name)")
+                if !ok { failed += 1 }
+            }
             return failed == 0 ? 0 : 1
         }
         if args.contains("--pane-check") {
@@ -266,6 +276,7 @@ enum Checks {
         workspaceSetupChecks(check)
         terminalChecks(check)
         pasteChecks(check)
+        copyChecks(check)
         composerKeyChecks(check)
         questionChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")

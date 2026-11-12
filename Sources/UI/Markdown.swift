@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The agent's words, and long messages such as a card's prompt: Markdown drawn as text (headings, lists, task lists,
-/// bold, strikethrough, inline code), GFM tables as tables, and code blocks in mono on their own panel. Paths that name
+/// The agent's words, and long messages such as a card's prompt: Markdown drawn as one selectable text (headings,
+/// lists, task lists, bold, strikethrough, inline code, GFM tables, code blocks in mono on their own panel; RichText). Paths that name
 /// a file in the session's worktree (`\.worktree`) are links. Parsed once per text and kept, so scrolling back through
 /// a long chat never parses again.
 struct MessageText: View {
@@ -13,76 +13,12 @@ struct MessageText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(MarkdownCache.parts(text, folder: worktree).enumerated()), id: \.offset) { _, part in
-                MarkdownBlock(part: part)
-            }
+            // One text for the whole message, so a drag selects across its blocks (RichText, ChatText.swift).
+            RichMessage(text: text, parts: MarkdownCache.parts(text, folder: worktree), key: MarkdownCache.key(text, folder: worktree), fill: fill)
             if writing { Rectangle().fill(Theme.heat).frame(width: 7, height: 14) }
         }
         .frame(maxWidth: fill ? .infinity : nil, alignment: .leading)
         .tint(Theme.heatBright)
-    }
-}
-
-struct MarkdownBlock: View {
-    let part: MarkdownPart
-
-    var body: some View {
-        switch part {
-        case .prose(let a): Text(a).font(Theme.sans(13)).foregroundStyle(Theme.text).lineSpacing(3).textSelection(.enabled)
-        case .heading(let level, let a):
-            Text(a).font(Theme.sans(level <= 2 ? 15 : 14, .semibold)).foregroundStyle(Theme.text).textSelection(.enabled).padding(.top, 4)
-        case .item(let marker, let a, let depth):
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                if let box = MarkdownCache.taskBoxes[marker] {
-                    Image(systemName: box).font(.system(size: 11)).foregroundStyle(marker == "☑" ? Theme.heatBright : Theme.textMuted)
-                        .frame(minWidth: 14, alignment: .trailing)
-                } else {
-                    Text(marker).font(Theme.sans(13)).foregroundStyle(Theme.textMuted).frame(minWidth: 14, alignment: .trailing)
-                }
-                Text(a).font(Theme.sans(13)).foregroundStyle(Theme.text).lineSpacing(3).textSelection(.enabled)
-            }
-            .padding(.leading, CGFloat(depth) * 18)
-        case .code(let c, let lang):
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(Syntax.attributed(c, language: lang)).font(Theme.mono(11)).textSelection(.enabled).padding(10)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.bg))
-            .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
-        case .table(let t): MarkdownTableView(table: t)
-        }
-    }
-}
-
-/// A GFM table: a header row on a light wash, a hairline between every cell, each column aligned as its separator
-/// row asks, and a sideways scroll when it's wider than the chat.
-struct MarkdownTableView: View {
-    let table: MarkdownTable
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
-                GridRow { ForEach(table.header.indices, id: \.self) { c in cell(table.header[c], column: c, row: -1) } }
-                ForEach(table.rows.indices, id: \.self) { r in
-                    GridRow { ForEach(table.header.indices, id: \.self) { c in cell(table.rows[r][c], column: c, row: r) } }
-                }
-            }
-            .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.rMd))
-            .padding(.vertical, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func cell(_ a: AttributedString, column c: Int, row r: Int) -> some View {
-        let align = table.align[c]
-        return Text(a).font(r < 0 ? Theme.sans(12, .semibold) : Theme.sans(13)).foregroundStyle(r < 0 ? Theme.textSec : Theme.text)
-            .lineLimit(1).fixedSize().textSelection(.enabled)
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: align == .center ? .center : align == .trailing ? .trailing : .leading)
-            .background(r < 0 ? Theme.wash2 : r % 2 == 1 ? Theme.wash1 : Color.clear)
-            .overlay(alignment: .bottom) { if r < table.rows.count - 1 { Rectangle().fill(Theme.border).frame(height: 1) } }
-            .overlay(alignment: .trailing) { if c < table.header.count - 1 { Rectangle().fill(Theme.border).frame(width: 1) } }
     }
 }
 
@@ -108,6 +44,11 @@ enum MarkdownPart {
     var table: MarkdownTable? {
         if case .table(let t) = self { return t }
         return nil
+    }
+
+    var isCode: Bool {
+        if case .code = self { return true }
+        return false
     }
 
     /// Every run of words in the block (a table's cells too), for reading it back or finding its links.
@@ -137,17 +78,18 @@ extension EnvironmentValues {
 enum MarkdownCache {
     private static var cache: [Int: [MarkdownPart]] = [:]
 
-    /// The SF Symbols a task list item's box is drawn with.
-    static let taskBoxes = ["☐": "square", "☑": "checkmark.square.fill"]
-
     static func parts(_ text: String) -> [MarkdownPart] { parts(text, folder: nil) }
 
     /// The text's blocks; with a worktree, paths to its files are links.
-    static func parts(_ text: String, folder: String?) -> [MarkdownPart] {
+    static func key(_ text: String, folder: String?) -> Int {
         var h = Hasher()
         h.combine(text)
         h.combine(folder)
-        let key = h.finalize()
+        return h.finalize()
+    }
+
+    static func parts(_ text: String, folder: String?) -> [MarkdownPart] {
+        let key = key(text, folder: folder)
         if let hit = cache[key] { return hit }
         var out: [MarkdownPart] = []
         for (i, chunk) in text.components(separatedBy: "```").enumerated() {

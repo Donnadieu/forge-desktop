@@ -138,6 +138,8 @@ extension Checks {
             window.sendEvent(down)
         }
         settle()
+        // The menu never tracked the mouse, so its release is still waiting.
+        NSApp.discardEvents(matching: [.rightMouseUp], before: nil)
         return MenuCatcher.caught
     }
 
@@ -301,7 +303,8 @@ extension Checks {
         }
         guard let tab = terms.open(s, env: [:]) else { return check("a Terminal opens", false) }
         terms.shown.insert(s.id)
-        _ = waitFor(5) { !tab.screen.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        // A CI Mac can take seconds to start a login shell.
+        _ = waitFor(12) { !tab.screen.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         let window = offscreen(SessionsScreen(model: model, sessions: model.sessions), size: NSSize(width: 1500, height: 900))
         defer { window.orderOut(nil) }
         guard let content = window.contentView, let term = views(TerminalNSView.self, in: content).first else {
@@ -311,6 +314,6 @@ extension Checks {
         settle()
         put(board, "echo pasted-into-the-shell")
         command(window, "v", code: 9, menu: editMenu())
-        check("⌘V pastes into the session's Terminal", waitFor(3) { tab.screen.text.contains("echo pasted-into-the-shell") })
+        check("⌘V pastes into the session's Terminal", waitFor(10) { tab.screen.text.contains("echo pasted-into-the-shell") })
     }
 }

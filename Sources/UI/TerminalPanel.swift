@@ -90,9 +90,12 @@ struct TerminalCanvas: NSViewRepresentable {
 }
 
 /// Draws a TerminalScreen cell by cell in DM Mono and sends what's typed to the shell. Scrolling up shows the history.
-final class TerminalNSView: NSView {
+/// A drag picks text (⌥-drag a block, a double-click a word, a triple-click the line); ⌘C, Edit > Copy and the
+/// right-click menu copy it. ⌘ keys never reach the shell; ⌃C does.
+final class TerminalNSView: NSView, NSMenuItemValidation {
     weak var tab: TerminalTab?
     private var scrollBack = 0
+    private(set) var selection: TerminalSelection?
     private let font = NSFont(name: "DMMono-Regular", size: 12) ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
     private lazy var cellW: CGFloat = ceil(("M" as NSString).size(withAttributes: [.font: font]).width)
     private lazy var lineH: CGFloat = ceil(font.ascender - font.descender + font.leading) + 2
@@ -100,8 +103,76 @@ final class TerminalNSView: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+    /// A drag starts picking even while Forge's window is in the back.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func mouseDown(with event: NSEvent) { window?.makeFirstResponder(self) }
+    /// The screen's whole text, history first, one array of letters per row.
+    @MainActor private var lines: [[Character]] {
+        guard let screen = tab?.screen else { return [] }
+        return (screen.scrollback + screen.grid).map { $0.map(\.ch) }
+    }
+
+    /// The row (in the whole text) and column under a point in the window.
+    @MainActor private func spot(_ event: NSEvent) -> TerminalSelection.Spot? {
+        guard let screen = tab?.screen else { return nil }
+        let p = convert(event.locationInWindow, from: nil)
+        let r = min(max(Int(floor((p.y - pad) / lineH)), 0), screen.rows - 1)
+        let c = min(max(Int(floor((p.x - pad) / cellW)), 0), screen.cols - 1)
+        return TerminalSelection.Spot(row: screen.scrollback.count - min(scrollBack, screen.scrollback.count) + r, col: c)
+    }
+
+    /// Picks with the mouse until it's let go (AppKit's own tracking loop, as a text view does).
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        MainActor.assumeIsolated {
+            guard let s = spot(event) else { return }
+            let all = lines
+            let line = all.indices.contains(s.row) ? all[s.row] : []
+            switch event.clickCount {
+            case 2: selection = TerminalSelection.word(at: s, in: line)
+            case 3...: selection = TerminalSelection.line(s.row, in: line)
+            default: selection = TerminalSelection(anchor: s, head: s, block: event.modifierFlags.contains(.option))
+            }
+            needsDisplay = true
+            var moved = false
+            while let e = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+                if e.type == .leftMouseUp { break }
+                guard event.clickCount < 2, let h = spot(e) else { continue }
+                if h != selection?.head { moved = true }
+                selection?.head = h
+                needsDisplay = true
+                displayIfNeeded()
+            }
+            // A plain click picks nothing.
+            if event.clickCount < 2, !moved { selection = nil }
+            needsDisplay = true
+        }
+    }
+
+    @objc func copy(_ sender: Any?) {
+        MainActor.assumeIsolated {
+            guard let text = selection?.text(lines), !text.isEmpty else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        }
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        MainActor.assumeIsolated {
+            switch item.action {
+            case #selector(copy(_:)): return selection.map { !$0.text(lines).isEmpty } ?? false
+            case #selector(paste(_:)): return NSPasteboard.general.string(forType: .string) != nil
+            default: return true
+            }
+        }
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Copy", action: #selector(copy(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Paste", action: #selector(paste(_:)), keyEquivalent: ""))
+        return menu
+    }
 
     override func setFrameSize(_ s: NSSize) {
         super.setFrameSize(s)
@@ -119,6 +190,7 @@ final class TerminalNSView: NSView {
             guard let tab else { return }
             if e.modifierFlags.contains(.command) { return super.keyDown(with: e) }
             scrollBack = 0
+            selection = nil
             tab.write(
                 TerminalKeys.bytes(
                     chars: e.characters ?? "", key: e.keyCode, control: e.modifierFlags.contains(.control), appCursor: tab.screen.appCursor))
@@ -152,6 +224,7 @@ final class TerminalNSView: NSView {
         guard let screen = tab?.screen else { return }
         let back = min(scrollBack, screen.scrollback.count)
         let lines = Array(screen.scrollback.suffix(back)) + Array(screen.grid.prefix(screen.rows - min(back, screen.rows)))
+        let firstRow = screen.scrollback.count - back
         for (r, line) in lines.prefix(screen.rows).enumerated() {
             let y = pad + CGFloat(r) * lineH
             var c = 0
@@ -179,6 +252,15 @@ final class TerminalNSView: NSView {
                 c = end
             }
         }
+        // The pick, tinted over the letters.
+        if let sel = selection {
+            TerminalColors.selection.setFill()
+            for r in 0..<screen.rows {
+                for c in 0..<screen.cols where sel.contains(row: firstRow + r, col: c) {
+                    NSRect(x: pad + CGFloat(c) * cellW, y: pad + CGFloat(r) * lineH, width: cellW, height: lineH).fill(using: .sourceOver)
+                }
+            }
+        }
         if back == 0, screen.cursorVisible {
             let (r, c) = screen.cursor
             let focused = window?.firstResponder === self
@@ -197,6 +279,8 @@ enum TerminalColors {
     static let background = hex(0x1C1A17)
     static let foreground = hex(0xF7F5F1)
     static let cursor = hex(0xE59B47)
+    /// Picked text: the heat colour, dimmed.
+    static let selection = hex(0xE59B47).withAlphaComponent(0.32)
     static let base: [Int] = [
         0x2E2B27, 0xC2554A, 0x8FB069, 0xE3B25A, 0x6F9BD1, 0xB784C7, 0x6FB5AE, 0xD9D4CC,
         0x7A7470, 0xE0756A, 0xA9C985, 0xF0C878, 0x8DB4E6, 0xCFA0DD, 0x8DD0C9, 0xF7F5F1,

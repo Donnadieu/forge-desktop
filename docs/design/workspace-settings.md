@@ -4,6 +4,8 @@ Asked for by Omar on Nov 12, 2026, after he went through Conductor's settings: "
 Conductor. I don't want to be Conductor either." He kept five things and said "do all", so this was built without a
 design round. Decisions are logged in [decisions.md](../decisions.md).
 
+Built in PR #124, released in 0.2.37.
+
 Built in Forge's current design system (`Sources/UI/Theme.swift`, `Controls.swift`): tiles on `panel()`, section
 labels in caps, mono for paths and keys, heat for the one primary action. Few choices: every part is one list or one
 box, with nothing to pick that Forge can decide.

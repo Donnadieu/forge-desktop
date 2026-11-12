@@ -34,6 +34,7 @@ struct ChatColumn: View {
                 ChangesTab(sessions: sessions, session: session)
             } else if let chat {
                 TranscriptView(sessions: sessions, chat: chat, transcript: sessions.transcript(chat.id))
+                    .opensFileLinks(sessions, root: session.folder)
                 Composer(sessions: sessions, session: session, chat: chat, compact: compact).padding(.horizontal, compact ? 12 : 24).padding(
                     .bottom, 16)
             } else {

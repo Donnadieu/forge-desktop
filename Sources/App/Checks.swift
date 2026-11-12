@@ -238,6 +238,7 @@ enum Checks {
         sessionPolishChecks(check)
         steerChecks(check)
         sessionIsolationChecks(check)
+        chatRenderChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

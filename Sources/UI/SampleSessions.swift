@@ -323,6 +323,28 @@ enum SampleSessions {
         case "sessions-changes-tab":
             SampleSessions.scene(m, "sessions-code")
             m.changesTab = ["s1"]
+        case "sessions-review-summary":
+            // Omar's ATC-1742 review summary (Nov 11): a table and two paths into the card's worktree.
+            m.selected = "s4"
+            if let i = m.sessions.firstIndex(where: { $0.id == "s4" }) {
+                m.sessions[i].title = "ATC-1742 Serve Directory → Talent from cached talent rows"
+                m.sessions[i].branch = "serve-directory-talent-from-cached-talent-rows-atc-1742"
+                m.sessions[i].repo = "andela-technology/andela"
+                m.sessions[i].folder = SampleReview.worktree()
+                m.sessions[i].chats[0].title = "ATC-1742"
+            }
+            let write = event(
+                "rv1", "t5", "c4", "tool", "Wrote \(SampleReview.reviewPath)", name: "Write",
+                data: .object(["file_path": .string(SampleReview.reviewPath), "content": .string(SampleReview.review)]))
+            let t = turn(
+                "t5", "c4", "Run the nuclear review.", status: "done", events: [write, event("rv2", "t5", "c4", "text", SampleReview.summary)])
+            m.setTranscript(Transcript(chatID: "c4", turns: [t]))
+        case "sessions-file-markdown", "sessions-file-diff":
+            // A click on one of the summary's paths: the review rendered, or the saved diff coloured.
+            SampleSessions.scene(m, "sessions-review-summary")
+            let root = SampleReview.worktree()
+            let path = scene == "sessions-file-markdown" ? SampleReview.reviewPath : SampleReview.diffPath
+            m.openFile = FileLinks.Opened(url: URL(fileURLWithPath: root).appendingPathComponent(path), root: root)
         case "sessions-card-long":
             // Omar's PER-32 card (Nov 11): a long branch name and the card's whole prompt as its first message.
             m.selected = "s4"

@@ -86,6 +86,8 @@ final class SessionsModel: ObservableObject {
     @Published var changes: [String: [Sessions.FileChange]] = [:]
     @Published var pullRequests: [String: Sessions.PullRequest] = [:]
     @Published var openDiff: (session: String, path: String, text: String)?
+    /// A file a link in the chat opened in the viewer.
+    @Published var openFile: FileLinks.Opened?
     @Published var showChanges = true
     @Published var reviewSheet: ReviewSheet?
     @Published var importSheet: Sessions.ConductorPreview?

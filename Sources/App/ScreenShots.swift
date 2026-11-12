@@ -80,6 +80,12 @@ extension ScreenRender {
             Shot(
                 name: "16-polish-changes-tab", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-changes-tab", height: 800,
                 width: 1500),
+            Shot(
+                name: "19-chat-table-paths", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-review-summary", height: 900,
+                width: 1500),
+            Shot(
+                name: "19-file-markdown", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-file-markdown", height: 900, width: 1500),
+            Shot(name: "19-file-diff", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-file-diff", height: 900, width: 1500),
             Shot(name: "16-polish-card-wide", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 780, width: 1500),
             Shot(
                 name: "16-polish-card-tall", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 1300, width: 1500),

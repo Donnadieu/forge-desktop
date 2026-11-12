@@ -34,7 +34,7 @@ extension SessionsModel {
         splitChat = pick?.split
         if split == nil { splitChat = nil }
         composing = false
-        (reviewSheet, openDiff, importSheet, showHistory) = (nil, nil, nil, false)
+        (reviewSheet, openDiff, openFile, importSheet, showHistory) = (nil, nil, nil, nil, false)
         if let s = current { refreshSide(s.id) }
     }
 }

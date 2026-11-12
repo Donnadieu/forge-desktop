@@ -194,6 +194,7 @@ extension Checks {
         switch p {
         case .prose(let a), .heading(_, let a), .item(_, let a, _): return String(a.characters)
         case .code(let c, _): return c
+        case .table(let t): return (t.header + t.rows.flatMap { $0 }).map { String($0.characters) }.joined(separator: " ")
         }
     }
 }

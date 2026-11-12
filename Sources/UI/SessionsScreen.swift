@@ -81,6 +81,8 @@ struct SessionsScreen: View {
             HistorySheet(model: model, sessions: sessions)
         } else if let d = sessions.openDiff {
             DiffSheet(path: d.path, text: d.text, comment: { sessions.addComment($0, session: d.session) }, close: { sessions.openDiff = nil })
+        } else if let f = sessions.openFile {
+            FileSheet(sessions: sessions, file: f) { sessions.openFile = nil }
         }
     }
 

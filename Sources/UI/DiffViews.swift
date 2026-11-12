@@ -8,29 +8,42 @@ struct DiffLines: View {
     var language: String? = nil
     var picked: ClosedRange<Int>? = nil
     var pick: ((Int, Bool) -> Void)? = nil
+    /// A diff of several files (a saved `git diff`): each file gets a header row and its own language.
+    var files = false
 
     struct Line: Identifiable {
         let id: Int
         let text: String
         /// Its number in the new file (nil for a removed line or a hunk header).
         let number: Int?
+        /// A file's header row (with `files`): the file's path.
+        var file: String? = nil
+        /// The language of the file the line belongs to (with `files`).
+        var language: String? = nil
     }
 
-    static func lines(_ text: String) -> [Line] {
+    static func lines(_ text: String, files: Bool = false) -> [Line] {
         var out: [Line] = []
         var next = 0
+        var language: String?
         for (i, raw) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
             let l = String(raw)
+            if files, l.hasPrefix("diff --git") {
+                let path = l.components(separatedBy: " b/").last ?? l
+                language = Syntax.language(path: path)
+                out.append(Line(id: i, text: l, number: nil, file: path))
+                continue
+            }
             if l.hasPrefix("diff --git") || l.hasPrefix("index ") || l.hasPrefix("+++") || l.hasPrefix("---") { continue }
             if l.hasPrefix("@@") {
                 // @@ -a,b +c,d @@: the new file's lines start at c.
                 let plus = l.split(separator: " ").first { $0.hasPrefix("+") }
                 next = Int(plus?.dropFirst().split(separator: ",").first ?? "") ?? 0
-                out.append(Line(id: i, text: l, number: nil))
+                out.append(Line(id: i, text: l, number: nil, language: language))
             } else if l.hasPrefix("-") {
-                out.append(Line(id: i, text: l, number: nil))
+                out.append(Line(id: i, text: l, number: nil, language: language))
             } else {
-                out.append(Line(id: i, text: l, number: next > 0 ? next : nil))
+                out.append(Line(id: i, text: l, number: next > 0 ? next : nil, language: language))
                 if next > 0 { next += 1 }
             }
         }
@@ -38,28 +51,42 @@ struct DiffLines: View {
     }
 
     var body: some View {
-        List(Self.lines(text)) { l in
-            HStack(spacing: 8) {
-                Text(l.number.map(String.init) ?? "").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
-                Group {
-                    if l.text.hasPrefix("@@") || l.text.isEmpty {
-                        Text(l.text.isEmpty ? " " : l.text).foregroundStyle(Theme.textMuted)
-                    } else {
-                        Text(Self.styled(l.text, language: language))
-                    }
+        List(Self.lines(text, files: files)) { l in
+            if let file = l.file {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.text").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
+                    Text(file).font(Theme.mono(11, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
                 }
-                .font(Theme.mono(11)).lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading).frame(height: 26)
+                .padding(.horizontal, 8).background(Theme.wash2)
+                .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
+            } else {
+                row(l)
             }
-            .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)
-            .padding(.horizontal, 8)
-            .background(picked?.contains(l.id) == true ? Theme.heat.opacity(0.18) : background(l.text))
-            .contentShape(Rectangle())
-            .onTapGesture { pick?(l.id, NSEvent.modifierFlags.contains(.shift)) }
-            .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 18)
         .scrollContentBackground(.hidden)
+    }
+
+    private func row(_ l: Line) -> some View {
+        HStack(spacing: 8) {
+            Text(l.number.map(String.init) ?? "").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
+            Group {
+                if l.text.hasPrefix("@@") || l.text.isEmpty {
+                    Text(l.text.isEmpty ? " " : l.text).foregroundStyle(Theme.textMuted)
+                } else {
+                    Text(Self.styled(l.text, language: l.language ?? language))
+                }
+            }
+            .font(Theme.mono(11)).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)
+        .padding(.horizontal, 8)
+        .background(picked?.contains(l.id) == true ? Theme.heat.opacity(0.18) : background(l.text))
+        .contentShape(Rectangle())
+        .onTapGesture { pick?(l.id, NSEvent.modifierFlags.contains(.shift)) }
+        .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
     }
 
     /// A diff line: its + or − mark, then the code coloured by its language.

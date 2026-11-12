@@ -87,6 +87,14 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   window runs `.task`, `ImageRenderer` doesn't). Anything that waits on an
   engine also needs a time limit that says so on screen (`AppModel.watchBoard`).
 
+- A selftest can click a drawn view: an off-screen borderless window, then `NSApp.postEvent(mouseUp, atStart: false)`
+  BEFORE `window.sendEvent(mouseDown)`. A press on selectable text tracks the mouse until it's let go, so sending the
+  release after the press hangs the selftest forever (`Checks.linkClickChecks`). Never click anything that opens
+  another app (Finder, a browser): that puts a window on the person's screen.
+- Links in the chat are `AttributedString.link` runs, followed through the `openURL` environment that
+  `opensFileLinks(_:root:)` sets on a transcript; Markdown parts are cached per text AND worktree, so a view without
+  a worktree never gets links.
+
 ### Shell, tests and the gate
 - `cmd | grep -q` under `set -o pipefail` can fail on SIGPIPE: capture the output into a variable first.
 - A test that fails only in the full suite or the commit hook is a race until proven otherwise. Fix it

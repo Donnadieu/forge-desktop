@@ -30,3 +30,4 @@ Codex and Kimi chats, the model picker listing every provider, the Claude Design
 - [x] 9. New session = new worktree and branch off main by default; the sheet can pick an existing branch or name a new one; repo locked to the workspace
 - [x] 10. Sessions sidebar grouped; idle and finished groups collapse
 - [x] 11. Conductor import scoped to the workspace's repo, multi-select, "Import selected", no "Into workspace" column
+- [ ] 12. Chat Markdown: GFM tables drawn as tables, task lists as boxes; paths into the worktree are links that open Forge's file viewer (Markdown rendered, diffs coloured, code numbered; Cmd-click shows it in Finder). Check: `Checks.chatRenderChecks`

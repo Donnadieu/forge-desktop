@@ -59,6 +59,8 @@ struct ToolRow: View {
     let result: Sessions.Event?
     let running: Bool
     @State private var open: Bool
+    @Environment(\.worktree) private var worktree
+    @Environment(\.openURL) private var openURL
 
     /// Rows a render draws opened (`--render-screens` can't click).
     @MainActor static var openInRender: Set<String> = []
@@ -75,22 +77,10 @@ struct ToolRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Button {
-                if !parts.isEmpty { open.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Theme.textMuted).opacity(parts.isEmpty ? 0.3 : 1)
-                    Image(systemName: ToolStyle.of(event.name).icon).font(.system(size: 10))
-                        .foregroundStyle(failed ? Theme.heat : Theme.textMuted).frame(width: 14)
-                    Text(event.text).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec).lineLimit(1)
-                    if running { Spinner() }
-                    if failed { Text("failed").font(Theme.mono(10)).foregroundStyle(Theme.heat) }
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
+            HStack(spacing: 8) {
+                summary
+                if let file { openButton(file) }
             }
-            .buttonStyle(.plain)
             if open {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
@@ -107,19 +97,57 @@ struct ToolRow: View {
         }
     }
 
+    /// The folded line: mark, summary, and how it went; a click opens the details.
+    private var summary: some View {
+        Button {
+            if !parts.isEmpty { open.toggle() }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Theme.textMuted).opacity(parts.isEmpty ? 0.3 : 1)
+                Image(systemName: ToolStyle.of(event.name).icon).font(.system(size: 10))
+                    .foregroundStyle(failed ? Theme.heat : Theme.textMuted).frame(width: 14)
+                Text(event.text).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec).lineLimit(1)
+                if running { Spinner() }
+                if failed { Text("failed").font(Theme.mono(10)).foregroundStyle(Theme.heat) }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The file the tool read or wrote, when it's in the session's worktree.
+    private var file: URL? { event.data?["file_path"]?.string.flatMap { FileLinks.resolve($0, root: worktree) } }
+
+    private func openButton(_ url: URL) -> some View {
+        Button {
+            openURL(url)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.up.forward.square").font(.system(size: 10))
+                Text("Open").font(Theme.mono(10))
+            }
+            .foregroundStyle(Theme.heatBright)
+        }
+        .buttonStyle(.plain)
+        .help("Open \(url.lastPathComponent) in Forge · ⌘-click shows it in Finder")
+    }
+
     @ViewBuilder private func section(_ p: ToolDetail) -> some View {
         switch p {
         case .command(let c):
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("$").font(Theme.mono(11, .medium)).foregroundStyle(Theme.heatBright)
-                Text(c).font(Theme.mono(11)).foregroundStyle(Theme.text).textSelection(.enabled)
+                Text(FileLinks.linked(c, root: worktree)).font(Theme.mono(11)).foregroundStyle(Theme.text).textSelection(.enabled)
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.wash1)
         case .output(let text, let failed):
             ScrollView {
-                Text(text).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec).textSelection(.enabled)
+                Text(FileLinks.linked(text, root: worktree)).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec)
+                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(10)
             }
             .frame(maxHeight: 240)

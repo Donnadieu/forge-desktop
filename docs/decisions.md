@@ -86,3 +86,12 @@ the bottom. Each line: the date, the plan item, the call and why.
   left on disk as it is. The engine's `check-workflow.js` and `config/workflow-check.ts` only served the editor and
   were removed. Lint `raw-workflow-ui` keeps `Sources/UI` away from the file; `Checks.noRawWorkflowChecks` reads every
   screen after setup back with Vision and fails on any sign of the file.
+
+## Chat Markdown and file links (Omar, 2026-11-11)
+- 2026-11-11, item 12: Omar's ATC-1742 review summary showed its table as raw pipes and its two report paths as plain
+  text. GFM tables now draw as a table (header on a wash, hairlines from the design system, columns aligned as the
+  separator row asks, sideways scroll when wide); task lists draw a box. Strikethrough and nested lists already
+  rendered. A path is a link only when it names a file that exists inside the session's worktree (symlinks followed,
+  so nothing outside it ever opens); a click opens Forge's file viewer (Markdown rendered, a saved diff coloured per
+  file, anything else as numbered code), Cmd-click shows it in Finder. Tool rows that read or wrote a worktree file get
+  an Open link, and paths in a tool's command and output are links too.

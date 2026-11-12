@@ -51,22 +51,30 @@ struct DiffLines: View {
     }
 
     var body: some View {
-        List(Self.lines(text, files: files)) { l in
-            if let file = l.file {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.text").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
-                    Text(file).font(Theme.mono(11, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
+        // Each kind of list keeps rows of one shape: a list that mixes shapes row by row draws several times slower.
+        Group {
+            if files {
+                List(Self.lines(text, files: true)) { l in
+                    if let file = l.file { header(file) } else { row(l) }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading).frame(height: 26)
-                .padding(.horizontal, 8).background(Theme.wash2)
-                .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
             } else {
-                row(l)
+                List(Self.lines(text)) { l in row(l) }
             }
         }
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 18)
         .scrollContentBackground(.hidden)
+    }
+
+    /// A file's header row in a diff of several files.
+    private func header(_ file: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "doc.text").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
+            Text(file).font(Theme.mono(11, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).frame(height: 26)
+        .padding(.horizontal, 8).background(Theme.wash2)
+        .listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Color.clear)
     }
 
     private func row(_ l: Line) -> some View {

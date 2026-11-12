@@ -87,6 +87,9 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   window runs `.task`, `ImageRenderer` doesn't). Anything that waits on an
   engine also needs a time limit that says so on screen (`AppModel.watchBoard`).
 
+- A `List` whose rows switch between two shapes (`if header { … } else { … }` per row) drew a 5,000-line diff 3-4x
+  slower (0.10 s to 0.37 s here, over the 2 s budget on CI). Keep the hot list's rows one shape and give a variant
+  its own `List` (`DiffLines` with `files`). `--transcript-check` catches it; compare with the installed app.
 - A selftest can click a drawn view: an off-screen borderless window, then `NSApp.postEvent(mouseUp, atStart: false)`
   BEFORE `window.sendEvent(mouseDown)`. A press on selectable text tracks the mouse until it's let go, so sending the
   release after the press hangs the selftest forever (`Checks.linkClickChecks`). Never click anything that opens

@@ -92,9 +92,9 @@ struct Composer: View {
     let session: Sessions.Session
     let chat: Sessions.Chat
     var compact = false
-    @FocusState private var focused: Bool
-    /// Where ⌘V reads from; checks use a pasteboard of their own.
-    static var pasteboard = NSPasteboard.general
+    @State private var focused = false
+    /// Bumped by ⌘L to put the cursor in the box.
+    @State private var focusRequest = 0
     /// The Skills list (from its button, or the + menu in the narrowest boxes).
     @State private var skillsOpen = false
 
@@ -130,21 +130,18 @@ struct Composer: View {
                 if text.wrappedValue.isEmpty {
                     Text(placeholder).font(Theme.sans(13)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1).lineLimit(1)
                 }
-                TextEditor(text: text).font(Theme.sans(13)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
-                    // "/" at the start opens the skills list, filtered by what follows; a pick runs the skill.
-                    .popover(isPresented: slashOpen, arrowEdge: .top) {
-                        SkillList(skills: sessions.skills(for: session), query: SkillCatalog.slashQuery(text.wrappedValue) ?? "") { skill in
-                            sessions.drafts[chat.id] = ""
-                            sessions.run(skill, in: chat)
-                        }
+                MessageBox(
+                    text: text, focused: $focused, focusRequest: focusRequest,
+                    onReturn: { queue in sessions.send(chat, text: text.wrappedValue, queue: queue) }, onPaste: paste
+                )
+                // "/" at the start opens the skills list, filtered by what follows; a pick runs the skill.
+                .popover(isPresented: slashOpen, arrowEdge: .top) {
+                    SkillList(skills: sessions.skills(for: session), query: SkillCatalog.slashQuery(text.wrappedValue) ?? "") { skill in
+                        sessions.drafts[chat.id] = ""
+                        sessions.run(skill, in: chat)
                     }
-                    .frame(minHeight: 44, maxHeight: 180).fixedSize(horizontal: false, vertical: true)
-                    .focused($focused)
-                    .onKeyPress(.return, phases: .down) { press in
-                        if press.modifiers.contains(.shift) { return .ignored }
-                        sessions.send(chat, text: text.wrappedValue, queue: press.modifiers.contains(.option))
-                        return .handled
-                    }
+                }
+                .frame(minHeight: 44, maxHeight: MessageBox.maxHeight).fixedSize(horizontal: false, vertical: true)
             }
             // A narrow chat (the narrowest window with Changes open, or two side by side) gets the short words, so the
             // box never pushes past its column.
@@ -164,9 +161,8 @@ struct Composer: View {
             }
         }
         .background(
-            Button("") { focused = true }.keyboardShortcut("l", modifiers: .command).opacity(0).allowsHitTesting(false)
+            Button("") { focusRequest += 1 }.keyboardShortcut("l", modifiers: .command).opacity(0).allowsHitTesting(false)
         )
-        .background(Button("", action: paste).keyboardShortcut("v", modifiers: .command).opacity(0).allowsHitTesting(false))
         .background(
             Button("") { if focused, !cardsOwn { sessions.set(chat, planMode: !chat.planMode) } }
                 .keyboardShortcut(.tab, modifiers: .shift).opacity(0).allowsHitTesting(false)
@@ -240,22 +236,20 @@ struct Composer: View {
     /// Pasted text longer than this joins the message as a .txt file instead of filling the box (no setting).
     static let longPaste = 4000
 
-    /// ⌘V: a long text or a picture on the clipboard joins the message (not for card sessions); anything else pastes
-    /// as usual.
-    private func paste() {
-        let board = Self.pasteboard
+    /// Pasting into the box (⌘V, Edit > Paste, right-click Paste, Wispr Flow): a long text or a picture on the
+    /// clipboard joins the message (not in a card's own chat); anything else is AppKit's own paste (false).
+    private func paste(_ board: NSPasteboard) -> Bool {
+        guard !cardsOwn else { return false }
         let string = board.string(forType: .string)
-        let mine = focused && !cardsOwn
-        if mine, let string, string.count > Self.longPaste { return sessions.attachText(string, to: chat) }
-        let pics = mine ? MessageImages.fromPasteboard(board) : []
-        if !pics.isEmpty, string == nil {
-            sessions.attach(pics, to: chat)
-        } else if board == .general {
-            NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
-        } else if let string {
-            // A pasteboard of its own (the selftest's): its text joins the box as a paste would.
-            sessions.drafts[chat.id] = (sessions.drafts[chat.id] ?? "") + string
+        if let string, string.count > Self.longPaste {
+            sessions.attachText(string, to: chat)
+            return true
         }
+        guard string == nil else { return false }
+        let pics = MessageImages.fromPasteboard(board)
+        if pics.isEmpty { return false }
+        sessions.attach(pics, to: chat)
+        return true
     }
 
     private func pickPictures() {

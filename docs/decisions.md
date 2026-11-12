@@ -174,3 +174,11 @@ shell that isn't interactive has no `mise activate`, so `npx` servers failed to 
 - PATH adds mise's and asdf's shims after everything else, only when installed.
 - Not solved: claude.ai connectors need a full Claude sign-in (`user:mcp_servers`); a `claude setup-token` sign-in,
   which Forge's accounts keep, can't load them.
+
+## Paste in the message box (Omar, 2026-11-12)
+
+- ⌘V, Edit > Paste, right-click Paste and dictation apps (Wispr Flow) paste into the message box like any Mac text
+  field. The box is an AppKit text view (`MessageBox`); its paste keeps the rule from before: a text over 4,000
+  characters becomes a .txt chip, a picture alone on the clipboard joins the message, anything else is pasted as
+  text. No SwiftUI button holds ⌘V any more, so the other fields and the Terminal paste too.
+

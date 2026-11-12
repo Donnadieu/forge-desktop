@@ -123,6 +123,21 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `opensFileLinks(_:root:)` sets on a transcript; Markdown parts are cached per text AND worktree, so a view without
   a worktree never gets links.
 
+### Keys, paste and text fields
+- Never give a SwiftUI `Button` a ⌘ key the text system owns (⌘V, ⌘C, ⌘X, ⌘A, ⌘Z): AppKit offers a ⌘ key to the key
+  window's views before the menu bar (`-[NSApplication _handleKeyEquivalent:]`), so a hidden ⌘V button took paste
+  from every field on the screen, and `NSApp.sendAction(paste:)` from inside its action pasted nothing (⌘V and Wispr
+  Flow did nothing, Nov 12). To change what a paste does, override `paste(_:)` on an AppKit text view, as
+  `MessageBox` does, and keep Edit > Paste enabled for what you take (`validateUserInterfaceItem`).
+- Key checks build events from a CGEvent (`Checks.keyboardEvent`): SwiftUI reads the modifiers from the CGEvent, and a
+  bare `NSEvent.keyEvent(...)` has none, so SwiftUI matched ⌘A to the ⇧⌘A archive shortcut. Send ⌘ keys the way
+  AppKit does with `Checks.command` (the window's views, then the Edit menu up the responder chain, then keyDown).
+- A check never touches the person's clipboard: `Checks.withPrivateClipboard` swaps `+generalPasteboard` for a
+  private board, and AppKit's own paste reads it. A right-click check catches the menu (`Checks.rightClickMenu`) and
+  sends no click if it can't, or a real menu shows on the screen.
+- NSTextView's undo doesn't always reach its delegate's `textDidChange`: keep a binding in step from the text
+  storage's delegate (`MessageBox.Coordinator`).
+
 ### Shell, tests and the gate
 - `cmd | grep -q` under `set -o pipefail` can fail on SIGPIPE: capture the output into a variable first.
 - A test that fails only in the full suite or the commit hook is a race until proven otherwise. Fix it

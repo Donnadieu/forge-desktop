@@ -90,6 +90,8 @@ enum Theme {
     // Type. Sizes are the system's (--text-xs 11, -sm 13, -md 15, -lg 18, -xl 24, -2xl 32) or a kit's own.
     static func display(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Black", size: size) }
     static func serifItalic(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Italic", size: size) }
+    /// `sans(size)` for AppKit views (the message box's text view).
+    static func sansFont(_ size: CGFloat) -> NSFont { NSFont(name: "DMSans-Regular", size: size) ?? .systemFont(ofSize: size) }
     static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         switch weight {
         case .medium: return .custom("DMSans-Medium", size: size)

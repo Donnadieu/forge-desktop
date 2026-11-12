@@ -71,27 +71,23 @@ extension Checks {
         key(window, "\r", code: 36, flags: .option)
         check("⌥Enter queues it for after the turn", sent.count == 2 && sent.last?.queue == true)
 
-        let board = NSPasteboard(name: NSPasteboard.Name("forge-selftest-\(UUID().uuidString.prefix(6))"))
-        let saved = Composer.pasteboard
-        Composer.pasteboard = board
-        defer {
-            Composer.pasteboard = saved
-            board.releaseGlobally()
+        // ⌘V the way AppKit sends it, from a private clipboard standing in for the real one (PasteChecks.swift).
+        let menu = editMenu()
+        let pasted = withPrivateClipboard { board in
+            let long = String(repeating: "a line from a long log\n", count: 200)
+            put(board, long)
+            command(window, "v", code: 9, menu: menu)
+            let attached = m.texts[chat.id] ?? []
+            check(
+                "a paste over 4,000 characters becomes a .txt attachment",
+                attached.count == 1 && attached.first?.text == long && attached.first?.name.hasSuffix(".txt") == true)
+            check("and doesn't fill the message box", m.drafts[chat.id]?.isEmpty == true)
+            check("the chip says what it is", PastedTextChip.words(attached.first ?? PastedText(text: "")) == "Pasted text · 4,600 characters")
+            put(board, "short")
+            command(window, "v", code: 9, menu: menu)
+            check("a short paste goes into the box as usual", m.drafts[chat.id] == "short" && (m.texts[chat.id] ?? []).count == 1)
         }
-        let long = String(repeating: "a line from a long log\n", count: 200)
-        board.clearContents()
-        board.setString(long, forType: .string)
-        key(window, "v", code: 9, flags: .command)
-        let attached = m.texts[chat.id] ?? []
-        check(
-            "a paste over 4,000 characters becomes a .txt attachment",
-            attached.count == 1 && attached.first?.text == long && attached.first?.name.hasSuffix(".txt") == true)
-        check("and doesn't fill the message box", m.drafts[chat.id]?.isEmpty == true)
-        check("the chip says what it is", PastedTextChip.words(attached.first ?? PastedText(text: "")) == "Pasted text · 4,600 characters")
-        board.clearContents()
-        board.setString("short", forType: .string)
-        key(window, "v", code: 9, flags: .command)
-        check("a short paste goes into the box as usual", m.drafts[chat.id] == "short" && (m.texts[chat.id] ?? []).count == 1)
+        if !pasted { check("a private clipboard stands in for the real one", false) }
         key(window, "\r", code: 36)
         check(
             "the attachment goes with the next message and leaves the box",

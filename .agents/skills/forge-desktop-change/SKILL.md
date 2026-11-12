@@ -57,6 +57,10 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - Big UI rewrite: delete the old view files first and build; the compiler's errors list every call site
   of the removed components. Add selftest checks in `Sources/App/Checks.swift` for each new pure rule
   (old settings JSON must still decode: include the required Bool fields, or it fails for the wrong reason).
+- An `NSViewRepresentable.sizeThatFits` gets an unlimited (or NaN) width whenever a stack or a lazy list weighs its
+  children, and `Int(width)` on it traps (0.2.41 crashed opening a chat, `RichMessage`): treat a non-finite width
+  like `nil` and clamp it before any `Int(...)`, and never return it as the size. `CopyChecks.chatLayoutChecks` asks
+  each representable at `.infinity` through `NSHostingController.sizeThatFits(in:)`; add a new one there.
 
 ### Screens
 - Colours, fonts and controls come only from `Theme.swift` and `Controls.swift`. Never stock

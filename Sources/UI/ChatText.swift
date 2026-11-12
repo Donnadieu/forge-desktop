@@ -31,7 +31,10 @@ struct RichMessage: NSViewRepresentable {
     @MainActor private static var sizes: [Int: NSSize] = [:]
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView v: ChatTextView, context: Context) -> CGSize? {
-        let width = max(proposal.width ?? 600, 60)
+        // A stack weighing its children or a sideways scroll asks at an unlimited width: measure that like no width
+        // (0.2.41 turned it into a whole number below and crashed opening a chat).
+        let asked = proposal.width ?? 600
+        let width = asked.isFinite ? min(max(asked, 60), 20_000) : 600
         var h = Hasher()
         h.combine(key)
         h.combine(Int(width))

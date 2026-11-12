@@ -15,6 +15,37 @@ extension Checks {
             chatCopyButtonChecks(board, check)
         }
         if !ran { check("a private clipboard stands in for the real one", false) }
+        chatLayoutChecks(check)
+    }
+
+    /// 0.2.41 crashed opening a chat (Omar, Nov 12): a stack or a sideways scroll asks a message for its size at an
+    /// unlimited width, and the message turned that width into a whole number. Each layout here asks that way.
+    static func chatLayoutChecks(_ check: (String, Bool) -> Void) {
+        // A message that takes the whole width may answer an unlimited width; its height must still be real.
+        func tall(_ s: CGSize) -> Bool { s.height.isFinite && s.height > 0 }
+        func finite(_ s: CGSize) -> Bool { s.width.isFinite && tall(s) }
+        let unlimited = CGSize(width: CGFloat.infinity, height: .infinity)
+        let agent = NSHostingController(rootView: MessageText(text: copySample))
+        check("a message asked for its size at an unlimited width gives a real height", tall(agent.sizeThatFits(in: unlimited)))
+        let mine = NSHostingController(rootView: MessageText(text: "Paste this into the terminal: `make check`", fill: false))
+        check("so does one of your own messages", finite(mine.sizeThatFits(in: unlimited)))
+        let bubble = NSHostingController(rootView: UserBubble(text: copySample) { EmptyView() })
+        check("your message bubble sizes at an unlimited width", tall(bubble.sizeThatFits(in: unlimited)))
+        let box = NSHostingController(rootView: MessageBox(text: .constant("A message"), focused: .constant(false), onReturn: { _ in }))
+        check("the message box sizes at an unlimited width", finite(box.sizeThatFits(in: unlimited)))
+        let window = offscreen(
+            VStack(alignment: .leading) {
+                ScrollView(.horizontal) { MessageText(text: copySample) }
+                HStack {
+                    MessageText(text: "Left", fill: false).fixedSize()
+                    Spacer()
+                }
+                UserBubble(text: copySample) { EmptyView() }
+            }, size: NSSize(width: 700, height: 520))
+        window.contentView?.layoutSubtreeIfNeeded()
+        settle()
+        window.orderOut(nil)
+        check("a chat with a sideways scroll, a fixed-size message and your bubble lays out", true)
     }
 
     /// A real drag (or click) the way the system delivers it: the moves and the release wait in the queue, then the

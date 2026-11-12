@@ -72,7 +72,8 @@ struct MessageBox: NSViewRepresentable {
 
     /// Grows with its lines, from the frame's minimum up to `maxHeight`, then scrolls.
     func sizeThatFits(_ proposal: ProposedViewSize, nsView scroll: NSScrollView, context: Context) -> CGSize? {
-        let width = proposal.width ?? max(scroll.frame.width, 300)
+        // An unlimited width (a stack weighing its children) is measured like no width, never returned as the size.
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? max(scroll.frame.width, 300)
         let padding = 2 * ((scroll.documentView as? NSTextView)?.textContainer?.lineFragmentPadding ?? 5)
         // A last empty line still takes a line.
         let measured = text.isEmpty || text.hasSuffix("\n") ? text + " " : text

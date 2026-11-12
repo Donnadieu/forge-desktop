@@ -10,7 +10,7 @@ extension Checks {
         SampleSessions.fill(sessions)
         var long = sessions.sessions.first { $0.id == "s4" }!
         long.branch = "donnadieu86/per-32-get-donnadieuintake-workspace-ready-for-agents"
-        let panel = NSHostingController(rootView: ChangesPanel(sessions: sessions, session: long))
+        let panel = NSHostingController(rootView: ChangesPanel(sessions: sessions, session: long, width: ChangesPanel.width))
         let fit = panel.sizeThatFits(in: CGSize(width: ChangesPanel.width, height: 700))
         check("the Changes panel stays inside its own width with a long branch name", fit.width <= ChangesPanel.width + 0.5)
         // The narrowest window (1100) leaves the chat 1100 - 260 (list) - 360 (Changes) - 2 (edges) points.

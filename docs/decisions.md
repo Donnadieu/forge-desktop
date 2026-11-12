@@ -112,6 +112,12 @@ the bottom. Each line: the date, the plan item, the call and why.
 - Renaming a branch is offered only before a pull request is open: GitHub closes a PR whose branch is renamed and
   can't reopen it (tested on a throwaway PR).
 - Archiving a card's session only hides it; the card keeps running on the board and keeps its folder.
+- Nov 12, Omar's four bugs in 0.2.35: (1) the Changes panel's edge didn't resize (its panel kept a fixed inner width,
+  and a SwiftUI drag on the divider never got the mouse next to AppKit views): dividers are an AppKit strip now, the
+  widths live on the model and are saved per window. (2) The panel's buttons clipped: its header rows shorten the
+  title, then the button's words, then show an icon, at every width from 300 to 560. (3) The header lines didn't
+  meet: every pane header (sessions list, chat, panel, New session) is one shared height. (4) Hover used the open
+  session's fill, so two rows looked selected: only the open session is filled; hover is a fainter wash.
 
 ## Workspace setup, notifications, environment, terminal ([design/workspace-settings.md](design/workspace-settings.md))
 Omar, Nov 12 2026, after going through Conductor's settings: "I don't want to be Conductor." He kept five things

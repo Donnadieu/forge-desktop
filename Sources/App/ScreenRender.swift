@@ -42,24 +42,7 @@ enum ScreenRender {
         let only = ProcessInfo.processInfo.environment["FORGE_SHOTS"]?.split(separator: ",").map(String.init) ?? []
         for shot in shots() where only.isEmpty || only.contains(where: { shot.name.hasPrefix($0) }) {
             Terminals.shared = Terminals()
-            let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
-            model.engine = shot.engine
-            model.sample.scene = shot.scene
-            if shot.scene?.hasPrefix("basecamp") == true || shot.choices.tracker == .basecamp { model.sample.tracker = .basecamp }
-            if shot.scene?.hasPrefix("github") == true || shot.choices.tracker == .github { model.sample.tracker = .github }
-            if shot.changing { model.returnTo = AppModel.settingsScreen }
-            if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
-            if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
-            if shot.scene == "ask-new" { model.ask = .new }
-            if shot.scene == "late" { model.boardLate = true }
-            if shot.scene == "unnamed-workspace" { model.renameWorkspace("My workspace", color: model.workspace?.color) }
-            if let scene = shot.scene, scene.hasPrefix("sessions") { SampleSessions.scene(model.sessions, scene) }
-            SampleSetup.scene(model, shot.scene)
-            if shot.scene == "fleet" { AppModel.sampleRunning(model) }
-            if shot.scene == "sessions-other-workspace" { SampleSessions.otherWorkspace(model) }
-            if shot.scene == "sessions-first-workspace" { SampleSessions.otherWorkspace(model, back: true) }
-            if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }
-            if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
+            let model = model(for: shot)
             let ok = render(
                 RootView(model: model), size: NSSize(width: shot.width, height: shot.height), to: dir.appendingPathComponent("\(shot.name).png"))
             print("\(ok ? "✓" : "✗") \(shot.name)")
@@ -106,6 +89,29 @@ enum ScreenRender {
         print("\(picked ? "✓" : "✗") 18-add-from-repo")
         if !picked { failed += 1 }
         return failed == 0 ? 0 : 1
+    }
+
+    /// The sample model a shot draws: its setup answers, engine state and scene.
+    static func model(for shot: Shot) -> AppModel {
+        let model = AppModel(preview: true, choices: shot.choices, screen: shot.screen)
+        model.engine = shot.engine
+        model.sample.scene = shot.scene
+        if shot.scene?.hasPrefix("basecamp") == true || shot.choices.tracker == .basecamp { model.sample.tracker = .basecamp }
+        if shot.scene?.hasPrefix("github") == true || shot.choices.tracker == .github { model.sample.tracker = .github }
+        if shot.changing { model.returnTo = AppModel.settingsScreen }
+        if shot.scene == "repo-offer" { model.harnessOffer = shot.choices.repo }
+        if shot.scene == "stop-not-sent" { model.engineProblem = BoardLink.didNotLand(.stop) }
+        if shot.scene == "ask-new" { model.ask = .new }
+        if shot.scene == "late" { model.boardLate = true }
+        if shot.scene == "unnamed-workspace" { model.renameWorkspace("My workspace", color: model.workspace?.color) }
+        if let scene = shot.scene, scene.hasPrefix("sessions") { SampleSessions.scene(model.sessions, scene) }
+        SampleSetup.scene(model, shot.scene)
+        if shot.scene == "fleet" { AppModel.sampleRunning(model) }
+        if shot.scene == "sessions-other-workspace" { SampleSessions.otherWorkspace(model) }
+        if shot.scene == "sessions-first-workspace" { SampleSessions.otherWorkspace(model, back: true) }
+        if shot.scene == "one-account", let a = model.account { model.store.accounts.removeAll { $0.provider == a.provider && $0.id != a.id } }
+        if shot.scene == "ask-run", let p = model.workspaceProjects.first(where: { $0.repo == nil }) { model.ask = .run(p) }
+        return model
     }
 
     static func render<V: View>(_ view: V, size: NSSize, to url: URL) -> Bool {

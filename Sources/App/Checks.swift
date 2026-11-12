@@ -4,6 +4,7 @@ import SwiftUI
 /// Headless checks the agent can run (it can't see the screen). Used by tools/preflight.sh and CI.
 ///   Forge --selftest            facts about the app + the main view draws
 ///   Forge --version             prints the version
+///   Forge --pane-check          the Sessions screen's panes only: resize by drag, header lines, the panel's fit, rows
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
 ///   Forge --workspaces-check    opens a copy of Forge's folder (FORGE_HOME) and prints its workspaces after the upgrade
 ///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
@@ -23,6 +24,15 @@ enum Checks {
         }
         if args.contains("--selftest") {
             return selftest()
+        }
+        if args.contains("--pane-check") {
+            setvbuf(stdout, nil, _IONBF, 0)
+            var failed = 0
+            paneChecks { name, ok in
+                print("\(ok ? "✓" : "✗") \(name)")
+                if !ok { failed += 1 }
+            }
+            return failed == 0 ? 0 : 1
         }
         if args.contains("--workspaces-check") {
             return workspacesLive()
@@ -228,6 +238,7 @@ enum Checks {
         skillChecks(check)
         workspaceNameChecks(check)
         prPanelChecks(check)
+        paneChecks(check)
         moveChecks(check)
         accountChecks(check)
         workspaceChecks(check)

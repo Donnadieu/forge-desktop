@@ -88,8 +88,12 @@ final class SessionsModel: ObservableObject {
     @Published var openDiff: (session: String, path: String, text: String)?
     /// A file a link in the chat opened in the viewer.
     @Published var openFile: FileLinks.Opened?
-    @Published var showChanges = true
-    @Published var showSessions = true
+    // The sidebars: open or not, and how wide; the window's store keeps them (SessionsLayout.Store).
+    @Published var showChanges = true { didSet { layoutStore?.save(self) } }
+    @Published var showSessions = true { didSet { layoutStore?.save(self) } }
+    @Published var leftWidth = SessionsLayout.sessions.normal { didSet { layoutStore?.save(self) } }
+    @Published var rightWidth = SessionsLayout.changes.normal { didSet { layoutStore?.save(self) } }
+    var layoutStore: SessionsLayout.Store? { didSet { layoutStore?.load(into: self) } }
     /// Archiving something still running asks once first.
     @Published var archiveAsk: ArchiveAsk?
     /// The session whose branch the Rename sheet is renaming.
@@ -115,13 +119,6 @@ final class SessionsModel: ObservableObject {
     @Published var pickerOpen = false
     @Published var connected = false
 
-    struct ReviewSheet: Equatable {
-        var session: String
-        var number: Int
-        var threads: [Sessions.ReviewThread]
-        var picked: Set<String>
-    }
-
     let preview: Bool
     private(set) var client: SessionsClient?
     private var live: URLSessionWebSocketTask?
@@ -142,7 +139,7 @@ final class SessionsModel: ObservableObject {
 
     init(preview: Bool) {
         self.preview = preview
-        if preview { SampleSessions.fill(self) }
+        if preview { SampleSessions.fill(self) } else { layoutStore = SessionsLayout.Store(defaults: .standard) }
     }
 
     func chat(_ id: String?) -> Sessions.Chat? {

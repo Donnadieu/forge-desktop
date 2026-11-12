@@ -60,6 +60,11 @@ struct ChatColumn: View {
     }
 
     private var header: some View {
+        PaneHeader(alignment: .bottomLeading) { headerContent }
+    }
+
+    /// Title, status, repo · branch · who started it, then the tabs, which sit on the header's line.
+    private var headerContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 Text(session.title).font(Theme.display(compact ? 20 : 26)).foregroundStyle(Theme.text).lineLimit(1)
@@ -91,8 +96,7 @@ struct ChatColumn: View {
             ChatTabs(sessions: sessions, session: session, current: chat?.id, side: closable)
                 .padding(.top, 14)
         }
-        .padding(.horizontal, compact ? 16 : 24).padding(.top, 18)
-        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+        .padding(.horizontal, compact ? 16 : 24)
     }
 }
 

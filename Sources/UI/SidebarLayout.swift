@@ -10,11 +10,42 @@ enum SessionsLayout {
         let min: CGFloat
         let max: CGFloat
         let normal: CGFloat
+        func clamp(_ w: Double) -> CGFloat { Swift.min(max, Swift.max(min, CGFloat(w))) }
     }
 
     static let sessions = Range(min: 200, max: 400, normal: 260)
     static let changes = Range(min: 300, max: 560, normal: 360)
     static let chatMin: CGFloat = 480
+    /// Every pane's header (sessions list, chat, Changes panel, New session) is this tall, its line included.
+    static let headerHeight: CGFloat = 112
+
+    /// Where the window keeps its sidebars' widths and whether they're open (Forge has one main window, "main").
+    struct Store {
+        static let leftWidth = "sessions.main.left.width"
+        static let rightWidth = "sessions.main.right.width"
+        static let leftOpen = "sessions.main.left.open"
+        static let rightOpen = "sessions.main.right.open"
+        let defaults: UserDefaults
+
+        /// Everything is read before anything is set: each change saves the whole layout.
+        @MainActor func load(into m: SessionsModel) {
+            let l = defaults.object(forKey: Self.leftWidth) as? Double
+            let r = defaults.object(forKey: Self.rightWidth) as? Double
+            let lo = defaults.object(forKey: Self.leftOpen) as? Bool
+            let ro = defaults.object(forKey: Self.rightOpen) as? Bool
+            if let l { m.leftWidth = sessions.clamp(l) }
+            if let r { m.rightWidth = changes.clamp(r) }
+            if let lo { m.showSessions = lo }
+            if let ro { m.showChanges = ro }
+        }
+
+        @MainActor func save(_ m: SessionsModel) {
+            defaults.set(Double(m.leftWidth), forKey: Self.leftWidth)
+            defaults.set(Double(m.rightWidth), forKey: Self.rightWidth)
+            defaults.set(m.showSessions, forKey: Self.leftOpen)
+            defaults.set(m.showChanges, forKey: Self.rightOpen)
+        }
+    }
 
     static func range(_ side: Side) -> Range { side == .left ? sessions : changes }
 
@@ -36,47 +67,105 @@ enum SessionsLayout {
     }
 }
 
-/// The 1 pt line between a sidebar and the chat: hover shows the resize cursor and a small grip, a drag resizes,
-/// a drag far enough in closes the sidebar, a double click puts the usual width back.
+/// The 1 pt line between a sidebar and the chat, with a grab strip 9 pt wide over it. The strip is an AppKit view
+/// (`DividerHandle`): the panes on either side hold AppKit views too (the transcript, the lists, the text fields),
+/// and a SwiftUI drag gesture on a strip that overlaps them never got the mouse (Omar, Nov 12: the Changes panel's
+/// edge did nothing). An AppKit view takes the press itself, shows the resize cursor from its cursor rect, and keeps
+/// the drag even when the pointer runs ahead of the line. A drag resizes between the side's limits, a drag far
+/// enough in closes the sidebar, a double click puts the usual width back.
 struct PaneDivider: View {
     let side: SessionsLayout.Side
-    @Binding var width: Double
+    @Binding var width: CGFloat
     @Binding var open: Bool
     @State private var hover = false
-    @State private var start: Double?
+    @State private var start: CGFloat?
+
+    static let grab: CGFloat = 9
 
     var body: some View {
         Rectangle().fill(Theme.border).frame(width: 1)
             .overlay {
-                Capsule().fill(hover ? Theme.textMuted : .clear).frame(width: 4, height: 32)
-            }
-            .overlay {
-                Color.clear.frame(width: 7).contentShape(Rectangle())
-                    .onHover { inside in
-                        hover = inside
-                        if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-                    }
-                    .gesture(
-                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                            .onChanged { g in
-                                let from = start ?? width
-                                start = from
-                                let dx = side == .left ? g.translation.width : -g.translation.width
-                                if let w = SessionsLayout.drag(from + dx, side: side) {
-                                    width = w
-                                    open = true
-                                } else {
-                                    open = false
-                                }
+                ZStack {
+                    Capsule().fill(hover || start != nil ? Theme.textMuted : .clear).frame(width: 3, height: 32).allowsHitTesting(false)
+                    DividerHandle(
+                        hover: { hover = $0 },
+                        began: { start = width },
+                        moved: { dx in
+                            let from = start ?? width
+                            if let w = SessionsLayout.drag(from + (side == .left ? dx : -dx), side: side) {
+                                width = w
+                                if !open { open = true }
+                            } else if open {
+                                open = false
                             }
-                            .onEnded { _ in
-                                if !open { width = SessionsLayout.range(side).normal }
-                                start = nil
-                            }
-                    )
-                    .onTapGesture(count: 2) { width = SessionsLayout.range(side).normal }
+                        },
+                        ended: {
+                            if !open { width = SessionsLayout.range(side).normal }
+                            start = nil
+                        },
+                        reset: { width = SessionsLayout.range(side).normal })
+                }
+                .frame(width: Self.grab)
             }
+            .zIndex(1)
     }
+}
+
+/// The AppKit strip that takes a divider's mouse: press, drag (in points from the press), release, double click,
+/// hover, and the left-right resize cursor.
+struct DividerHandle: NSViewRepresentable {
+    var hover: (Bool) -> Void
+    var began: () -> Void
+    var moved: (CGFloat) -> Void
+    var ended: () -> Void
+    var reset: () -> Void
+
+    final class Strip: NSView {
+        var handle: DividerHandle?
+        private var from: CGFloat?
+        private var area: NSTrackingArea?
+
+        override var mouseDownCanMoveWindow: Bool { false }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let area { removeTrackingArea(area) }
+            let a = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self)
+            addTrackingArea(a)
+            area = a
+        }
+
+        override func mouseEntered(with event: NSEvent) { handle?.hover(true) }
+        override func mouseExited(with event: NSEvent) { if from == nil { handle?.hover(false) } }
+
+        override func mouseDown(with event: NSEvent) {
+            if event.clickCount == 2 { return handle?.reset() ?? () }
+            from = event.locationInWindow.x
+            handle?.began()
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let from else { return }
+            handle?.moved(event.locationInWindow.x - from)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            guard from != nil else { return }
+            from = nil
+            handle?.ended()
+            handle?.hover(false)
+        }
+    }
+
+    func makeNSView(context: Context) -> Strip {
+        let v = Strip()
+        v.handle = self
+        return v
+    }
+
+    func updateNSView(_ v: Strip, context: Context) { v.handle = self }
 }
 
 /// The toggle for a sidebar, the same for both sides: "Hide sessions" / "Sessions", "Hide changes" / "Changes".
@@ -91,5 +180,20 @@ struct SidebarToggle: View {
             .buttonStyle(ForgeButton(kind: .ghost, icon: side == .left ? "sidebar.left" : "sidebar.right"))
             .lineLimit(1).fixedSize()
             .help(side == .left ? "Show or hide the sessions (⌘⇧S)" : "Show or hide the changes (⌘⇧D)")
+    }
+}
+
+/// The top of a pane on the Sessions screen (sessions list, chat, Changes panel, New session): one shared height,
+/// so the line under every pane's header sits at the same y, the same 1 pt border line.
+struct PaneHeader<Content: View>: View {
+    var alignment: Alignment = .leading
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+                .frame(height: SessionsLayout.headerHeight - 1)
+            Rectangle().fill(Theme.border).frame(height: 1)
+        }
     }
 }

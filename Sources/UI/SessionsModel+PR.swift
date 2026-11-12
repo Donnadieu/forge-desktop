@@ -4,6 +4,14 @@ import Foundation
 /// The Changes panel's fixes (update the branch, ready for review, a hand-made PR), renaming the branch, and
 /// archiving from the list with one question when something still runs (docs/design/sidebar-pr-panel.md).
 extension SessionsModel {
+    /// "Pull PR review comments into this chat": the threads, and which ones are ticked.
+    struct ReviewSheet: Equatable {
+        var session: String
+        var number: Int
+        var threads: [Sessions.ReviewThread]
+        var picked: Set<String>
+    }
+
     struct ArchiveAsk: Equatable {
         var session: Sessions.Session
         var title: String

@@ -23,18 +23,31 @@ struct NewSessionPane: View {
     private var picked: SessionRepo? { repos.first { $0.repo == repo } ?? repos.first }
 
     var body: some View {
+        VStack(spacing: 0) {
+            // The same header height as every pane, so its line meets the sessions list's.
+            PaneHeader {
+                HStack(spacing: 8) {
+                    SectionLabel(text: "New session · \(model.workspace?.name ?? "workspace")")
+                    Spacer()
+                    if !sessions.sessions.isEmpty, sessions.current != nil {
+                        Button("Back to the chat") { sessions.composing = false }.buttonStyle(ForgeButton(kind: .ghost))
+                    }
+                }
+                .padding(.horizontal, 24)
+            }
+            form
+        }
+    }
+
+    private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 24)
-            SectionLabel(text: "New session · \(model.workspace?.name ?? "workspace")")
-            Text("What should we build?").font(Theme.display(40)).foregroundStyle(Theme.text).padding(.top, 8)
+            Text("What should we build?").font(Theme.display(40)).foregroundStyle(Theme.text)
             HStack(spacing: 8) {
                 repoMenu
                 Segmented(options: [(false, "New branch"), (true, "Existing branch")], selection: $existing).frame(width: 250)
                 if existing { existingMenu } else { newBranch }
                 Spacer()
-                if !sessions.sessions.isEmpty, sessions.current != nil {
-                    Button("Back to the chat") { sessions.composing = false }.buttonStyle(ForgeButton(kind: .ghost))
-                }
             }
             .padding(.top, 20)
             if adding { addRow.padding(.top, 8) }

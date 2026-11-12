@@ -6,12 +6,6 @@ struct SessionsScreen: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
 
-    // Each window remembers its sidebars' widths and whether they're open.
-    @SceneStorage("sessions.left.width") private var leftWidth = Double(SessionsLayout.sessions.normal)
-    @SceneStorage("sessions.right.width") private var rightWidth = Double(SessionsLayout.changes.normal)
-    @SceneStorage("sessions.left.open") private var leftOpen = true
-    @SceneStorage("sessions.right.open") private var rightOpen = true
-
     private var list: [Sessions.Session] { sessions.sessions(in: model.workspace?.id) }
     private var panelSession: Sessions.Session? {
         guard let s = sessions.current, !sessions.composing, sessions.split == nil else { return nil }
@@ -23,18 +17,18 @@ struct SessionsScreen: View {
             TopBar(suffix: "Sessions", leading: AnyView(SidebarToggle(side: .left, open: $sessions.showSessions))) { navRight }
             GeometryReader { geo in
                 let fit = SessionsLayout.fit(
-                    total: geo.size.width, left: leftWidth, right: rightWidth, leftOpen: sessions.showSessions,
+                    total: geo.size.width, left: sessions.leftWidth, right: sessions.rightWidth, leftOpen: sessions.showSessions,
                     rightOpen: sessions.showChanges && panelSession != nil)
                 HStack(spacing: 0) {
                     if let w = fit.left {
                         SessionList(model: model, sessions: sessions, list: list).frame(width: w)
-                        PaneDivider(side: .left, width: $leftWidth, open: $sessions.showSessions)
+                        PaneDivider(side: .left, width: $sessions.leftWidth, open: $sessions.showSessions).zIndex(1)
                     }
                     // Each pane keeps to its own edges: the chat and its message box end where the Changes panel begins.
                     center.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
                     if let w = fit.right, let s = panelSession {
-                        PaneDivider(side: .right, width: $rightWidth, open: $sessions.showChanges)
-                        ChangesPanel(sessions: sessions, session: s).frame(width: w)
+                        PaneDivider(side: .right, width: $sessions.rightWidth, open: $sessions.showChanges).zIndex(1)
+                        ChangesPanel(sessions: sessions, session: s, width: w)
                     }
                 }
             }
@@ -43,19 +37,11 @@ struct SessionsScreen: View {
         .overlay { sheets }
         .task { await sessions.connect() }
         .background(shortcuts)
-        .onAppear {
-            guard !sessions.preview else { return }
-            sessions.showSessions = leftOpen
-            sessions.showChanges = rightOpen
-        }
-        .onChange(of: sessions.showSessions) { _, v in leftOpen = v }
-        .onChange(of: sessions.showChanges) { _, v in rightOpen = v }
     }
 
     @ViewBuilder private var center: some View {
         if let s = sessions.current, !sessions.composing {
             VStack(spacing: 0) {
-                if let p = sessions.problem { problemLine(p) }
                 if let split = sessions.split, split.id != sessions.activeChat(of: s)?.id {
                     HStack(spacing: 0) {
                         ChatColumn(model: model, sessions: sessions, session: s, compact: true)
@@ -68,6 +54,8 @@ struct SessionsScreen: View {
                     ChatColumn(model: model, sessions: sessions, session: s)
                 }
             }
+            // Under the header, so the header's line stays level with the other panes'.
+            .overlay(alignment: .top) { if let p = sessions.problem { problemLine(p).padding(.top, SessionsLayout.headerHeight) } }
         } else {
             NewSessionPane(model: model, sessions: sessions)
         }

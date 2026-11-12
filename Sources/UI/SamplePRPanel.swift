@@ -67,6 +67,13 @@ extension SampleSessions {
         case "sessions-pr-checking": prScene(m, .init(tone: "checking", label: "Checking with GitHub…", action: nil))
         case "sessions-pr-running": prScene(m, .init(tone: "waiting", label: "Checks running (1 of 3)", action: nil))
         case "sessions-pr-none": prScene(m, nil)
+        case "sessions-pr-empty":
+            prScene(m, nil)
+            m.changes["s4"] = []
+        case "sessions-pr-draft":
+            // Omar's screenshot: a draft PR with 65 files, Ready for review next to "#1288 · Draft".
+            prScene(m, .init(tone: "waiting", label: "Draft", action: "ready_for_review"))
+            m.changes["s4"] = (0..<65).map { .init(path: ".github/workflows/deploy-reusable-\($0).yml", added: 48, removed: 21, status: "M") }
         case "sessions-sidebars-closed":
             prScene(m, .init(tone: "ready", label: "Ready to merge", action: "merge"))
             m.showSessions = false

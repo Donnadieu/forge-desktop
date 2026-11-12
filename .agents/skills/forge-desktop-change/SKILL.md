@@ -84,6 +84,21 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   (PR numbers, ids), and in `confirmationDialog` titles.
 - A `.borderlessButton` `Menu` tints its label with the accent colour (amber): an amber label on an amber background
   vanishes. Draw the label under the menu (`.background { … .overlay(Image) }`) with a clear, framed menu label on top.
+- A SwiftUI `DragGesture` on a strip that overlaps AppKit-backed neighbours (List, ScrollView, TextField, the
+  transcript) never gets the mouse, though it works in a test view of plain colours. Pane dividers use an AppKit
+  strip (`DividerHandle` in SidebarLayout.swift: mouseDown/Dragged/Up, a cursor rect). Prove a resize with
+  `Offscreen.drag` on the whole screen, not on the divider alone.
+- Driving SwiftUI with synthetic mouse events off screen: send each event with `window.sendEvent` one at a time,
+  each with its own `eventNumber` and a later `timestamp`, and run the loop ~30 ms between them (`Offscreen.drag`
+  in PaneChecks.swift). Posting them to the queue first, or all with `eventNumber: 0`, delivers nothing to a gesture.
+- `ForgeButton` is `.fixedSize()`: in a row that can get narrow it overflows and the pane clips it. Give such rows
+  tiers in a `ViewThatFits` (full title, short title, icon; the last tier's label truncates), like `PRRow`, and check
+  the pane at its narrowest, usual and widest width (`Checks.panelFitChecks`).
+- Every pane header on the Sessions screen is a `PaneHeader` (one height, `SessionsLayout.headerHeight`, its 1 pt
+  line at the bottom). Anything that can appear above a header (a problem line) overlays under it instead, or the
+  lines stop meeting. `Checks.headerLineChecks` finds each pane's line in the pixels and compares their y.
+- A list row's fill means "open" only; hover gets a fainter wash of its own (`SessionList.Look`). Never reuse the
+  selected fill for hover: two filled rows read as two selections.
 - The main window's minimum width is 1100 (`RootView`): a render narrower than that overflows every screen; it's not
   a layout bug.
 - A screen that loads per project must key its loader on the project: `.task(id: model.viewedProject)`, never a

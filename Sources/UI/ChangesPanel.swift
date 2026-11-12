@@ -5,13 +5,14 @@ import SwiftUI
 /// one button that moves it on. With no pull request yet, a Create PR split button. Then the changed files, each
 /// with its unresolved review comments, and one file's diff at a time.
 struct ChangesPanel: View {
-    /// The panel's usual width; nothing inside it may be wider than the width it's given (a long branch once pushed
+    /// The panel's usual width. Nothing inside it may be wider than the width it's given (a long branch once pushed
     /// it over the chat and its message box).
     static let width: CGFloat = SessionsLayout.changes.normal
 
     @ObservedObject var sessions: SessionsModel
     let session: Sessions.Session
-    var width: CGFloat = ChangesPanel.width
+    /// The width the screen gives it (the person drags it between `SessionsLayout.changes.min` and `.max`).
+    let width: CGFloat
     @State private var confirmMerge = false
     @State private var showChecks = ChangesPanel.checksOpenInRender
     @State private var file: String? = ChangesPanel.openInRender?.path
@@ -33,36 +34,26 @@ struct ChangesPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Text(files.isEmpty ? "No changes yet" : "Changes · \(files.count == 1 ? "1 file" : "\(files.count) files")")
-                        .font(Theme.sans(14, .semibold)).foregroundStyle(Theme.text)
-                    if !files.isEmpty {
-                        Text("+\(files.reduce(0) { $0 + $1.added })").font(Theme.mono(11)).foregroundStyle(Theme.good)
-                        Text("−\(files.reduce(0) { $0 + $1.removed })").font(Theme.mono(11)).foregroundStyle(Theme.heat)
-                    }
-                    Spacer()
-                    if !files.isEmpty, chat != nil {
-                        Menu {
-                            Button("Review in a new chat") { sessions.review(session) }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
-                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            PaneHeader(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ChangesTitle(files: files) { moreMenu }
+                    Spacer(minLength: 8)
+                    if let pr {
+                        PRRow(sessions: sessions, session: session, pr: pr, chat: chat, confirmMerge: $confirmMerge, showChecks: $showChecks)
+                    } else if let chat, session.status != "merged" {
+                        CreatePRButton(sessions: sessions, session: session, chat: chat, enabled: !files.isEmpty)
                     }
                 }
-                prRow
-                if showChecks, let pr, pr.status?.action == PRAction.viewChecks.rawValue { checksList(pr) }
-                if let pr, pr.state == "OPEN", Self.quietComments(pr) > 0 {
-                    HStack(spacing: 4) {
-                        Text(pr.unresolved == 1 ? "1 review comment ·" : "\(pr.unresolved ?? 0) review comments ·")
-                            .font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
-                        Button("Pull into chat") { sessions.pullReviewComments(session) }.buttonStyle(ForgeButton(kind: .plain))
-                    }
-                }
+                .padding(.horizontal, 16).padding(.top, 18).padding(.bottom, 16)
             }
-            .padding(16)
-            Rectangle().fill(Theme.border).frame(height: 1)
+            if let pr, (showChecks && pr.status?.action == PRAction.viewChecks.rawValue) || (pr.state == "OPEN" && Self.quietComments(pr) > 0) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if showChecks, pr.status?.action == PRAction.viewChecks.rawValue { checksList(pr) }
+                    if pr.state == "OPEN", Self.quietComments(pr) > 0 { quietCommentsLine(pr) }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                Rectangle().fill(Theme.border).frame(height: 1)
+            }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(files) { f in fileRow(f) }
@@ -120,71 +111,22 @@ struct ChangesPanel: View {
         }
     }
 
-    // MARK: the pull request row
-
-    @ViewBuilder private var prRow: some View {
-        if let pr {
-            HStack(spacing: 8) {
-                Button {
-                    if let u = URL(string: pr.url) { NSWorkspace.shared.open(u) }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(verbatim: "#\(pr.number)").font(Theme.mono(11, .medium)).foregroundStyle(Theme.text)
-                        Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(Theme.textMuted)
-                    }
-                    .padding(.horizontal, 7).frame(height: 22)
-                    .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(Theme.border))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain).fixedSize()
-                .help("Open PR #\(pr.number) on GitHub")
-                if let st = pr.status {
-                    if st.tone == "checking" {
-                        Spinner()
-                    } else {
-                        Circle().fill(Self.tone(st.tone)).frame(width: 7, height: 7)
-                    }
-                    Text(st.label).font(Theme.sans(12, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.tail)
-                } else {
-                    Text(pr.state.capitalized).font(Theme.sans(12, .medium)).foregroundStyle(Theme.text)
-                }
-                Spacer(minLength: 4)
-                if let action = pr.status?.action.flatMap(PRAction.init(rawValue:)) { button(action, pr) }
+    @ViewBuilder private var moreMenu: some View {
+        if !files.isEmpty, chat != nil {
+            Menu {
+                Button("Review in a new chat") { sessions.review(session) }
+            } label: {
+                Image(systemName: "ellipsis")
             }
-        } else if let chat, session.status != "merged" {
-            createPR(chat)
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
     }
 
-    static func tone(_ t: String) -> Color {
-        switch t {
-        case "ready", "merged": return Theme.good
-        case "failing": return Theme.bad
-        case "blocked": return Theme.heat
-        default: return Theme.textMuted
-        }
-    }
-
-    @ViewBuilder private func button(_ a: PRAction, _ pr: Sessions.PullRequest) -> some View {
-        if a == .merge {
-            Button(a.title) { run(a, pr) }
-                .buttonStyle(ForgeButton(kind: .primary, hint: "⌘⇧M")).keyboardShortcut("m", modifiers: [.command, .shift]).fixedSize()
-        } else {
-            Button(a.title) { run(a, pr) }
-                .buttonStyle(ForgeButton(kind: .primary)).fixedSize().disabled(a.needsChat && chat == nil)
-        }
-    }
-
-    private func run(_ a: PRAction, _ pr: Sessions.PullRequest) {
-        switch a {
-        case .merge: confirmMerge = true
-        case .resolve:
-            if let chat { sessions.send(chat, text: Sessions.Prompt.resolveConflicts(base: pr.base ?? session.base), queue: chat.working) }
-        case .update: sessions.update(session)
-        case .viewChecks: showChecks.toggle()
-        case .pullComments: sessions.pullReviewComments(session)
-        case .readyForReview: sessions.ready(session)
-        case .open: if let u = URL(string: pr.url) { NSWorkspace.shared.open(u) }
+    private func quietCommentsLine(_ pr: Sessions.PullRequest) -> some View {
+        HStack(spacing: 4) {
+            Text(pr.unresolved == 1 ? "1 review comment ·" : "\(pr.unresolved ?? 0) review comments ·")
+                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).lineLimit(1)
+            Button("Pull into chat") { sessions.pullReviewComments(session) }.buttonStyle(ForgeButton(kind: .plain))
         }
     }
 
@@ -211,36 +153,6 @@ struct ChangesPanel: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surface.opacity(0.5)))
-    }
-
-    /// No pull request yet: Create PR sends the agent the create-PR prompt; the arrow has a draft one, or pushes the
-    /// branch and opens GitHub's own page for it.
-    private func createPR(_ chat: Sessions.Chat) -> some View {
-        HStack(spacing: 1) {
-            Button("Create PR") {
-                sessions.send(chat, text: Sessions.Prompt.createPR(base: session.base, branch: session.branch), queue: chat.working)
-            }
-            .buttonStyle(ForgeButton(kind: .primary, hint: "⌘⇧P"))
-            .keyboardShortcut("p", modifiers: [.command, .shift])
-            Menu {
-                Button("Create draft PR") {
-                    sessions.send(chat, text: Sessions.Prompt.createPR(base: session.base, branch: session.branch, draft: true), queue: chat.working)
-                }
-                Button("Create PR manually ↗") { sessions.publish(session) }
-            } label: {
-                Color.clear.frame(width: 26, height: 30).contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            .frame(width: 26, height: 30)
-            // The arrow is drawn under the menu: a borderless menu tints its own label amber, on amber.
-            .background {
-                RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.heat)
-                    .overlay(Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.bg))
-            }
-            .help("Create draft PR, or Create PR manually")
-        }
-        .fixedSize()
-        .disabled(files.isEmpty)
     }
 
     // MARK: files
@@ -280,30 +192,6 @@ struct ChangesPanel: View {
         }
         .buttonStyle(.plain)
     }
-}
-
-/// The one button the pull request row shows, from the host's status (`mergeStatus` in engine sessions/github.ts).
-enum PRAction: String {
-    case merge, resolve, update
-    case viewChecks = "view_checks"
-    case pullComments = "pull_comments"
-    case readyForReview = "ready_for_review"
-    case open
-
-    var title: String {
-        switch self {
-        case .merge: return "Merge"
-        case .resolve: return "Resolve"
-        case .update: return "Update"
-        case .viewChecks: return "View"
-        case .pullComments: return "Pull into chat"
-        case .readyForReview: return "Ready for review"
-        case .open: return "View on GitHub"
-        }
-    }
-
-    /// Sends the agent a message, so it needs the session's chat.
-    var needsChat: Bool { self == .resolve }
 }
 
 /// A changed file's folder (drawn dimmed) and its name.

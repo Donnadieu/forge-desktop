@@ -62,26 +62,7 @@ struct SessionList: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                TextField("", text: $search).forgeField(hint: "Search sessions", empty: search.isEmpty, icon: "magnifyingglass")
-                Button {
-                    sessions.composing = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus").font(.system(size: 12, weight: .medium))
-                        Text("New session").font(Theme.sans(12, .semibold))
-                        KeyHint(text: "⌘N", onAmber: true)
-                    }
-                    .foregroundStyle(Theme.bg)
-                    .frame(maxWidth: .infinity).frame(height: 36)
-                    .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.heat))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.heatBorder))
-                    .shadow(color: Theme.heatGlow, radius: 12)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(12)
+            PaneHeader(alignment: .center) { top }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Self.sections(list, archived: archived, folded: sessions.foldedGroups, search: search, selected: sessions.selected)) {
@@ -120,6 +101,30 @@ struct SessionList: View {
         .background(Theme.bg.opacity(0.6))
     }
 
+    /// Search and New session, in the pane's header.
+    private var top: some View {
+        VStack(spacing: 8) {
+            TextField("", text: $search).forgeField(hint: "Search sessions", empty: search.isEmpty, icon: "magnifyingglass")
+            Button {
+                sessions.composing = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus").font(.system(size: 12, weight: .medium))
+                    Text("New session").font(Theme.sans(12, .semibold))
+                    KeyHint(text: "⌘N", onAmber: true)
+                }
+                .foregroundStyle(Theme.bg)
+                .frame(maxWidth: .infinity).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.heat))
+                .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.heatBorder))
+                .shadow(color: Theme.heatGlow, radius: 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+    }
+
     /// A group's header: its name and count; a click folds or opens it.
     private func header(_ g: Section) -> some View {
         Button {
@@ -138,6 +143,24 @@ struct SessionList: View {
         .buttonStyle(.plain)
         .help(g.folded ? "Show the \(g.count) \(g.title.lowercased()) sessions" : "Fold this group")
     }
+
+    /// A row's look. Only the open session is highlighted; a hovered row gets a fainter wash of its own; a row's
+    /// state (working, idle, failed) shows in its dot and its group, never as a fill.
+    enum Look: Equatable {
+        case open, hovered, plain
+
+        var fill: Color {
+            switch self {
+            case .open: return Theme.surfaceHover
+            case .hovered: return Theme.surface.opacity(0.45)
+            case .plain: return .clear
+            }
+        }
+
+        var edge: Color { self == .open ? Theme.border : .clear }
+    }
+
+    static func look(open: Bool, hovered: Bool) -> Look { open ? .open : hovered ? .hovered : .plain }
 
     private func dot(_ s: Sessions.Session) -> Color {
         switch s.status {
@@ -183,8 +206,8 @@ struct SessionList: View {
             .frame(width: 22)
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(on || hover ? Theme.surfaceHover : .clear))
-        .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(on ? Theme.border : .clear))
+        .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Self.look(open: on, hovered: hover).fill))
+        .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Self.look(open: on, hovered: hover).edge))
         .opacity(archived && !hover ? 0.7 : 1)
         .contentShape(Rectangle())
         .onTapGesture { if !archived { sessions.open(s) } }

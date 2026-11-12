@@ -11,6 +11,7 @@ extension Checks {
         gfmPieceChecks(check)
         fileLinkChecks(check)
         linkClickChecks(check)
+        chatLinkChecks(check)
     }
 
     /// A real click on a link in a drawn message (an off-screen window) opens the file in the viewer.
@@ -109,7 +110,9 @@ extension Checks {
         check("without a worktree nothing is a link", links(MarkdownCache.parts(SampleReview.summary, folder: nil)).isEmpty)
         check("a click opens the file in Forge's viewer", FileLinks.open(want[1], root: root, command: false) == .view(want[1]))
         check("a Cmd-click shows it in Finder", FileLinks.open(want[1], root: root, command: true) == .reveal(want[1]))
-        check("a link to a file outside the worktree opens nothing", FileLinks.open(URL(fileURLWithPath: outside), root: root, command: false) == nil)
+        check(
+            "a link to a file outside the worktree opens nothing, only the not-found note",
+            FileLinks.open(URL(fileURLWithPath: outside), root: root, command: false) == .missing(URL(fileURLWithPath: outside).standardizedFileURL))
         check("a Markdown file opens rendered", FileKind.of(path: SampleReview.reviewPath, text: SampleReview.review) == .markdown)
         check("a diff saved as .txt opens as a diff", FileKind.of(path: SampleReview.diffPath, text: SampleReview.diff) == .diff)
         check("any other file opens as code", FileKind.of(path: "app/models/talent.rb", text: "class Talent; end") == .code)

@@ -95,6 +95,14 @@ the bottom. Each line: the date, the plan item, the call and why.
   so nothing outside it ever opens); a click opens Forge's file viewer (Markdown rendered, a saved diff coloured per
   file, anything else as numbered code), Cmd-click shows it in Finder. Tool rows that read or wrote a worktree file get
   an Open link, and paths in a tool's command and output are links too.
+- 2026-11-12: Omar's ATC-1744 Code Review chat: clicking the agent's own Markdown link to a report (link
+  words `tmp/git-diffs/….txt`, target the absolute path with `Application%20Support`) showed macOS's "The
+  application can't be opened. -50". A link with no scheme isn't a file URL, so `FileLinks.open` returned nil and the
+  chat handed it to the system. Every link that names a path (no scheme, `file://`, `name.ext:12`) now goes to Forge:
+  a file inside the worktree opens in the viewer, anything else (missing, a folder, outside the worktree) opens the
+  viewer's quiet "File not found" note and reads nothing. Only links with a scheme of their own (https, mailto) leave
+  for another app, through `FileLinks.openInBrowser`. Outside a session (a card's workpad) a path link opens nothing.
+  Check: `Checks.chatLinkChecks`.
 
 ## Sidebars, the PR panel, the branch and archive (Omar, 2026-11-12)
 

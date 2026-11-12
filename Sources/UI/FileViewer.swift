@@ -59,16 +59,20 @@ struct FileSheet: View {
             Image(systemName: "doc.text").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
             Text(shown).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             Spacer()
-            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
-                .buttonStyle(ForgeButton(kind: .ghost, icon: "folder"))
+            if !file.missing {
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
+                    .buttonStyle(ForgeButton(kind: .ghost, icon: "folder"))
+            }
             Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: [])
         }
         .padding(16)
     }
 
     @ViewBuilder private var content: some View {
-        let read = Self.read(file.url)
-        if let text = read.text {
+        let read = file.missing ? (text: nil, cut: false) : Self.read(file.url)
+        if file.missing {
+            Text("File not found in this session's folder.").font(Theme.sans(13)).foregroundStyle(Theme.textSec).padding(24)
+        } else if let text = read.text {
             VStack(alignment: .leading, spacing: 0) {
                 if read.cut {
                     Text("Showing the first 2 MB of this file.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)

@@ -11,13 +11,23 @@ enum FileLinks {
         case view(URL)
         /// Cmd-click: shows the file in Finder.
         case reveal(URL)
+        /// A path to nothing in the worktree (missing, a folder, or outside it): the viewer says so, nothing opens.
+        case missing(URL)
+        /// A web (or mail) link: the default browser.
+        case web(URL)
     }
 
     /// A file open in the viewer, and the worktree its links resolve against.
     struct Opened: Equatable {
         var url: URL
         var root: String
+        /// The link named no file in the worktree: the viewer says so instead of opening anything.
+        var missing = false
     }
+
+    /// Where a web link goes: the default browser. The only way out of the chat to another app; checks swap it to
+    /// see what would have opened.
+    static var openInBrowser: (URL) -> Void = { NSWorkspace.shared.open($0) }
 
     /// Path-looking words: letters, digits and `_ . / ~ @ + -`, with an optional `:line` or `:line:column`.
     private static let token = try? NSRegularExpression(pattern: #"[A-Za-z0-9_./~@+\-]+(?::[0-9]+){0,2}"#)
@@ -25,13 +35,16 @@ enum FileLinks {
     private static let trailing = ".,;:)]'\""
 
     /// The file a path names inside the worktree, or nil when it doesn't exist, is a folder, or lies outside it.
-    static func resolve(_ token: String, root: String?) -> URL? {
+    /// `named` is for a link's target, which is a path by construction (`Makefile`, `README`): no path-looking test.
+    static func resolve(_ token: String, root: String?, named: Bool = false) -> URL? {
         guard let root, !root.isEmpty else { return nil }
         var t = token.trimmingCharacters(in: .whitespacesAndNewlines)
         while let last = t.last, trailing.contains(last) { t.removeLast() }
         if let re = lineSuffix { t = re.stringByReplacingMatches(in: t, range: NSRange(t.startIndex..., in: t), withTemplate: "") }
         if t.hasPrefix("./") { t.removeFirst(2) }
-        guard !t.isEmpty, t.count < 1024, !t.hasPrefix("~"), !t.contains("\n"), t.contains("/") || t.dropFirst().contains(".") else { return nil }
+        guard !t.isEmpty, t.count < 1024, !t.hasPrefix("~"), !t.contains("\n"), named || t.contains("/") || t.dropFirst().contains(".") else {
+            return nil
+        }
         let base = URL(fileURLWithPath: root).standardizedFileURL
         let url = (t.hasPrefix("/") ? URL(fileURLWithPath: t) : base.appendingPathComponent(t)).standardizedFileURL
         let real = url.resolvingSymlinksInPath().path
@@ -43,9 +56,25 @@ enum FileLinks {
         return url
     }
 
-    /// What a click on a link does; nil for anything that isn't a file in this worktree.
+    /// The path a link names: a file:// URL, or a Markdown link written as a path (`tmp/x.md`, `/Users/…%20…/x.md`),
+    /// which has no scheme. Nil for a web link.
+    static func path(of url: URL) -> String? {
+        if url.isFileURL { return url.path }
+        guard url.scheme != nil else { return url.path }
+        // `README.md:12` reads as the scheme "README.md": a path with a line number, not an app's link.
+        let s = url.absoluteString
+        return s.range(of: #"^[^:/]+\.[A-Za-z0-9]+(?::[0-9]+){1,2}$"#, options: .regularExpression) != nil ? s.removingPercentEncoding : nil
+    }
+
+    /// What a click on a link does. Every path goes to Forge (the viewer, or its "not found" note); only a link with a
+    /// scheme of its own (https, mailto) leaves for another app. Nil for a link to nothing (`#top`).
     static func open(_ url: URL, root: String?, command: Bool) -> Open? {
-        guard url.isFileURL, let file = resolve(url.path, root: root) else { return nil }
+        guard let path = path(of: url) else { return .web(url) }
+        guard !path.isEmpty else { return nil }
+        guard let file = resolve(path, root: root, named: true) else {
+            let base = URL(fileURLWithPath: root ?? "/")
+            return .missing((path.hasPrefix("/") ? URL(fileURLWithPath: path) : base.appendingPathComponent(path)).standardizedFileURL)
+        }
         return command ? .reveal(file) : .view(file)
     }
 
@@ -82,21 +111,32 @@ enum FileLinks {
         }
     }
 
-    /// Follows a link in the chat: a file in the worktree opens in the viewer (Cmd-click: Finder), another file
-    /// opens nothing, and a web link goes to the browser.
+    /// Follows a link in the chat: a file in the worktree opens in the viewer (Cmd-click: Finder), any other path
+    /// shows the viewer's "not found" note, and a web link goes to the browser. Never hands a path to the system:
+    /// macOS answers a link with no scheme with "The application can't be opened. -50".
     static func action(_ sessions: SessionsModel, root: String) -> OpenURLAction {
         OpenURLAction { url in
             switch open(url, root: root, command: NSEvent.modifierFlags.contains(.command)) {
             case .view(let file)?:
                 sessions.openFile = Opened(url: file, root: root)
-                return .handled
             case .reveal(let file)?:
                 NSWorkspace.shared.activateFileViewerSelecting([file])
-                return .handled
+            case .missing(let file)?:
+                sessions.openFile = Opened(url: file, root: root, missing: true)
+            case .web(let link)?:
+                openInBrowser(link)
             case nil:
-                return url.isFileURL ? .discarded : .systemAction
+                break
             }
+            return .handled
         }
+    }
+
+    /// Links outside a session (a card's workpad): web links go to the browser; a path, with no worktree to find it
+    /// in, opens nothing.
+    static let webOnly = OpenURLAction { url in
+        if case .web(let link)? = open(url, root: nil, command: false) { openInBrowser(link) }
+        return .handled
     }
 }
 

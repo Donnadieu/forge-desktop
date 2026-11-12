@@ -11,7 +11,7 @@
 - [design/workspaces.md](design/workspaces.md): Workspaces, the request and requirements (design, not built yet)
   - [design/workspaces-design.md](design/workspaces-design.md): its model, migration, settings flow, screens and open questions
 - [design/sessions.md](design/sessions.md): Sessions, chatting with agents inside a workspace (Conductor-style); design, two screen directions, not built
-- [design/sidebar-pr-panel.md](design/sidebar-pr-panel.md): both sidebars resize, the Changes panel in sync with GitHub (one status, one button), branch rename, archive on hover; design, two directions, not built
+- [design/sidebar-pr-panel.md](design/sidebar-pr-panel.md): both sidebars resize, the Changes panel in sync with GitHub (one status, one button), branch rename, archive on hover; Direction A, built
 - [design/missing-columns-and-skills.md](design/missing-columns-and-skills.md): optional columns, parking "Waiting on you", Next step, skills in sessions
 - [design/what-others-see.md](design/what-others-see.md): Keep Forge invisible (marks removed, guards); its workflow file editor was removed Nov 11
 - [QUALITY_SCORE.md](QUALITY_SCORE.md): how solid each area is

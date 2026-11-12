@@ -227,6 +227,7 @@ enum Checks {
         nextStepChecks(check)
         skillChecks(check)
         workspaceNameChecks(check)
+        prPanelChecks(check)
         moveChecks(check)
         accountChecks(check)
         workspaceChecks(check)

@@ -98,7 +98,21 @@ enum Sessions {
         struct Check: Decodable, Sendable, Equatable {
             var name: String
             var state: String
-            var failing: Bool { ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"].contains(state.uppercased()) }
+            /// Its page on GitHub (the run's log).
+            var url: String? = nil
+            /// A rule on the base branch needs it to pass.
+            var required: Bool? = nil
+            var failing: Bool {
+                ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"].contains(state.uppercased())
+            }
+        }
+        /// The one status the Changes panel shows, worked out by the host from GitHub's answer (engine
+        /// sessions/github.ts `mergeStatus`): a tone for its colour, one sentence, and the one fix (nil: nothing to press).
+        struct Status: Decodable, Sendable, Equatable {
+            /// ready, blocked, failing, waiting, checking, merged or closed.
+            var tone: String
+            var label: String
+            var action: String?
         }
         var number: Int
         var title: String
@@ -106,7 +120,16 @@ enum Sessions {
         var url: String
         var isDraft: Bool
         var checks: [Check]
-        var failing: [Check] { checks.filter(\.failing) }
+        var base: String? = nil
+        var unresolved: Int? = nil
+        var threadsByPath: [String: Int]? = nil
+        var status: Status? = nil
+        /// The checks that hold the merge up: the required ones when the repo marks any, else every failing one.
+        var failing: [Check] {
+            let required = checks.contains { $0.required == true }
+            return checks.filter { $0.failing && (!required || $0.required == true) }
+        }
+        func comments(on path: String) -> Int { threadsByPath?[path] ?? 0 }
     }
 
     struct ReviewThread: Decodable, Sendable, Equatable, Identifiable {
@@ -233,8 +256,9 @@ enum Sessions {
     enum Prompt {
         /// What Create PR sends the agent, shaped like Conductor's create-PR prompt: the agent makes the PR in the chat,
         /// where the person sees each step, using the repo's own PR skill or template when there is one.
-        static func createPR(base: String, branch: String? = nil) -> String {
+        static func createPR(base: String, branch: String? = nil, draft: Bool = false) -> String {
             let on = branch.map { "The current branch is \($0). " } ?? ""
+            let how = draft ? "`gh pr create --draft --base \(base)` to open the PR as a draft" : "`gh pr create --base \(base)` to open the PR"
             return """
                 Create a PR
 
@@ -248,7 +272,7 @@ enum Sessions {
                 them, following any instructions about commit messages.
                 - If the branch has no upstream or has unpushed commits, push with `git push -u origin HEAD`.
                 - Review everything the branch changes with `git diff origin/\(base)...HEAD`.
-                - Use `gh pr create --base \(base)` to open the PR. Keep the title under 80 characters and the description \
+                - Use \(how). Keep the title under 80 characters and the description \
                 under five sentences unless told otherwise, and describe every change on the branch, not only this chat's.
                 - Reply with the pull request's link.
 
@@ -262,6 +286,14 @@ enum Sessions {
                 These checks fail on PR #\(number): \(names). Read their logs with `gh pr checks \(number)` and \
                 `gh run view --log-failed`, fix the cause, commit and push.
                 """
+        }
+
+        /// "Conflicts with main: Resolve".
+        static func resolveConflicts(base: String) -> String {
+            """
+            This branch has conflicts with \(base). Run `git fetch origin` and `git merge origin/\(base)`, resolve every \
+            conflict keeping what both sides meant, run the tests, then commit and push.
+            """
         }
 
         static let review = """

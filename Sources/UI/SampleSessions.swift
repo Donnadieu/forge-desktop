@@ -277,6 +277,10 @@ enum SampleSessions {
 
     /// Puts the model in the state a render shows.
     static func scene(_ m: SessionsModel, _ scene: String) {
+        ChangesPanel.checksOpenInRender = false
+        SessionList.hoveredInRender = nil
+        BranchMenu.copiedInRender = false
+        if prPanelScene(m, scene) { return }
         switch scene {
         case "sessions-new": m.composing = true
         case "sessions-card": m.selected = "s4"

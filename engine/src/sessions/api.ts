@@ -11,7 +11,8 @@
  *   GET  /api/v1/sessions/<id>/diff?path=        one file's diff
  *   GET  /api/v1/sessions/<id>/pr                its pull request (refreshed from GitHub)
  *   GET  /api/v1/sessions/<id>/review-comments   the pull request's review threads
- *   POST /api/v1/sessions/<id>/merge | archive | unarchive
+ *   POST /api/v1/sessions/<id>/merge | archive | unarchive | update | ready | publish
+ *   POST /api/v1/sessions/<id>/rename            {branch}: renames the branch here and on GitHub
  *   GET  /api/v1/chats/<id>/turns?before=&limit= turns with their events, newest last
  *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue, images: [{mediaType, data}]}
  *   POST /api/v1/chats/<id>/stop | answer | settings (model, effort, title, planMode, askBeforeChanges, hidden) | revert
@@ -158,6 +159,16 @@ export async function startSessionsApi(deps: {
           return jsonResponse(res, 200, await h.merge(id));
         case "archive":
           return jsonResponse(res, 200, await h.archive(id));
+        case "update":
+          return jsonResponse(res, 200, await h.update(id));
+        case "ready":
+          return jsonResponse(res, 200, await h.ready(id));
+        case "publish":
+          return jsonResponse(res, 200, await h.publish(id));
+        case "rename": {
+          const b = await body(req);
+          return jsonResponse(res, 200, await h.rename(id, s(b.branch)));
+        }
         case "unarchive": {
           const b = await body(req);
           return jsonResponse(res, 200, await h.unarchive(id, s(b.local) || null));

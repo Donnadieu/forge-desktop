@@ -1,7 +1,8 @@
 /**
  * The sessions host: what the app asks for, in one place. Makes a session (its folder, branch and first chat),
  * lists them with a status derived from their chats and pull request, reads their changes, goes back to before a
- * turn, archives and restores, merges, and pulls review comments.
+ * turn, archives and restores, merges, pulls review comments, renames the branch, and the Changes panel's fixes
+ * (update the branch, ready for review, push for a hand-made PR).
  *
  * New in Forge Desktop. The HTTP side is api.ts.
  */
@@ -24,7 +25,16 @@ import {
   slug,
   snapshot,
 } from "./git.js";
-import { commentsBlock, merge, type PullRequest, pullRequest, reviewThreads } from "./github.js";
+import {
+  commentsBlock,
+  markReady,
+  merge,
+  mergeStatus,
+  type PullRequest,
+  pullRequest,
+  reviewThreads,
+  updateBranch,
+} from "./github.js";
 import type { SessionStore } from "./store.js";
 import type { ChatRecord, SessionRecord, SessionStatus } from "./types.js";
 
@@ -256,7 +266,7 @@ export class SessionsHost {
   async pr(id: string) {
     const s = this.store.session(id);
     if (!s || s.archived) return { pr: null };
-    const pr = await pullRequest(s.folder, await this.token(s.githubLogin));
+    const pr = await pullRequest(s.folder, s.repo, s.branch, await this.token(s.githubLogin));
     this.prs.set(id, pr);
     const next: SessionRecord = {
       ...s,
@@ -269,7 +279,103 @@ export class SessionsHost {
       this.store.putSession(next);
       this.touched(id);
     }
-    return { pr };
+    return { pr: pr ? { ...pr, status: mergeStatus(pr) } : null };
+  }
+
+  private busy(id: string): boolean {
+    return this.store.chats(id).some((c) => c.state === "working" || c.state === "needs_you");
+  }
+
+  /** "Branch is behind main: Update", then the session's folder catches up when it has nothing unpushed. */
+  async update(id: string) {
+    const s = this.store.session(id);
+    if (!s) return { ok: false, problem: "That session isn't there any more." };
+    await this.pr(id);
+    const pr = this.prs.get(id);
+    if (!pr) return { ok: false, problem: "This session has no pull request." };
+    const r = await updateBranch(pr, await this.token(s.githubLogin));
+    if (r.ok && !this.busy(id) && existsSync(s.folder)) {
+      const env = await this.envFor(s);
+      if ((await run("git", ["fetch", "-q", "origin", s.branch], s.folder, env)).ok)
+        await run("git", ["merge", "-q", "--ff-only", `origin/${s.branch}`], s.folder, env);
+    }
+    await this.pr(id);
+    return r;
+  }
+
+  /** "Draft: Ready for review". */
+  async ready(id: string) {
+    const s = this.store.session(id);
+    if (!s?.prNumber) return { ok: false, problem: "This session has no pull request." };
+    const r = await markReady(s.repo, s.prNumber, await this.token(s.githubLogin));
+    await this.pr(id);
+    return r;
+  }
+
+  /** "Create PR manually": the branch goes to GitHub, and the page to open the pull request on comes back. */
+  async publish(id: string) {
+    const s = this.store.session(id);
+    if (!s || !existsSync(s.folder))
+      return { ok: false, problem: "That session's folder isn't there." };
+    const r = await run(
+      "git",
+      ["push", "-q", "-u", "origin", "HEAD"],
+      s.folder,
+      await this.envFor(s),
+    );
+    if (!r.ok)
+      return { ok: false, problem: r.err.trim().slice(0, 400) || "Git couldn't push the branch." };
+    const path = (b: string) => b.split("/").map(encodeURIComponent).join("/");
+    const url = `https://github.com/${s.repo}/compare/${path(s.base)}...${path(s.branch)}?expand=1`;
+    return { ok: true, url };
+  }
+
+  /**
+   * Renames the session's branch here and, when it was pushed, on GitHub too (push the new name, delete the old).
+   * GitHub closes a pull request whose branch goes away and can't move it to another branch, so a session with an
+   * open pull request keeps its name. A card's branch belongs to the board's agent.
+   */
+  async rename(id: string, name: string) {
+    const s = this.store.session(id);
+    if (!s) return { ok: false, problem: "That session isn't there any more." };
+    if (s.origin === "card")
+      return { ok: false, problem: "A card's branch belongs to the agent working it." };
+    if (s.prNumber && s.prState === "OPEN")
+      return { ok: false, problem: `GitHub closes PR #${s.prNumber} when its branch is renamed.` };
+    if (this.busy(id)) return { ok: false, problem: "Stop the agent first." };
+    const next = name.trim();
+    if (
+      !next ||
+      /\s/.test(next) ||
+      !(await run("git", ["check-ref-format", "--branch", next], s.folder)).ok
+    )
+      return { ok: false, problem: "That isn't a name git takes." };
+    if (next === s.branch) return { ok: true };
+    if ((await run("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${next}`], s.folder)).ok)
+      return { ok: false, problem: `A branch called ${next} is already there.` };
+    const env = await this.envFor(s);
+    const pushed = (
+      await run("git", ["ls-remote", "--exit-code", "--heads", "origin", s.branch], s.folder, env)
+    ).ok;
+    const moved = await run("git", ["branch", "-m", s.branch, next], s.folder);
+    if (!moved.ok)
+      return { ok: false, problem: moved.err.trim().slice(0, 300) || "Git couldn't rename it." };
+    if (pushed) {
+      const up = await run("git", ["push", "-q", "-u", "origin", next], s.folder, env);
+      if (!up.ok) {
+        await run("git", ["branch", "-m", next, s.branch], s.folder);
+        return {
+          ok: false,
+          problem: up.err.trim().slice(0, 300) || "Git couldn't push the new name.",
+        };
+      }
+      await run("git", ["push", "-q", "origin", "--delete", s.branch], s.folder, env);
+    } else {
+      await run("git", ["branch", "--unset-upstream"], s.folder);
+    }
+    this.store.putSession({ ...s, branch: next, updatedAt: new Date().toISOString() });
+    this.touched(id);
+    return { ok: true };
   }
 
   async reviewComments(id: string) {
@@ -304,6 +410,12 @@ export class SessionsHost {
   async archive(id: string) {
     const s = this.store.session(id);
     if (!s || s.archived) return { ok: false, problem: "Already archived." };
+    // A card's session is only hidden: its folder is the running card's own workspace.
+    if (s.origin === "card") {
+      this.store.putSession({ ...s, archived: true, updatedAt: new Date().toISOString() });
+      this.touched(id);
+      return { ok: true };
+    }
     for (const c of this.store.chats(id)) {
       this.chats.stop(c.id);
       await this.chats.closeChat(c.id);
@@ -329,6 +441,11 @@ export class SessionsHost {
   async unarchive(id: string, local: string | null) {
     const s = this.store.session(id);
     if (!s?.archived) return { ok: false, problem: "This session isn't archived." };
+    if (s.origin === "card") {
+      this.store.putSession({ ...s, archived: false, updatedAt: new Date().toISOString() });
+      this.touched(id);
+      return { ok: true };
+    }
     const root =
       local && existsSync(join(local, ".git"))
         ? local

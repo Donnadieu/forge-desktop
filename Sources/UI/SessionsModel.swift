@@ -89,6 +89,11 @@ final class SessionsModel: ObservableObject {
     /// A file a link in the chat opened in the viewer.
     @Published var openFile: FileLinks.Opened?
     @Published var showChanges = true
+    @Published var showSessions = true
+    /// Archiving something still running asks once first.
+    @Published var archiveAsk: ArchiveAsk?
+    /// The session whose branch the Rename sheet is renaming.
+    @Published var renameAsk: Sessions.Session?
     @Published var reviewSheet: ReviewSheet?
     @Published var importSheet: Sessions.ConductorPreview?
     @Published var showHistory = false
@@ -96,7 +101,7 @@ final class SessionsModel: ObservableObject {
     /// Messages the person sent, per chat: each one brings that chat to its latest turn.
     @Published var sent: [String: Int] = [:]
     /// Groups of the sessions list folded to their header: idle and finished ones start folded.
-    @Published var foldedGroups: Set<String> = ["Idle", "Merged"]
+    @Published var foldedGroups: Set<String> = ["Idle", "Merged", "Archived"]
     /// Sessions showing their Changes tab instead of a chat.
     @Published var changesTab: Set<String> = []
     /// Pictures waiting in each chat's message box.
@@ -122,6 +127,10 @@ final class SessionsModel: ObservableObject {
     /// Set by the app: takes the wheel of a card (true) or hands it back (false); returns the problem, nil when done.
     var cardWheel: (@MainActor (String, String, Bool) async -> String?)?
     private var lastWatch: [[String: String]] = []
+    /// How many times in a row GitHub answered "still working out mergeability", per session.
+    var checkingTries: [String: Int] = [:]
+    /// How often the Changes panel asks GitHub again while it's on screen.
+    nonisolated static let pollSeconds: UInt64 = 60
     /// The skills each session can run, cached until a skill folder changes (Core/Skills.swift).
     let skillCatalog = SkillCatalog()
 
@@ -194,7 +203,9 @@ final class SessionsModel: ObservableObject {
                 sessions[i].chats.append(c)
             }
         case .turn(let t): transcripts[t.chatId]?.apply(t)
-        case .event(let e): transcripts[e.chatId]?.apply(e)
+        case .event(let e):
+            transcripts[e.chatId]?.apply(e)
+            if Self.mayChangePR(e), let id = chat(e.chatId)?.sessionId { refreshSoon(id, after: 4) }
         case .reverted(let chat, let seq): transcripts[chat]?.dropFrom(seq: seq)
         }
     }
@@ -220,7 +231,9 @@ final class SessionsModel: ObservableObject {
         guard let client else { return }
         Task {
             if let files = try? await client.changes(session: id) { changes[id] = files }
-            if let pr = try? await client.pullRequest(session: id) { pullRequests[id] = pr } else { pullRequests[id] = nil }
+            let pr = try? await client.pullRequest(session: id)
+            pullRequests[id] = pr
+            askAgainIfChecking(id, pr)
         }
     }
 
@@ -371,14 +384,6 @@ final class SessionsModel: ObservableObject {
         reviewSheet = nil
     }
 
-    func merge(_ s: Sessions.Session) {
-        guard belongs(s) else { return }
-        act { try await $0.merge(session: s.id) }
-    }
-    func archive(_ s: Sessions.Session) {
-        act { try await $0.archive(session: s.id) }
-        if selected == s.id { selected = nil }
-    }
 }
 
 /// Review comments as one block in the message box: file:line, reviewer, what they said, link.

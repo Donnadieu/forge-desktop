@@ -91,6 +91,22 @@ extension ScreenRender {
                 name: "16-polish-card-tall", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 1300, width: 1500),
             Shot(
                 name: "16-polish-card-narrow", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-card-long", height: 780, width: 1100),
+            Shot(name: "20-pr-ready", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-ready", height: 900, width: 1440),
+            Shot(name: "20-pr-conflicts", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-conflicts", height: 900, width: 1440),
+            Shot(name: "20-pr-behind", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-behind", height: 900, width: 1440),
+            Shot(name: "20-pr-failing", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-failing", height: 900, width: 1440),
+            Shot(name: "20-pr-comments", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-comments", height: 900, width: 1440),
+            Shot(name: "20-pr-checking", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-checking", height: 900, width: 1440),
+            Shot(name: "20-pr-running", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-running", height: 900, width: 1440),
+            Shot(name: "20-pr-none", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-pr-none", height: 900, width: 1440),
+            Shot(
+                name: "20-sidebars-closed", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-sidebars-closed", height: 900,
+                width: 1440),
+            Shot(
+                name: "20-archive-hover", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-archive-hover", height: 900, width: 1440),
+            Shot(name: "20-archived", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-archived", height: 900, width: 1440),
+            Shot(name: "20-archive-ask", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-archive-ask", height: 900, width: 1440),
+            Shot(name: "20-rename", screen: AppModel.sessionsScreen, choices: ready, scene: "sessions-rename", height: 900, width: 1440),
             Shot(name: "12-orchestrator-merge-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "merge-all", height: 1100),
             Shot(name: "12-orchestrator-start-all", screen: board, choices: ready, engine: SampleBoard.moves, scene: "start-all", height: 1100),
             Shot(name: "10-workflow", screen: AppModel.workflowScreen, choices: ready, engine: SampleBoard.state),

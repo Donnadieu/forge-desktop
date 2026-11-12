@@ -68,8 +68,13 @@ struct ChatColumn: View {
                     .buttonStyle(ForgeButton(kind: .ghost)).help("Close this side")
                 }
             }
-            Text("\(session.repo) · \(session.branch) · \(session.origins)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
-                .lineLimit(1).padding(.top, 4)
+            HStack(spacing: 6) {
+                Text("\(session.repo) ·").fixedSize()
+                BranchMenu(sessions: sessions, session: session)
+                Text("· \(session.origins)").fixedSize()
+            }
+            .font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+            .lineLimit(1).padding(.top, 4)
             ChatTabs(sessions: sessions, session: session, current: chat?.id, side: closable)
                 .padding(.top, 14)
         }

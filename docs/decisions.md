@@ -95,3 +95,12 @@ the bottom. Each line: the date, the plan item, the call and why.
   so nothing outside it ever opens); a click opens Forge's file viewer (Markdown rendered, a saved diff coloured per
   file, anything else as numbered code), Cmd-click shows it in Finder. Tool rows that read or wrote a worktree file get
   an Open link, and paths in a tool's command and output are links too.
+
+## Sidebars, the PR panel, the branch and archive (Omar, 2026-11-12)
+
+- Omar picked Direction A, "One line", of [design/sidebar-pr-panel.md](design/sidebar-pr-panel.md): the Changes panel
+  shows the PR number as a link, one status from GitHub and one button, Conductor's shape. No branch chip there; the
+  header has the branch.
+- Renaming a branch is offered only before a pull request is open: GitHub closes a PR whose branch is renamed and
+  can't reopen it (tested on a throwaway PR).
+- Archiving a card's session only hides it; the card keeps running on the board and keeps its folder.

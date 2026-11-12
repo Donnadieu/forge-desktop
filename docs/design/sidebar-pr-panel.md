@@ -1,6 +1,6 @@
 # Sidebars, the PR panel, the branch and archive: design
 
-Status: **design, not built. Waiting for Omar to pick Direction A or B (section 7).** Omar's request (Nov 11, 2026),
+Status: **built, Direction A (Omar's pick, Nov 12).** Omar's request (Nov 11, 2026),
 from the Andela workspace's ATC-1742 card session: both sidebars collapse and resize, a calmer Changes panel that stays
 in sync with GitHub the way Conductor's does, the branch in the header can be copied and renamed, and sessions archive
 from the sidebar. His rule: the Steve Jobs approach. Don't overwhelm. Keep what he likes: the session header (ticket name,
@@ -111,8 +111,12 @@ repository(owner, name) { pullRequests(headRefName: $branch, first: 1, orderBy: 
 ```
 
 The engine returns `{number, url, state, isDraft, mergeable, mergeStateStatus, reviewDecision, checks[], unresolved,
-threadsByPath}`; the app maps it to one `MergeStatus` value in `Sources/Core` (a pure function, tested against the
-fixtures above). The Swift view only draws `MergeStatus`.
+threadsByPath}` plus `status: {tone, label, action}` from `mergeStatus` (engine `sessions/github.ts`, a pure function
+tested against the recorded answers in `engine/test/fixtures/github/pr-states/`). It lives in the engine rather than
+Swift so the tests read GitHub's own JSON. The Swift panel only draws the status and maps `action` to its one button.
+In practice it's two calls: find the branch's PR number (`pullRequests(headRefName:)`), then this query by number,
+because `isRequired` needs the number. When the repo marks some checks required, only those block; otherwise every
+failing check does.
 
 ### Staying in sync
 - On window focus (`NSApplication.didBecomeActiveNotification`) and when the session on screen changes.
@@ -181,14 +185,20 @@ the same title and description, linking #1288. Review comments stay on #1288." R
 **Recommendation: A.** It's the quietest (one row, nothing to read twice), it's the shape Omar already likes in
 Conductor, and it avoids a rename that silently swaps a PR's number under a reviewer.
 
-## 8. Build order (after the pick), test first
+## 8. Build order (Direction A), test first. All done Nov 12.
 
-1. `MergeStatus` mapping in `Sources/Core` with fixtures from the real states in section 3 (red test per row first).
-2. Engine: the GraphQL query + `threadsByPath` (vitest with recorded `gh` output), PROVENANCE row.
-3. Sync triggers (focus, 60 s, after push, after actions, UNKNOWN retry) with a fake clock.
-4. Changes panel view + Create PR split button; renders for each status row.
-5. Both sidebars: resize, collapse, `@SceneStorage`; selftest that the chat never goes under 480 pt.
-6. Branch copy and rename (the engine runs the git commands; a test on a scratch repo with a bare remote).
-7. Archive on hover, Archived group, restore, the running-card confirm, and the card-folder fix (red test first:
+Proven live on Donnadieu/forge-desktop-test (PR #8, closed after): Draft, Ready for review, Ready to merge, Update
+(main merged in, the folder caught up), Conflicts with main, rename refused with the PR open, push for a hand-made PR,
+rename of a pushed branch with no PR (old name gone on GitHub). "Branch is behind main" needs a branch rule that
+private repos on GitHub Free can't have, so it's covered by the recorded forge-desktop#88 answer only.
+
+
+1. [x] `mergeStatus` mapping (engine) with fixtures from the real states in section 3 (red test per row first).
+2. [x] Engine: the GraphQL query + `threadsByPath` (vitest with recorded `gh` output), PROVENANCE row.
+3. [x] Sync triggers (focus, 60 s, a tool call that pushed, after actions, UNKNOWN retry at 3, 6, 12 s).
+4. [x] Changes panel view + Create PR split button; renders for each status row.
+5. [x] Both sidebars: resize, collapse, `@SceneStorage`; selftest that the chat never goes under 480 pt.
+6. [x] Branch copy and rename (the engine runs the git commands; a test on a scratch repo with a bare remote).
+7. [x] Archive on hover, Archived group, restore, the running-card confirm, and the card-folder fix (red test first:
    archiving a card session must leave its folder in place).
-8. `make check`, renders, one signed and notarized release.
+8. [x] `make check`, renders, one signed and notarized release.

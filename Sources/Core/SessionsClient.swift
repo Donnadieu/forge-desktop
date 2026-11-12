@@ -121,10 +121,31 @@ struct SessionsClient: Sendable {
         return t.threads
     }
     func unarchive(session: String) async throws {
-        try await call("/api/v1/sessions/\(session)/unarchive", method: "POST", body: [:], timeout: 120)
+        try await act(session, "unarchive")
     }
-    func merge(session: String) async throws { try await call("/api/v1/sessions/\(session)/merge", method: "POST", body: [:], timeout: 180) }
-    func archive(session: String) async throws { try await call("/api/v1/sessions/\(session)/archive", method: "POST", body: [:], timeout: 120) }
+    /// The problem in an answer that says `ok: false`; nil when it went through.
+    static func refusal(_ data: Data) -> String? {
+        guard let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any], o["ok"] as? Bool == false else { return nil }
+        return o["problem"] as? String ?? "That didn't go through."
+    }
+
+    /// A session action: its refusal comes back as the problem to show, and its answer otherwise.
+    @discardableResult
+    func act(_ session: String, _ action: String, body: [String: Any] = [:], timeout: TimeInterval = 120) async throws -> [String: Any] {
+        let data = try await call("/api/v1/sessions/\(session)/\(action)", method: "POST", body: body, timeout: timeout)
+        if let p = Self.refusal(data) { throw Failure(description: p) }
+        return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
+    func merge(session: String) async throws { try await act(session, "merge", timeout: 180) }
+    func archive(session: String) async throws { try await act(session, "archive") }
+    func update(session: String) async throws { try await act(session, "update", timeout: 120) }
+    func ready(session: String) async throws { try await act(session, "ready") }
+    func rename(session: String, branch: String) async throws { try await act(session, "rename", body: ["branch": branch]) }
+    /// Pushes the branch; the page to open the pull request on comes back.
+    func publish(session: String) async throws -> URL? {
+        (try await act(session, "publish"))["url"].flatMap { $0 as? String }.flatMap(URL.init(string:))
+    }
     /// What Conductor holds for one repo (the workspace's), or for every repo when nil.
     static func conductorPath(repo: String?) -> String {
         guard let repo, !repo.isEmpty else { return "/api/v1/conductor" }

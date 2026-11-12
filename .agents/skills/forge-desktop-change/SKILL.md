@@ -80,6 +80,12 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
 - `--render-screens` draws 1200x800 with fake traffic lights, and prominent buttons come out grey
   (the window isn't key). Don't "fix" the colour, and say the live title bar is unproven.
 
+- `Text("#\(n)")` with an `Int` is a localized key: it draws `#1,288`. Use `Text(verbatim:)` for numbers people copy
+  (PR numbers, ids), and in `confirmationDialog` titles.
+- A `.borderlessButton` `Menu` tints its label with the accent colour (amber): an amber label on an amber background
+  vanishes. Draw the label under the menu (`.background { … .overlay(Image) }`) with a clear, framed menu label on top.
+- The main window's minimum width is 1100 (`RootView`): a render narrower than that overflows every screen; it's not
+  a layout bug.
 - A screen that loads per project must key its loader on the project: `.task(id: model.viewedProject)`, never a
   plain `.task`. Opening another workspace from the Orchestrator's own top bar keeps `screen` the same, so SwiftUI
   keeps the same view and a plain `.task` never runs again: the new project's engine was never started and the
@@ -201,6 +207,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   placeholder identity only when `git var GIT_COMMITTER_IDENT` fails.
 - `Forge --transcript-check` timings on GitHub's Mac runners are about 4x a desk Mac: the check scales its budget when
   `CI` is set.
+- A card session's folder is the running card's own workspace: archiving one must only hide it (no snapshot, no
+  `git worktree remove`), or the card loses its work mid-run (`host.archive`, `branch-archive.test.ts`).
+- GitHub closes a pull request whose head branch is renamed (`POST /branches/{b}/rename` or push-new/delete-old) and
+  it can't be reopened or pointed at another branch: a rename is only offered before a PR is open.
+- `mergeable`/`mergeStateStatus` come back `UNKNOWN` on the first ask while GitHub computes them (24 of 60 open PRs on
+  rails/rails); merged PRs stay `UNKNOWN`. Read state first, then retry UNKNOWN a few times. Drafts report `BLOCKED`
+  or `UNSTABLE` with `isDraft: true`, never `DRAFT`.
+- A session action that refuses answers HTTP 200 with `{ok: false, problem}`: call it through `SessionsClient.act`,
+  which throws the problem, or the refusal is silently dropped (Merge was, before Nov 12).
 - A worktree's `.git` is a file: find merge or rebase state with `git rev-parse --absolute-git-dir`, never `<folder>/.git/`.
 - `git checkout <sha> -- .` fails on an empty tree: check `git ls-tree` first.
 - Claude Code (2.1.319) sends `AskUserQuestion` and `ExitPlanMode` as `can_use_tool` requests even in

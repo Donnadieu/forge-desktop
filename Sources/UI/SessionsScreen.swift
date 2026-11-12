@@ -6,19 +6,36 @@ struct SessionsScreen: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
 
+    // Each window remembers its sidebars' widths and whether they're open.
+    @SceneStorage("sessions.left.width") private var leftWidth = Double(SessionsLayout.sessions.normal)
+    @SceneStorage("sessions.right.width") private var rightWidth = Double(SessionsLayout.changes.normal)
+    @SceneStorage("sessions.left.open") private var leftOpen = true
+    @SceneStorage("sessions.right.open") private var rightOpen = true
+
     private var list: [Sessions.Session] { sessions.sessions(in: model.workspace?.id) }
+    private var panelSession: Sessions.Session? {
+        guard let s = sessions.current, !sessions.composing, sessions.split == nil else { return nil }
+        return s
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            TopBar(suffix: "Sessions") { navRight }
-            HStack(spacing: 0) {
-                SessionList(model: model, sessions: sessions, list: list).frame(width: 260)
-                Rectangle().fill(Theme.border).frame(width: 1)
-                // Each pane keeps to its own edges: the chat and its message box end where the Changes panel begins.
-                center.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
-                if let s = sessions.current, !sessions.composing, sessions.showChanges, sessions.split == nil {
-                    Rectangle().fill(Theme.border).frame(width: 1)
-                    ChangesPanel(sessions: sessions, session: s)
+            TopBar(suffix: "Sessions", leading: AnyView(SidebarToggle(side: .left, open: $sessions.showSessions))) { navRight }
+            GeometryReader { geo in
+                let fit = SessionsLayout.fit(
+                    total: geo.size.width, left: leftWidth, right: rightWidth, leftOpen: sessions.showSessions,
+                    rightOpen: sessions.showChanges && panelSession != nil)
+                HStack(spacing: 0) {
+                    if let w = fit.left {
+                        SessionList(model: model, sessions: sessions, list: list).frame(width: w)
+                        PaneDivider(side: .left, width: $leftWidth, open: $sessions.showSessions)
+                    }
+                    // Each pane keeps to its own edges: the chat and its message box end where the Changes panel begins.
+                    center.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+                    if let w = fit.right, let s = panelSession {
+                        PaneDivider(side: .right, width: $rightWidth, open: $sessions.showChanges)
+                        ChangesPanel(sessions: sessions, session: s).frame(width: w)
+                    }
                 }
             }
         }
@@ -26,6 +43,13 @@ struct SessionsScreen: View {
         .overlay { sheets }
         .task { await sessions.connect() }
         .background(shortcuts)
+        .onAppear {
+            guard !sessions.preview else { return }
+            sessions.showSessions = leftOpen
+            sessions.showChanges = rightOpen
+        }
+        .onChange(of: sessions.showSessions) { _, v in leftOpen = v }
+        .onChange(of: sessions.showChanges) { _, v in rightOpen = v }
     }
 
     @ViewBuilder private var center: some View {
@@ -62,10 +86,8 @@ struct SessionsScreen: View {
 
     private var navRight: some View {
         HStack(spacing: 8) {
-            if let s = sessions.current, !sessions.composing {
-                Button(sessions.showChanges ? "Hide changes" : "Changes") { sessions.showChanges.toggle() }
-                    .buttonStyle(ForgeButton(kind: .ghost, icon: "sidebar.right"))
-                    .help("Show or hide \(s.title)'s changes")
+            if sessions.current != nil, !sessions.composing {
+                SidebarToggle(side: .right, open: $sessions.showChanges)
             }
             Button("Workflow Studio") { model.go(AppModel.workflowScreen) }.buttonStyle(ForgeButton(kind: .ghost, icon: "slider.horizontal.3"))
             Button("Settings") { model.go(AppModel.settingsScreen) }.buttonStyle(ForgeButton(kind: .ghost, hint: "⌘,", icon: "gearshape"))
@@ -79,6 +101,10 @@ struct SessionsScreen: View {
             ImportConductorSheet(model: model, sessions: sessions, preview: preview)
         } else if sessions.showHistory {
             HistorySheet(model: model, sessions: sessions)
+        } else if let ask = sessions.archiveAsk {
+            ArchiveSheet(sessions: sessions, ask: ask)
+        } else if let s = sessions.renameAsk {
+            RenameBranchSheet(sessions: sessions, session: s)
         } else if let d = sessions.openDiff {
             DiffSheet(path: d.path, text: d.text, comment: { sessions.addComment($0, session: d.session) }, close: { sessions.openDiff = nil })
         } else if let f = sessions.openFile {
@@ -87,7 +113,8 @@ struct SessionsScreen: View {
     }
 
     /// Conductor's keys, so the hands keep working (design section 6): ⌘N new session, ⌘T new chat, ⌘W close chat,
-    /// ⌘1-9 and ⌘⌥↑↓ sessions, ⌘⌥L next chat needing you, ⌘O open in the editor, ⌘⇧A archive, ⌘⇧D changes.
+    /// ⌘1-9 and ⌘⌥↑↓ sessions, ⌘⌥L next chat needing you, ⌘O open in the editor, ⌘⇧A archive, ⌘⇧D changes,
+    /// ⌘⇧S the sessions list.
     private var shortcuts: some View {
         ZStack {
             Button("") { sessions.composing = true }.keyboardShortcut("n", modifiers: .command)
@@ -98,8 +125,9 @@ struct SessionsScreen: View {
             Button("") { if let s = sessions.current, let c = sessions.activeChat(of: s) { sessions.close(c) } }
                 .keyboardShortcut("w", modifiers: .command)
             Button("") { if let s = sessions.current { sessions.openInEditor(s) } }.keyboardShortcut("o", modifiers: .command)
-            Button("") { if let s = sessions.current { sessions.archive(s) } }.keyboardShortcut("a", modifiers: [.command, .shift])
+            Button("") { if let s = sessions.current { sessions.requestArchive(s) } }.keyboardShortcut("a", modifiers: [.command, .shift])
             Button("") { sessions.showChanges.toggle() }.keyboardShortcut("d", modifiers: [.command, .shift])
+            Button("") { sessions.showSessions.toggle() }.keyboardShortcut("s", modifiers: [.command, .shift])
             ForEach(1..<10) { n in
                 Button("") { if list.indices.contains(n - 1) { sessions.open(list[n - 1]) } }
                     .keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)

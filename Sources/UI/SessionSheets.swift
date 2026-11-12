@@ -6,6 +6,7 @@ struct SessionSheet<Content: View, Buttons: View>: View {
     let title: String
     let lead: String
     let close: () -> Void
+    var width: CGFloat = 640
     @ViewBuilder var content: Content
     @ViewBuilder var buttons: Buttons
 
@@ -24,7 +25,7 @@ struct SessionSheet<Content: View, Buttons: View>: View {
                 .padding(.top, 20)
             }
             .padding(24)
-            .frame(width: 640)
+            .frame(width: width)
             .background(RoundedRectangle(cornerRadius: Theme.rXl).fill(Theme.bg))
             .overlay(RoundedRectangle(cornerRadius: Theme.rXl).stroke(Theme.border))
             .shadow(color: .black.opacity(0.5), radius: 30)

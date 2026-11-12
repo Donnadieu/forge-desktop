@@ -5,6 +5,8 @@ import SwiftUI
 struct TopBar<Right: View>: View {
     /// The mono word after the wordmark ("SETUP", "ORCHESTRATOR").
     let suffix: String
+    /// Sits after the workspace chip (the Sessions screen's sessions-list toggle).
+    var leading: AnyView? = nil
     @ViewBuilder var right: () -> Right
     /// The workspace chip shows when the app's model is around (always, except in checks that draw a bar alone).
     @Environment(\.forgeModel) private var model
@@ -15,6 +17,7 @@ struct TopBar<Right: View>: View {
                 AnvilMark().sized(32)
                 Text(AppInfo.name).font(Theme.display(20)).foregroundStyle(Theme.text).fixedSize()
                 if let model { WorkspaceChip(model: model).padding(.leading, 8) }
+                if let leading { leading }
                 if let model, ScreenSwitch.screens.contains(suffix) {
                     ScreenSwitch(model: model, shown: suffix).padding(.leading, 8)
                 } else {

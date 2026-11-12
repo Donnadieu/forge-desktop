@@ -254,6 +254,7 @@ enum Checks {
         workspaceSetupChecks(check)
         terminalChecks(check)
         composerKeyChecks(check)
+        questionChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

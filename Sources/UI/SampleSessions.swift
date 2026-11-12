@@ -29,10 +29,10 @@ enum SampleSessions {
                 chats: [chat("c1", "s1", "Build", state: "working"), chat("c1r", "s1", "Chat 2")]),
             session(
                 "s4", "AIT-3 Reject an order when the balance is too low", repo: "AI Trading Bot", branch: "forge/AIT-3", status: "working",
-                origin: "card", chats: [chat("c4", "s4", "AIT-3", state: "working", context: 240_000)]),
+                origin: "card", chats: [chat("s4-chat", "s4", "AIT-3", state: "working", context: 240_000)]),
             session(
                 "s5", "AIT-5 Add a stop-loss to the momentum strategy", repo: "AI Trading Bot", branch: "forge/AIT-5", status: "working",
-                origin: "card", chats: [chat("c5", "s5", "AIT-5", state: "working")]),
+                origin: "card", chats: [chat("s5-chat", "s5", "AIT-5", state: "working")]),
             session(
                 "s3", "Reconnect Telegram after sleep", repo: "Donnadieu/one", branch: "donnadieu/telegram-reconnect", status: "review", pr: 318,
                 chats: [chat("c3", "s3", "Chat", context: 270_000)]),
@@ -112,13 +112,13 @@ enum SampleSessions {
 
     static var cardTurn: Sessions.Turn {
         turn(
-            "t4", "c4", "Work AIT-3: reject an order when the balance is too low.", status: "working",
+            "t4", "s4-chat", "Work AIT-3: reject an order when the balance is too low.", status: "working",
             events: [
-                event("k1", "t4", "c4", "tool", "Found where orders are placed: orders/place.py", name: "Grep"),
-                event("k2", "t4", "c4", "tool", "Sent a helper: write the tests for low balances", name: "Task"),
-                event("k3", "t4", "c4", "user", "Use the existing InsufficientFunds error, don't add a new one.", name: "steered"),
-                event("k4", "t4", "c4", "text", "Using `InsufficientFunds` from `orders/errors.py`. The check goes before the broker call."),
-                event("k5", "t4", "c4", "tool", "Editing orders/validate.py", name: "Edit"),
+                event("k1", "t4", "s4-chat", "tool", "Found where orders are placed: orders/place.py", name: "Grep"),
+                event("k2", "t4", "s4-chat", "tool", "Sent a helper: write the tests for low balances", name: "Task"),
+                event("k3", "t4", "s4-chat", "user", "Use the existing InsufficientFunds error, don't add a new one.", name: "steered"),
+                event("k4", "t4", "s4-chat", "text", "Using `InsufficientFunds` from `orders/errors.py`. The check goes before the broker call."),
+                event("k5", "t4", "s4-chat", "tool", "Editing orders/validate.py", name: "Edit"),
             ], files: 2)
     }
 
@@ -128,23 +128,24 @@ enum SampleSessions {
         let t = "t4"
         let dir = "cd \"/Users/donnadieu/Library/Application Support/Forge/projects/linear-48f9b12f_40b5296c6411/workspaces/ATC-1742\""
         let mine = event(
-            "s0", t, "c4", "user", "Why do we have 17961 files changed?", name: "steered", data: .object(["delivery": .string(delivery)]))
+            "s0", t, "s4-chat", "user", "Why do we have 17961 files changed?", name: "steered", data: .object(["delivery": .string(delivery)]))
         let before: [Sessions.Event] = [
-            event("s1", t, "c4", "tool", "Ran \(dir)/backend && grep -rn \"mount Sourcing\" app/api", name: "Bash"),
-            event("s2", t, "c4", "thinking", "Sourcing::List gets mounted straight under the api namespace, so its own prefix decides the path."),
-            event("s3", t, "c4", "tool", "Read talents/recommendations/retrieve.rb", name: "Read"),
+            event("s1", t, "s4-chat", "tool", "Ran \(dir)/backend && grep -rn \"mount Sourcing\" app/api", name: "Bash"),
+            event(
+                "s2", t, "s4-chat", "thinking", "Sourcing::List gets mounted straight under the api namespace, so its own prefix decides the path."),
+            event("s3", t, "s4-chat", "tool", "Read talents/recommendations/retrieve.rb", name: "Read"),
         ]
         let after: [Sessions.Event] = [
             event(
-                "s4", t, "c4", "thinking",
+                "s4", t, "s4-chat", "thinking",
                 "The 17961 changed files are most likely coming from the vendored bundle I installed to `backend/vendor/bundle`."),
-            event("s5", t, "c4", "text", "Good catch — let me check what's going on."),
-            event("s6", t, "c4", "tool", "Ran \(dir) && git status --short | wc -l", name: "Bash"),
-            event("s7", t, "c4", "thinking", "Git status is showing only 30 lines, so the 17,961 figure doesn't match what's actually changed."),
-            event("s8", t, "c4", "tool", "Ran \(dir) && git check-ignore -v backend/vendor/bundle", name: "Bash"),
+            event("s5", t, "s4-chat", "text", "Good catch — let me check what's going on."),
+            event("s6", t, "s4-chat", "tool", "Ran \(dir) && git status --short | wc -l", name: "Bash"),
+            event("s7", t, "s4-chat", "thinking", "Git status is showing only 30 lines, so the 17,961 figure doesn't match what's actually changed."),
+            event("s8", t, "s4-chat", "tool", "Ran \(dir) && git check-ignore -v backend/vendor/bundle", name: "Bash"),
         ]
         return turn(
-            t, "c4", "You are working on a Linear ticket `ATC-1742`.", status: "working",
+            t, "s4-chat", "You are working on a Linear ticket `ATC-1742`.", status: "working",
             events: Array(before.prefix(1)) + (steer ? [mine] : []) + before.dropFirst() + after)
     }
 
@@ -178,28 +179,31 @@ enum SampleSessions {
 
     static var promptTurn: Sessions.Turn {
         turn(
-            "t4p", "c4", cardPrompt, status: "working",
+            "t4p", "s4-chat", cardPrompt, status: "working",
             events: [
-                event("p1", "t4p", "c4", "thinking", "Hardening mode. The card names 9 guardrails; that's the scope. Map the repo first."),
+                event("p1", "t4p", "s4-chat", "thinking", "Hardening mode. The card names 9 guardrails; that's the scope. Map the repo first."),
                 event(
-                    "p2", "t4p", "c4", "text", "Hardening mode. The card names 9 specific guardrails — that's the scope. Let me map the repo first."),
+                    "p2", "t4p", "s4-chat", "text",
+                    "Hardening mode. The card names 9 specific guardrails — that's the scope. Let me map the repo first."),
                 event(
-                    "p3", "t4p", "c4", "tool", "Ran Map repo structure", name: "Bash", data: .object(["command": .string("ls -la && cat Gemfile")])),
+                    "p3", "t4p", "s4-chat", "tool", "Ran Map repo structure", name: "Bash",
+                    data: .object(["command": .string("ls -la && cat Gemfile")])),
                 result(
-                    "p3r", "t4p", "c4", "p3",
+                    "p3r", "t4p", "s4-chat", "p3",
                     "total 96\ndrwxr-xr-x  24 omar  staff   768 Nov 11 app\n-rw-r--r--   1 omar  staff  2210 Nov 11 Gemfile\nsource \"https://rubygems.org\"\ngem \"rails\", \"~> 8.1\""
                 ),
-                event("p4", "t4p", "c4", "thinking", ""),
-                event("p5", "t4p", "c4", "tool", "Read config/ci.rb", name: "Read", data: .object(["file_path": .string("config/ci.rb")])),
+                event("p4", "t4p", "s4-chat", "thinking", ""),
+                event("p5", "t4p", "s4-chat", "tool", "Read config/ci.rb", name: "Read", data: .object(["file_path": .string("config/ci.rb")])),
                 event(
-                    "p6", "t4p", "c4", "tool", "Edited .github/workflows/ci.yml  +2 −1", name: "Edit",
+                    "p6", "t4p", "s4-chat", "tool", "Edited .github/workflows/ci.yml  +2 −1", name: "Edit",
                     data: .object([
                         "file_path": .string(".github/workflows/ci.yml"), "old_string": .string("      - run: bin/rails test"),
                         "new_string": .string("      - run: bin/rubocop --parallel\n      - run: bin/rails test"),
                     ])),
-                event("p6b", "t4p", "c4", "tool", "Ran Run rubocop and brakeman", name: "Bash", data: .object(["command": .string("bin/rubocop")])),
-                result("p6c", "t4p", "c4", "p6b", "bin/rubocop: No such file or directory", error: true),
-                event("p7", "t4p", "c4", "text", "Gems aren't installed in this fresh workspace. Installing them first."),
+                event(
+                    "p6b", "t4p", "s4-chat", "tool", "Ran Run rubocop and brakeman", name: "Bash", data: .object(["command": .string("bin/rubocop")])),
+                result("p6c", "t4p", "s4-chat", "p6b", "bin/rubocop: No such file or directory", error: true),
+                event("p7", "t4p", "s4-chat", "text", "Gems aren't installed in this fresh workspace. Installing them first."),
             ], files: 1)
     }
 
@@ -209,8 +213,8 @@ enum SampleSessions {
         m.connected = true
         m.setTranscript(Transcript(chatID: "c1", turns: [buildTurn]))
         m.setTranscript(Transcript(chatID: "c2", turns: [questionTurn]))
-        m.setTranscript(Transcript(chatID: "c4", turns: [cardTurn]))
-        m.cardTargets = ["s4": CardTarget(project: "p1", card: "c3"), "s5": CardTarget(project: "p1", card: "c5")]
+        m.setTranscript(Transcript(chatID: "s4-chat", turns: [cardTurn]))
+        m.cardTargets = ["s4": CardTarget(project: "p1", card: "c3"), "s5": CardTarget(project: "p1", card: "s5-chat")]
         m.changes["s1"] = [
             .init(path: "Sources/UI/SessionsScreen.swift", added: 184, removed: 0, status: "A"),
             .init(path: "Sources/UI/SessionList.swift", added: 96, removed: 0, status: "A"),
@@ -262,10 +266,10 @@ enum SampleSessions {
         var card = session(
             "card-atc-1742", "ATC-1742 Serve Directory → Talent from cached talent rows", repo: "andela-technology/andela",
             branch: "serve-directory-talent-from-cached-talent-rows-atc-1742", status: "working", origin: "card",
-            chats: [chat("catc", "card-atc-1742", "ATC-1742", state: "working")])
+            chats: [chat("card-atc-1742-chat", "card-atc-1742", "ATC-1742", state: "working")])
         var per = session(
             "card-per-32", "PER-32 Get Donnadieu/intake-workspace ready for agents", repo: "Donnadieu/intake-workspace",
-            branch: "per-32-get-intake-workspace-ready", status: "idle", origin: "card", chats: [chat("cper", "card-per-32", "PER-32")])
+            branch: "per-32-get-intake-workspace-ready", status: "idle", origin: "card", chats: [chat("card-per-32-chat", "card-per-32", "PER-32")])
         (card.workspaceId, per.workspaceId) = (first, intake.id)
         m.sessions.sessions = [card, per]
         m.sessions.changes[card.id] = [.init(path: "app/models/talent.rb", added: 42, removed: 7, status: "M")]
@@ -294,7 +298,7 @@ enum SampleSessions {
                 m.sessions[i].chats[0].title = "ATC-1742"
             }
             let turn = steerTurn(steer: scene != "sessions-steer-before", delivery: scene == "sessions-steer-sending" ? "sending" : "delivered")
-            m.setTranscript(Transcript(chatID: "c4", turns: [turn]))
+            m.setTranscript(Transcript(chatID: "s4-chat", turns: [turn]))
         case "sessions-queued":
             // A chat of your own: a steer the agent hasn't read yet, and a message queued for after this turn.
             m.selected = "s1"
@@ -338,11 +342,12 @@ enum SampleSessions {
                 m.sessions[i].chats[0].title = "ATC-1742"
             }
             let write = event(
-                "rv1", "t5", "c4", "tool", "Wrote \(SampleReview.reviewPath)", name: "Write",
+                "rv1", "t5", "s4-chat", "tool", "Wrote \(SampleReview.reviewPath)", name: "Write",
                 data: .object(["file_path": .string(SampleReview.reviewPath), "content": .string(SampleReview.review)]))
             let t = turn(
-                "t5", "c4", "Run the nuclear review.", status: "done", events: [write, event("rv2", "t5", "c4", "text", SampleReview.summary)])
-            m.setTranscript(Transcript(chatID: "c4", turns: [t]))
+                "t5", "s4-chat", "Run the nuclear review.", status: "done",
+                events: [write, event("rv2", "t5", "s4-chat", "text", SampleReview.summary)])
+            m.setTranscript(Transcript(chatID: "s4-chat", turns: [t]))
         case "sessions-file-markdown", "sessions-file-diff", "sessions-file-missing":
             // A click on one of the summary's paths: the review rendered, the saved diff coloured, or a gone file.
             SampleSessions.scene(m, "sessions-review-summary")
@@ -358,7 +363,7 @@ enum SampleSessions {
             if let i = m.sessions.firstIndex(where: { $0.id == "s4" }) {
                 m.sessions[i].branch = "donnadieu86/per-32-get-donnadieuintake-workspace-ready-for-agents"
             }
-            m.setTranscript(Transcript(chatID: "c4", turns: [promptTurn]))
+            m.setTranscript(Transcript(chatID: "s4-chat", turns: [promptTurn]))
             ToolRow.openInRender = ["p3", "p6", "p6b"]
         case "sessions-split":
             m.selected = "s2"

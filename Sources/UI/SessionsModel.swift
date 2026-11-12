@@ -114,6 +114,10 @@ final class SessionsModel: ObservableObject {
     @Published var texts: [String: [PastedText]] = [:]
     /// Checks see each message sent (chat, text, queued, attachments) here.
     var onSend: ((Sessions.Chat, String, Bool, [PastedText]) -> Void)?
+    /// Options picked so far on a question card that asks several questions, per event: question to label.
+    @Published var questionPicks: [String: [String: String]] = [:]
+    /// Checks see each chat action (stop, answer with its answers, retry) and its chat here.
+    var onAction: ((String, String, [String: String]) -> Void)?
     /// Each workspace's setup for the host, told on every connect before anything else (the host keeps it in memory).
     var setups: (() -> [String: [String: Any]])?
     @Published var pickerOpen = false
@@ -162,6 +166,9 @@ final class SessionsModel: ObservableObject {
     }
 
     func setTranscript(_ t: Transcript) { transcripts[t.chatID] = t }
+
+    /// A chat's transcript when it's loaded already (nil: never opened).
+    func loadedTranscript(_ chatID: String) -> Transcript? { transcripts[chatID] }
 
     // MARK: connection
 
@@ -241,29 +248,6 @@ final class SessionsModel: ObservableObject {
         }
     }
 
-    func send(_ chat: Sessions.Chat, text: String, queue: Bool) {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pics = images[chat.id] ?? []
-        let pasted = cardTargets[chat.sessionId] == nil ? texts[chat.id] ?? [] : []
-        guard !t.isEmpty || !pics.isEmpty || !pasted.isEmpty, isHere(chat) else { return }
-        drafts[chat.id] = ""
-        sent[chat.id, default: 0] += 1
-        onSend?(chat, t, queue, pasted)
-        if let target = cardTargets[chat.sessionId] {
-            guard !t.isEmpty else { return }
-            Task {
-                if let problem = await steerCard?(target.project, target.card, t) {
-                    self.problem = problem
-                    drafts[chat.id] = t
-                }
-            }
-            return
-        }
-        images[chat.id] = nil
-        texts[chat.id] = nil
-        act { try await $0.send(chat: chat.id, text: t, queue: queue, images: pics.map(\.body), texts: pasted.map(\.body)) }
-    }
-
     /// Adds pictures to a chat's message box.
     func attach(_ pics: [PastedImage], to chat: Sessions.Chat) {
         guard !pics.isEmpty else { return }
@@ -279,12 +263,16 @@ final class SessionsModel: ObservableObject {
 
     func stop(_ chat: Sessions.Chat) {
         guard isHere(chat) else { return }
+        onAction?(chat.id, "stop", [:])
         act { try await $0.stop(chat: chat.id) }
     }
 
-    func answer(_ chat: Sessions.Chat, _ e: Sessions.Event, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil) {
+    func answer(
+        _ chat: Sessions.Chat, _ e: Sessions.Event, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil, typed: String? = nil
+    ) {
         guard isHere(chat) else { return }
-        act { try await $0.answer(chat: chat.id, event: e.id, allow: allow, answers: answers, feedback: feedback) }
+        onAction?(chat.id, "answer", answers ?? [:])
+        act { try await $0.answer(chat: chat.id, event: e.id, allow: allow, answers: answers, feedback: feedback, typed: typed) }
     }
 
     func set(_ chat: Sessions.Chat, model: String? = nil, effort: String? = nil, planMode: Bool? = nil, ask: Bool? = nil) {

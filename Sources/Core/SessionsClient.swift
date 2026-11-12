@@ -96,11 +96,19 @@ struct SessionsClient: Sendable {
 
     func stop(chat: String) async throws { try await call("/api/v1/chats/\(chat)/stop", method: "POST", body: [:]) }
 
-    func answer(chat: String, event: String, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil) async throws {
+    func answer(
+        chat: String, event: String, allow: Bool, answers: [String: String]? = nil, feedback: String? = nil, typed: String? = nil
+    ) async throws {
         var b: [String: Any] = ["eventId": event, "allow": allow]
         if let answers { b["answers"] = answers }
         if let feedback { b["feedback"] = feedback }
+        if let typed { b["typed"] = typed }
         try await call("/api/v1/chats/\(chat)/answer", method: "POST", body: b)
+    }
+
+    /// Sends a message that said Not delivered again.
+    func retry(chat: String, event: String) async throws {
+        try await call("/api/v1/chats/\(chat)/retry", method: "POST", body: ["eventId": event])
     }
 
     func settings(chat: String, _ b: [String: Any]) async throws {

@@ -95,7 +95,41 @@ enum SessionsCheck {
         let files = try? await client.changes(session: s.id)
         ok("the changes read back (none yet)", files?.isEmpty == true)
         await setupCheck(client, local: local, scratch: scratch, ok)
+        await questionCheck(client, local: local, frames: frames, ok)
         return failed == 0 ? 0 : 1
+    }
+
+    /// The agent's question through the real host (Omar's ATC-1742 Chat 2, Nov 12): a message sent from the box while
+    /// it waits is its answer, and Stop ends a turn whose question waits.
+    private static func questionCheck(_ client: SessionsClient, local: URL, frames: Frames, _ ok: (String, Bool) -> Void) async {
+        func asked(_ chat: String, times: Int = 1) async -> Bool {
+            for _ in 0..<50 {
+                if Set(frames.events.filter { $0.chatId == chat && $0.kind == "question" }.map(\.id)).count >= times { return true }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            return false
+        }
+        func last(_ chat: String) async -> Sessions.Turn? { (try? await client.turns(chat: chat))?.turns.last }
+        let s = try? await client.create([
+            "workspaceId": "ws-check", "repo": "acme/check", "local": local.path, "base": "main", "prefix": "sam",
+            "message": "ask me", "model": "haiku", "effort": "low",
+        ])
+        guard let chat = s?.chats.first?.id, await asked(chat) else { return ok("the agent asks its question", false) }
+        try? await client.send(chat: chat, text: "blue", queue: false)
+        for _ in 0..<30 where await last(chat)?.status != "done" { try? await Task.sleep(nanoseconds: 100_000_000) }
+        let t = await last(chat)
+        ok(
+            "a message sent while the question waits arrives as its answer",
+            t?.status == "done" && t?.events.last?.text == "answered: Which colour?=blue; Which size?=blue")
+        let q = t?.events.first { $0.kind == "question" }
+        ok(
+            "the question shows it as his answer, not a stuck steer",
+            q?.data?["typed"]?.string == "blue" && t?.events.contains { $0.name == "steered" } == false)
+        try? await client.send(chat: chat, text: "ask me", queue: false)
+        guard await asked(chat, times: 2) else { return ok("the agent asks again", false) }
+        try? await client.stop(chat: chat)
+        for _ in 0..<30 where await last(chat)?.status == "working" { try? await Task.sleep(nanoseconds: 100_000_000) }
+        ok("Stop ends a turn whose question waits", await last(chat)?.status == "stopped")
     }
 
     /// Workspace setup through the real host: the app's payload, a git-ignored file copied in, the setup script run

@@ -15,7 +15,7 @@
  *   POST /api/v1/sessions/<id>/rename            {branch}: renames the branch here and on GitHub
  *   GET  /api/v1/chats/<id>/turns?before=&limit= turns with their events, newest last
  *   POST /api/v1/chats/<id>/messages             {text, mode: steer | queue, images: [{mediaType, data}]}
- *   POST /api/v1/chats/<id>/stop | answer | settings (model, effort, title, planMode, askBeforeChanges, hidden) | revert
+ *   POST /api/v1/chats/<id>/stop | answer | retry {eventId} | settings (model, effort, title, planMode, askBeforeChanges, hidden) | revert
  *   POST /api/v1/cards/watch                     {cards: [...]}: the cards running now, followed as card sessions
  *   GET  /api/v1/conductor                       what an import from Conductor would bring; ?repo=owner/name: that repo only
  *   POST /api/v1/conductor/import                {ids: [Conductor workspace id], workspace}
@@ -222,7 +222,13 @@ export async function startSessionsApi(deps: {
             allow: b.allow !== false,
             answers: b.answers as Record<string, string> | undefined,
             feedback: s(b.feedback) || undefined,
+            typed: s(b.typed) || undefined,
           });
+          return jsonResponse(res, r.ok ? 200 : 409, r);
+        }
+        case "retry": {
+          const b = await body(req);
+          const r = await h.chats.retry(id, s(b.eventId));
           return jsonResponse(res, r.ok ? 200 : 409, r);
         }
         case "settings": {

@@ -19,13 +19,13 @@ extension Checks {
         var card = SampleSessions.session(
             cardID, "ATC-1742 Serve Directory → Talent from cached talent rows", repo: "andela-technology/andela",
             branch: "serve-directory-talent-from-cached-talent-rows-atc-1742", status: "working", origin: "card",
-            chats: [SampleSessions.chat("ca", cardID, "ATC-1742", state: "working")])
+            chats: [SampleSessions.chat("\(cardID)-chat", cardID, "ATC-1742", state: "working")])
         var waiting = SampleSessions.session(
             "a2", "Andela question", repo: "andela-technology/andela", branch: "omar/question", status: "needs_you",
             chats: [SampleSessions.chat("cq", "a2", "Chat", state: "needs_you")])
         var intake = SampleSessions.session(
             "i1", "PER-32 Get the intake repo ready", repo: "Donnadieu/intake-workspace", branch: "per-32", status: "idle",
-            origin: "card", chats: [SampleSessions.chat("ci", "i1", "PER-32")])
+            origin: "card", chats: [SampleSessions.chat("i1-chat", "i1", "PER-32")])
         (card.workspaceId, waiting.workspaceId, intake.workspaceId) = (a, a, b)
         s.sessions = [card, waiting, intake]
         s.cardTargets = [cardID: CardTarget(project: project, card: "atc-1742")]

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The agent asked a multiple-choice question: each option is a button; the answer goes back to it.
+/// The agent asked a multiple-choice question: each option is a button; the answer goes back to it. With several
+/// questions, each pick waits until every question has one. A message typed in the box answers it too.
 struct QuestionCard: View {
     @ObservedObject var sessions: SessionsModel
     let chat: Sessions.Chat
@@ -8,18 +9,33 @@ struct QuestionCard: View {
 
     private var questions: [JSONValue] { event.data?["input"]?["questions"]?.array ?? [] }
     private var answered: Bool { event.data?["answered"]?.bool == true }
+    private var stopped: Bool { event.data?["stopped"]?.bool == true }
+
+    /// The words of each question an AskUserQuestion event asks, in order.
+    static func questions(of e: Sessions.Event) -> [String] {
+        (e.data?["input"]?["questions"]?.array ?? []).compactMap { $0["question"]?.string }
+    }
+
+    private func chosen(_ question: String) -> String? {
+        answered ? event.data?["answers"]?[question]?.string : sessions.questionPicks[event.id]?[question]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(questions.enumerated()), id: \.offset) { _, q in
                 let question = q["question"]?.string ?? ""
+                let options = q["options"]?.array ?? []
                 Text(question).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(q["options"]?.array.enumerated() ?? [].enumerated()), id: \.offset) { _, o in
+                    ForEach(Array(options.enumerated()), id: \.offset) { _, o in
                         let label = o["label"]?.string ?? ""
-                        let chosen = event.data?["answers"]?[question]?.string == label
+                        let chosen = chosen(question) == label
                         Button {
-                            sessions.answer(chat, event, allow: true, answers: [question: label])
+                            if questions.count > 1 {
+                                sessions.pick(chat, event, question: question, label: label)
+                            } else {
+                                sessions.answer(chat, event, allow: true, answers: [question: label])
+                            }
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(label).font(Theme.sans(13, .medium))
@@ -33,9 +49,21 @@ struct QuestionCard: View {
                         .buttonStyle(.plain)
                         .disabled(answered)
                     }
+                    // His own words, typed in the box, show as his answer.
+                    if answered, let own = chosen(question), !options.contains(where: { $0["label"]?.string == own }) {
+                        Text("Your answer: \(own)").font(Theme.sans(12)).foregroundStyle(Theme.text).textSelection(.enabled)
+                    }
                 }
             }
-            if !answered { Text("Or write your own answer below and send it.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted) }
+            if stopped {
+                Text("Stopped before it was answered.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+            } else if !answered {
+                Text(
+                    questions.count > 1
+                        ? "Pick one for each question, or write your own answer below and send it." : "Or write your own answer below and send it."
+                )
+                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+            }
         }
         .padding(14)
         .panel(live: !answered)

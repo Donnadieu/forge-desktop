@@ -16,8 +16,9 @@ struct ChatColumn: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            let handsOn = sessions.cardTargets[session.id]?.handsOn == true
-            if session.origin == "card", chat?.working == true || handsOn {
+            let handsOn = chat.flatMap(sessions.card(of:))?.handsOn == true
+            // Only the card's own chat steers the card; another chat in its session ("Chat 2") has its own agent.
+            if let chat, SessionsModel.isCardsOwn(chat, in: session), chat.working || handsOn {
                 HStack(spacing: 8) {
                     PulseDot(color: Theme.heat, pulsing: !handsOn, size: 6)
                     Text(

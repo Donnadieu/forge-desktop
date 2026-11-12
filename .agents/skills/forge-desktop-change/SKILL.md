@@ -237,6 +237,20 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `bypassPermissions`; answer a question with `updatedInput.answers` = {question: label}. Approving a plan switches the
   session to `default`, so set the permission mode back or the next Bash call asks.
 - Test chats with `engine/test/fixtures/sessions/fake-claude.mjs` (`FORGE_CLAUDE_COMMAND`), never a real `claude`.
+- While a `can_use_tool` request (AskUserQuestion, a plan, a permission) waits, Claude Code 2.1.322 reads no message
+  written to its stdin: it queues it (`queue-operation enqueue`) and echoes nothing until the request is answered, so a
+  steer said "Sending…" forever (Omar's ATC-1742 Chat 2, Nov 12). A message typed then is the answer (`chats.ts`
+  `answerWith`). An interrupt does cancel the open request (`control_cancel_request`, then the result), but any message
+  still queued then runs as a turn of its own right away, so Stop with unread messages closes the agent instead. A
+  steer is only read when a step ends: a 5-minute tool call is normal, so "Not delivered" fires only when the agent is
+  silent AND runs no tool for 10 s. `fake-claude.mjs` acts all of this out ("ask me", "ask me and hang", "think slowly").
+- A card session can hold chats of the person's own ("Chat 2", Review): only the card's own chat (`<session>-chat`)
+  steers the card and takes its wheel. Route by chat (`SessionsModel.card(of:)`, `isCardsOwn`), never by
+  `cardTargets[session]` or `origin == "card"`: that sent Chat 2's messages and Stop to the card's agent.
+- A selftest clicks a SwiftUI `Button` by finding its words with Vision (`Checks.placeOf`, `boundingBox(for:)` on the
+  recognized line) and sending mouseDown, then the queued mouseUp (`NSApp.nextEvent(matching: .leftMouseUp, …)`):
+  only something that tracks the press takes the release from the queue itself; a button needs it sent
+  (`Checks.clickWords`).
 - Confirmed anyway, live, against the real `claude` CLI bypassing the orchestrator (`ClaudeCodeAdapter.startSession`
   + `streamEvents` called directly, no board): steer mid-turn genuinely lands in the SAME turn (told it to work a
   word into its reply while a Bash `sleep` tool call was still running; the final text had it, on both Node 22 and

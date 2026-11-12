@@ -108,7 +108,7 @@ struct TurnView: View {
                 switch e.kind {
                 case "user":
                     if e.name == "steered" {
-                        SteerBubble(text: e.text, delivery: e.delivery)
+                        SteerBubble(text: e.text, delivery: e.delivery, retry: e.delivery == "failed" ? { sessions.retry(chat, e) } : nil)
                     } else {
                         UserBubble(text: e.text, unfold: sessions.session(of: chat)?.origin == "card" ? "Show full prompt" : "Show full message") {
                             revertButton
@@ -216,15 +216,21 @@ struct UserBubble<Revert: View>: View {
 
 struct SteerBubble: View {
     let text: String
-    /// "sending" until the agent has read it, then "delivered" (nil: an older steer, no state shown).
+    /// "sending" until the agent has read it, then "delivered"; "failed" when the agent couldn't read it in time (nil:
+    /// an older steer, no state shown).
     var delivery: String? = nil
     var label = "You · steered"
+    /// Sends a message that said Not delivered again.
+    var retry: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
             HStack(spacing: 6) {
                 SectionLabel(text: label)
-                if let delivery {
+                if delivery == "failed" {
+                    Text("Not delivered").font(Theme.sans(11, .medium)).foregroundStyle(Theme.heat)
+                    if let retry { Button("Retry", action: retry).buttonStyle(ForgeButton(kind: .secondary)) }
+                } else if let delivery {
                     Text(delivery == "delivered" ? "Delivered" : "Sending…").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
                 }
             }

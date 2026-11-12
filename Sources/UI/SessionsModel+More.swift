@@ -96,8 +96,19 @@ struct CardTarget: Equatable {
 
 extension SessionsModel {
     /// Stop on a card's session: the turn ends and the run waits for the person (true), or Hand back to Forge (false).
+    /// A card session's own chat follows the card's agent; any other chat in it ("Chat 2") is the person's own, with
+    /// an agent of its own that its messages and Stop go to.
+    static func isCardsOwn(_ chat: Sessions.Chat, in session: Sessions.Session?) -> Bool {
+        session?.origin == "card" && chat.id == "\(chat.sessionId)-chat"
+    }
+
+    /// The card a chat's messages and Stop go to: only for the card session's own chat.
+    func card(of chat: Sessions.Chat) -> CardTarget? {
+        Self.isCardsOwn(chat, in: session(of: chat)) ? cardTargets[chat.sessionId] : nil
+    }
+
     func wheel(_ chat: Sessions.Chat, take: Bool) {
-        guard let t = cardTargets[chat.sessionId], isHere(chat) else { return }
+        guard let t = card(of: chat), isHere(chat) else { return }
         cardTargets[chat.sessionId]?.handsOn = take
         Task {
             if let problem = await cardWheel?(t.project, t.card, take) {

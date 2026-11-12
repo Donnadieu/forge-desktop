@@ -98,9 +98,13 @@ struct Composer: View {
     /// The Skills list (from its button, or the + menu in the narrowest boxes).
     @State private var skillsOpen = false
 
+    /// The card session's own chat steers the card; any other chat in it ("Chat 2") is a chat like any other.
+    private var cardsOwn: Bool { SessionsModel.isCardsOwn(chat, in: session) }
+
     private var placeholder: String {
-        let who = session.origin == "card" ? "Steer \(session.title.split(separator: " ").first ?? "")…" : "Message the agent…"
-        return who + (chat.working && session.origin != "card" ? "  Enter steers · ⌥Enter queues" : "")
+        if !cardsOwn, sessions.waitingQuestion(chat) != nil { return "Write your own answer…" }
+        let who = cardsOwn ? "Steer \(session.title.split(separator: " ").first ?? "")…" : "Message the agent…"
+        return who + (chat.working && !cardsOwn ? "  Enter steers · ⌥Enter queues" : "")
     }
 
     /// The skills list is open while the message starts with "/" and has no space yet.
@@ -164,21 +168,21 @@ struct Composer: View {
         )
         .background(Button("", action: paste).keyboardShortcut("v", modifiers: .command).opacity(0).allowsHitTesting(false))
         .background(
-            Button("") { if focused, session.origin != "card" { sessions.set(chat, planMode: !chat.planMode) } }
+            Button("") { if focused, !cardsOwn { sessions.set(chat, planMode: !chat.planMode) } }
                 .keyboardShortcut(.tab, modifiers: .shift).opacity(0).allowsHitTesting(false)
         )
         .onDrop(of: [.fileURL, .image], isTargeted: nil) { providers in drop(providers) }
     }
 
     private func wheelWords(short: Bool) -> String {
-        let hands = sessions.cardTargets[session.id]?.handsOn == true
+        let hands = sessions.card(of: chat)?.handsOn == true
         if short { return hands ? "Your wheel" : "Steering" }
         return hands ? "You have the wheel" : "Steering the card's agent"
     }
 
     private func controls(short: Bool, skillsButton: Bool = true) -> some View {
         HStack(spacing: 8) {
-            if session.origin != "card" {
+            if !cardsOwn {
                 Menu {
                     Button("Pull PR review comments") { sessions.pullReviewComments(session) }.disabled(session.prNumber == nil)
                     Button("Attach a picture…") { pickPictures() }
@@ -197,18 +201,18 @@ struct Composer: View {
                 Pill(text: wheelWords(short: short), tone: .ghost)
             }
             // The narrowest boxes (two chats side by side) keep Skills in the + menu instead.
-            if skillsButton || session.origin == "card" { SkillsButton(open: $skillsOpen).fixedSize() }
+            if skillsButton || cardsOwn { SkillsButton(open: $skillsOpen).fixedSize() }
             if chat.planMode { Pill(text: "Plan mode", tone: .info) }
             if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
             Spacer(minLength: 8)
-            if session.origin != "card" {
+            if !cardsOwn {
                 ModelChip(model: chat.model, effort: chat.effort, short: short) { m, e in
                     sessions.set(chat, model: m != chat.model ? m : nil, effort: e != chat.effort ? e : nil)
                 }
                 .fixedSize()
             }
             ContextMeter(percent: chat.contextPercent, short: short).fixedSize()
-            if let card = sessions.cardTargets[session.id] {
+            if let card = sessions.card(of: chat) {
                 if card.handsOn {
                     Button("Hand back to Forge") { sessions.wheel(chat, take: false) }
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.forward", large: true))
@@ -220,7 +224,7 @@ struct Composer: View {
                         .help("Ends the agent's turn now; it waits for your messages until you hand it back")
                 }
             }
-            if chat.working, session.origin != "card" {
+            if chat.working, !cardsOwn {
                 Button("Stop") { sessions.stop(chat) }
                     .buttonStyle(ForgeButton(kind: .secondary, icon: "stop.fill", large: true))
                     .keyboardShortcut(.delete, modifiers: [.command, .shift])
@@ -241,7 +245,7 @@ struct Composer: View {
     private func paste() {
         let board = Self.pasteboard
         let string = board.string(forType: .string)
-        let mine = focused && session.origin != "card"
+        let mine = focused && !cardsOwn
         if mine, let string, string.count > Self.longPaste { return sessions.attachText(string, to: chat) }
         let pics = mine ? MessageImages.fromPasteboard(board) : []
         if !pics.isEmpty, string == nil {
@@ -263,7 +267,7 @@ struct Composer: View {
     }
 
     private func drop(_ providers: [NSItemProvider]) -> Bool {
-        guard session.origin != "card" else { return false }
+        guard !cardsOwn else { return false }
         for p in providers where p.canLoadObject(ofClass: URL.self) {
             _ = p.loadObject(ofClass: URL.self) { url, _ in
                 guard let url else { return }

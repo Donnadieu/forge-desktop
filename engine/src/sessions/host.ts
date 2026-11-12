@@ -69,6 +69,8 @@ export interface HostOptions {
   notify: (frame: Record<string, unknown>) => void;
   /** Which GitHub account reaches a repo (tests skip gh). */
   account?: (repo: string) => Promise<string | null>;
+  /** Tests shorten how long a message may go unread and how long Stop waits (chats.ts). */
+  chatTimings?: { deliveryMs?: number; stopGraceMs?: number };
 }
 
 const TITLE_WORDS = 8;
@@ -101,6 +103,7 @@ export class SessionsHost {
       envFor: (s) => this.envFor(s),
       notify: o.notify,
       touched: (id) => this.touched(id),
+      ...o.chatTimings,
     });
     this.cards = new CardWatcher(store, o.notify, (id) => this.touched(id));
     store.redact = (json) => this.redact(json);

@@ -22,6 +22,18 @@ export interface ChatsOptions {
   notify: (frame: Record<string, unknown>) => void;
   /** The session's status may have changed. */
   touched: (sessionId: string) => void;
+  /** How long a message may wait while the agent is silent and runs no tool before it says Not delivered. */
+  deliveryMs?: number;
+  /** How long Stop waits for the agent to end its turn before it closes the agent (the next message resumes it). */
+  stopGraceMs?: number;
+}
+
+/** A message written to the agent mid-turn and not read yet. */
+interface Steer {
+  id: string;
+  text: string;
+  at: number;
+  failed: boolean;
 }
 
 interface Live {
@@ -29,9 +41,19 @@ interface Live {
   rec: TurnRecorder;
   stopping: boolean;
   closing: boolean;
-  /** Steers written to the agent and not echoed back yet ("sending"), oldest first. */
-  steers: { id: string; text: string }[];
+  /** Steers written to the agent and not echoed back yet ("sending", or "failed" when it can't read them), oldest first. */
+  steers: Steer[];
+  /** Questions, plans and permission requests waiting on the person (event ids), oldest first. */
+  asks: string[];
+  /** The tool calls running now: the agent reads a message when its step ends, however long the tool takes. */
+  tools: Set<string>;
+  /** When the agent last wrote anything. */
+  activeAt: number;
+  deliveryTimer: NodeJS.Timeout | null;
+  stopTimer: NodeJS.Timeout | null;
 }
+
+const INTERACTIVE = new Set(["AskUserQuestion", "ExitPlanMode"]);
 
 export function contextWindow(model: string): number {
   return /\[1m\]|-1m/i.test(model) ? 1_000_000 : 200_000;
@@ -46,11 +68,18 @@ export class Chats {
   private live = new Map<string, Live>();
   private pendingText = new Map<string, EventRecord>();
   private flushTimer: NodeJS.Timeout | null = null;
+  /** Full text of each message that said Not delivered, for Retry (an event keeps only a preview). */
+  private unsent = new Map<string, string>();
+  private readonly deliveryMs: number;
+  private readonly stopGraceMs: number;
 
   constructor(
     private readonly store: SessionStore,
     private readonly o: ChatsOptions,
-  ) {}
+  ) {
+    this.deliveryMs = o.deliveryMs ?? 10_000;
+    this.stopGraceMs = o.stopGraceMs ?? 5_000;
+  }
 
   private save(c: ChatRecord): void {
     this.store.putChat(c);
@@ -89,7 +118,10 @@ export class Chats {
       c.id,
       {
         emit: (e, live) => this.emitEvent(e, live),
-        ask: () => this.setState(c.id, "needs_you"),
+        ask: (_requestId, e) => {
+          l.asks.push(e.id);
+          this.setState(c.id, "needs_you");
+        },
         allow: (id, input) => l.proc.answer(id, true, input),
         done: (r) => void this.finish(c.id, r),
         usage: (tokens) => {
@@ -111,12 +143,25 @@ export class Chats {
       permissionMode: permissionMode(c),
       thinkingDisplay,
       onLine: (raw) => {
+        l.activeAt = Date.now();
         if (raw.type === "user" && raw.isReplay === true) return this.delivered(l, raw);
+        this.step(l, raw);
         rec.line(raw);
       },
-      onExit: (code, stderr) => this.exited(c.id, code, stderr),
+      onExit: (code, stderr) => this.exited(c.id, l, code, stderr),
     });
-    l = { proc, rec, stopping: false, closing: false, steers: [] };
+    l = {
+      proc,
+      rec,
+      stopping: false,
+      closing: false,
+      steers: [],
+      asks: [],
+      tools: new Set(),
+      activeAt: Date.now(),
+      deliveryTimer: null,
+      stopTimer: null,
+    };
     this.live.set(c.id, l);
     return l;
   }
@@ -135,7 +180,61 @@ export class Chats {
     const i = l.steers.findIndex((s) => s.text === text);
     if (i < 0) return;
     const [s] = l.steers.splice(i, 1);
-    if (s) l.rec.mark(s.id, { delivery: "delivered" });
+    if (!s) return;
+    this.unsent.delete(s.id);
+    l.rec.mark(s.id, { delivery: "delivered" });
+  }
+
+  /** Which tool calls run now (a tool call can take minutes; the agent reads a message only when it ends). */
+  private step(l: Live, raw: Record<string, unknown>): void {
+    if (raw.type === "assistant") {
+      const content = (raw.message as { content?: unknown } | undefined)?.content;
+      for (const b of Array.isArray(content) ? (content as Record<string, unknown>[]) : [])
+        if (b.type === "tool_use" && !INTERACTIVE.has(String(b.name))) l.tools.add(String(b.id));
+    } else if (raw.type === "user") {
+      const content = (raw.message as { content?: unknown } | undefined)?.content;
+      for (const b of Array.isArray(content) ? (content as Record<string, unknown>[]) : [])
+        if (b.type === "tool_result") l.tools.delete(String(b.tool_use_id));
+    } else if (raw.type === "result") {
+      l.tools.clear();
+    }
+  }
+
+  /** A message the agent hasn't read while it's silent and runs no tool can't reach it: it says Not delivered (and
+   *  still turns Delivered if the agent reads it later). */
+  private checkDelivery(l: Live): void {
+    const now = Date.now();
+    for (const s of l.steers) {
+      if (s.failed || l.tools.size > 0 || now - Math.max(s.at, l.activeAt) < this.deliveryMs)
+        continue;
+      this.failSteer(l, s);
+    }
+    if (!l.steers.some((s) => !s.failed)) this.stopDeliveryCheck(l);
+  }
+
+  private failSteer(l: Live, s: Steer): void {
+    s.failed = true;
+    this.unsent.set(s.id, s.text);
+    l.rec.mark(s.id, { delivery: "failed" });
+  }
+
+  /** Every message still waiting says Not delivered (the agent stopped or closed before reading them). */
+  private failSteers(l: Live): void {
+    for (const s of l.steers) if (!s.failed) this.failSteer(l, s);
+    l.steers = [];
+    this.stopDeliveryCheck(l);
+  }
+
+  private stopDeliveryCheck(l: Live): void {
+    if (l.deliveryTimer) clearInterval(l.deliveryTimer);
+    l.deliveryTimer = null;
+  }
+
+  /** An agent going away leaves no timer behind. */
+  private quiet(l: Live): void {
+    this.stopDeliveryCheck(l);
+    if (l.stopTimer) clearTimeout(l.stopTimer);
+    l.stopTimer = null;
   }
 
   private setState(chatId: string, state: ChatRecord["state"]): void {
@@ -161,8 +260,22 @@ export class Chats {
     }
     if (working) {
       const l = await this.open(c);
+      // The agent waits on the person: a message written now is their answer ("Or write your own answer below").
+      // Claude Code doesn't read anything else until its question is answered (checked live, 2.1.322).
+      const ask = l.asks.map((id) => this.store.event(id)).find((e) => e !== null);
+      if (ask) {
+        await this.answerWith(chatId, ask, text);
+        return;
+      }
       const e = l.rec.add("user", text, { name: "steered", data: { delivery: "sending" } });
-      l.steers.push({ id: e.id, text });
+      l.steers.push({ id: e.id, text, at: Date.now(), failed: false });
+      if (!l.deliveryTimer) {
+        l.deliveryTimer = setInterval(
+          () => this.checkDelivery(l),
+          Math.min(1000, this.deliveryMs / 4),
+        );
+        l.deliveryTimer.unref();
+      }
       l.proc.send(text);
       return;
     }
@@ -205,6 +318,18 @@ export class Chats {
     l.proc.markStarted();
   }
 
+  /** A typed message answers what the agent asked: every question gets the text, a plan or a permission request
+   *  is sent back with it. */
+  private async answerWith(chatId: string, e: EventRecord, text: string) {
+    const input = ((e.data ?? {}) as { input?: { questions?: { question?: unknown }[] } }).input;
+    if (e.kind !== "question")
+      return this.answer(chatId, e.id, { allow: false, feedback: text, typed: text });
+    const answers: Record<string, string> = {};
+    for (const q of input?.questions ?? [])
+      if (typeof q.question === "string") answers[q.question] = text;
+    return this.answer(chatId, e.id, { allow: true, answers, typed: text });
+  }
+
   private async finish(
     chatId: string,
     r: { isError: boolean; subtype: string; text: string },
@@ -214,6 +339,9 @@ export class Chats {
     if (!l || !c) return;
     const t = this.store.turn(l.rec.currentTurn);
     if (!t || t.status !== "working") return;
+    if (l.stopTimer) clearTimeout(l.stopTimer);
+    l.stopTimer = null;
+    l.asks = [];
     const s = this.store.session(c.sessionId);
     const status: TurnRecord["status"] = l.stopping ? "stopped" : r.isError ? "failed" : "done";
     if (status === "failed")
@@ -241,6 +369,13 @@ export class Chats {
       ...(this.store.chat(chatId) ?? c),
       state: status === "failed" ? "failed" : "idle",
     });
+    // Stop means stop: messages the agent hasn't read would run as a turn of their own, so the agent closes (the
+    // next message resumes the chat) and they say Not delivered, with Retry.
+    if (l.stopping && l.steers.length > 0) {
+      this.failSteers(l);
+      await this.closeChat(chatId);
+      return;
+    }
     // The next queued message starts the next turn (unless the person pressed Stop).
     const next = l.stopping ? undefined : this.store.queued(chatId)[0];
     l.stopping = false;
@@ -250,10 +385,12 @@ export class Chats {
     }
   }
 
-  private exited(chatId: string, code: number | null, stderr: string): void {
-    const l = this.live.get(chatId);
-    this.live.delete(chatId);
-    if (!l || l.closing) return;
+  private exited(chatId: string, l: Live, code: number | null, stderr: string): void {
+    // Only this agent's own entry goes: a chat that Retry or a new message already opened again keeps its new one.
+    if (this.live.get(chatId) === l) this.live.delete(chatId);
+    this.quiet(l);
+    if (l.closing) return;
+    this.failSteers(l);
     const t = this.store.turn(l.rec.currentTurn);
     if (t && t.status === "working") {
       const why = /log ?in|authenticat|OAuth|expired|401/i.test(stderr)
@@ -271,19 +408,64 @@ export class Chats {
   stop(chatId: string): void {
     const l = this.live.get(chatId);
     for (const q of this.store.queued(chatId)) this.store.markOutbox(q.id, "cancelled");
-    if (!l) {
+    if (!l || this.store.turn(l.rec.currentTurn)?.status !== "working") {
       this.setState(chatId, "idle");
       return;
     }
     l.stopping = true;
+    // What the agent asked closes with the turn.
+    for (const id of l.asks.splice(0)) {
+      const e = this.store.event(id);
+      if (!e) continue;
+      const closed = { ...e, data: { ...(e.data ?? {}), answered: true, stopped: true } };
+      this.store.putEvent(closed);
+      this.o.notify({ type: "event", event: closed });
+    }
+    // Claude Code runs a message it hasn't read as a turn of its own right after an interrupt (checked live, 2.1.322):
+    // with one waiting, the agent closes at once instead, and the message says Not delivered, with Retry.
+    if (l.steers.length > 0) {
+      void this.forceStop(chatId, l);
+      return;
+    }
     l.proc.interrupt();
+    // Stop always works: an agent that doesn't end its turn in time is closed, and the turn ends stopped.
+    if (l.stopTimer) clearTimeout(l.stopTimer);
+    l.stopTimer = setTimeout(() => void this.forceStop(chatId, l), this.stopGraceMs);
+    l.stopTimer.unref();
+  }
+
+  private async forceStop(chatId: string, l: Live): Promise<void> {
+    if (this.live.get(chatId) !== l) return;
+    l.stopTimer = null;
+    l.closing = true;
+    await this.finish(chatId, { isError: false, subtype: "interrupted", text: "" });
+    this.failSteers(l);
+    if (this.live.get(chatId) === l) this.live.delete(chatId);
+    await l.proc.close();
+    this.setState(chatId, "idle");
+  }
+
+  /** Retry on a message that said Not delivered: its bubble goes and it's sent again, as if just written. */
+  async retry(chatId: string, eventId: string): Promise<{ ok: boolean; problem?: string }> {
+    const e = this.store.event(eventId);
+    const d = (e?.data ?? {}) as { delivery?: string };
+    if (!e || e.chatId !== chatId || e.name !== "steered" || d.delivery !== "failed")
+      return { ok: false, problem: "That message isn't waiting to be sent again." };
+    const text = this.unsent.get(eventId) ?? e.text;
+    this.unsent.delete(eventId);
+    const l = this.live.get(chatId);
+    if (l) l.steers = l.steers.filter((s) => s.id !== eventId);
+    this.store.dropEvent(eventId);
+    this.o.notify({ type: "event", event: { ...e, kind: "dropped" } });
+    await this.send(chatId, text, "steer");
+    return { ok: true };
   }
 
   /** The person answered a question, a plan or a permission request. */
   async answer(
     chatId: string,
     eventId: string,
-    a: { allow: boolean; answers?: Record<string, string>; feedback?: string },
+    a: { allow: boolean; answers?: Record<string, string>; feedback?: string; typed?: string },
   ) {
     const c = this.store.chat(chatId);
     const e = this.store.event(eventId);
@@ -306,11 +488,19 @@ export class Chats {
     }
     const answered = {
       ...e,
-      data: { ...d, answered: true, allow: a.allow, answers: a.answers, feedback: a.feedback },
+      data: {
+        ...d,
+        answered: true,
+        allow: a.allow,
+        answers: a.answers,
+        feedback: a.feedback,
+        ...(a.typed ? { typed: a.typed } : {}),
+      },
     };
     this.store.putEvent(answered);
     this.o.notify({ type: "event", event: answered });
-    this.setState(chatId, "working");
+    l.asks = l.asks.filter((id) => id !== eventId);
+    this.setState(chatId, l.asks.length > 0 ? "needs_you" : "working");
     return { ok: true };
   }
 
@@ -354,7 +544,10 @@ export class Chats {
   }
 
   async closeAll(): Promise<void> {
-    for (const l of this.live.values()) l.closing = true;
+    for (const l of this.live.values()) {
+      l.closing = true;
+      this.quiet(l);
+    }
     await Promise.all([...this.live.values()].map((l) => l.proc.close()));
     this.live.clear();
   }
@@ -363,6 +556,7 @@ export class Chats {
     const l = this.live.get(chatId);
     if (!l) return;
     l.closing = true;
+    this.quiet(l);
     this.live.delete(chatId);
     await l.proc.close();
   }

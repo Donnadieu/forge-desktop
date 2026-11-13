@@ -67,8 +67,10 @@ extension SessionsModel {
         sessions.filter { $0.archived && Self.belongs($0, to: workspace) }
     }
 
-    /// Brings an archived session back: its folder is made again on its branch, its chats where they were.
+    /// Unarchive: brings an archived session back to its group, its folder made again on its branch and its chats
+    /// where they were. It stays open either way (read-only while archived), with the host's reason if it can't.
     func restore(_ s: Sessions.Session) {
+        guard s.archived else { return }
         act { try await $0.unarchive(session: s.id) }
         showHistory = false
         selected = s.id

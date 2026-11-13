@@ -71,6 +71,27 @@ export interface ConductorPreview {
   alreadyImported: number;
 }
 
+/**
+ * The repo a Conductor workspace's folder belongs to (Conductor's own record, kept even after it archives the
+ * workspace), for sessions imported before Forge kept it. Null when Conductor or the workspace isn't there.
+ */
+export function conductorRoot(workspaceId: string, path = CONDUCTOR_DB): string | null {
+  if (!existsSync(path)) return null;
+  const db = open(path);
+  try {
+    const row = db
+      .prepare(
+        "SELECT r.root_path FROM workspaces w JOIN repos r ON r.id = w.repository_id WHERE w.id = ?",
+      )
+      .get(workspaceId) as Row | undefined;
+    return typeof row?.root_path === "string" && row.root_path ? row.root_path : null;
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 function openWorkspaces(db: InstanceType<typeof DatabaseSync>): Row[] {
   return db
     .prepare(
@@ -210,6 +231,8 @@ export function runImport(
         archiveRef: null,
         createdAt: now,
         updatedAt: now,
+        // The repo the folder is a worktree of: Unarchive finds the branch there.
+        ...(typeof w.root_path === "string" && w.root_path ? { root: w.root_path } : {}),
       };
       store.putSession(s);
       sessions += 1;

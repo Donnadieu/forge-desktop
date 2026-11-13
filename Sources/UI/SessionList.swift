@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The left list: search, New session, then the sessions grouped by what they need from you (idle, merged and
 /// archived groups start folded, so the list stays tidy), and Import from Conductor at the bottom. Hovering a row
-/// shows Archive (Restore on an archived one); right-click opens it beside the one on screen.
+/// shows Archive (Unarchive on an archived one, never Archive again); right-click opens it beside the one on screen.
+/// An archived row opens its session read-only.
 struct SessionList: View {
     @ObservedObject var model: AppModel
     @ObservedObject var sessions: SessionsModel
@@ -68,7 +69,10 @@ struct SessionList: View {
                     ForEach(Self.sections(list, archived: archived, folded: sessions.foldedGroups, search: search, selected: sessions.selected)) {
                         g in
                         header(g)
-                        ForEach(g.rows) { s in row(s, archived: g.archived) }
+                        // A row is keyed by its group too: a session that moves group (archived, back) gets a new
+                        // row, never the old one's hover button, menu and click (Omar, Nov 13: an archived row still
+                        // offered Archive).
+                        ForEach(g.rows) { s in row(s, archived: s.archived).id("\(g.title)/\(s.id)") }
                         if g.archived, !g.folded, g.count > Self.archivedShown {
                             Button("Show all \(g.count) in History") { sessions.showHistory = true }
                                 .buttonStyle(ForgeButton(kind: .plain)).padding(.horizontal, 20).padding(.vertical, 6)
@@ -171,7 +175,7 @@ struct SessionList: View {
     }
 
     private func row(_ s: Sessions.Session, archived: Bool) -> some View {
-        let on = sessions.selected == s.id && !sessions.composing && !archived
+        let on = sessions.selected == s.id && !sessions.composing
         let hover = hovered == s.id
         return HStack(alignment: .top, spacing: 8) {
             PulseDot(color: archived ? Theme.textMuted : dot(s), pulsing: !archived && s.status == "working", size: 6).padding(.top, 6)
@@ -198,7 +202,7 @@ struct SessionList: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(archived ? "Restore \(s.title)" : "Archive \(s.title)")
+                    .help(archived ? "Unarchive \(s.title)" : "Archive \(s.title)")
                 } else if s.unread, !archived {
                     Circle().fill(Theme.text).frame(width: 5, height: 5).padding(.top, 6)
                 }
@@ -210,14 +214,14 @@ struct SessionList: View {
         .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Self.look(open: on, hovered: hover).edge))
         .opacity(archived && !hover ? 0.7 : 1)
         .contentShape(Rectangle())
-        .onTapGesture { if !archived { sessions.open(s) } }
+        .onTapGesture { sessions.open(s) }
         .onHover { inside in
             if inside { hovered = s.id } else if hovered == s.id { hovered = nil }
         }
         .padding(.horizontal, 8)
         .contextMenu {
             if archived {
-                Button("Restore") { sessions.restore(s) }
+                Button("Unarchive") { sessions.restore(s) }
             } else {
                 if let c = s.chats.first, sessions.selected != nil, sessions.selected != s.id {
                     Button("Open beside this one") { sessions.splitChat = c.id }

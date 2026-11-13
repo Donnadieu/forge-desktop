@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// History: the workspace's archived sessions, newest first, each with Restore (its folder is made again on its
+/// History: the workspace's archived sessions, newest first, each with Unarchive (its folder is made again on its
 /// branch and its chats come back where they were).
 struct HistorySheet: View {
     @ObservedObject var model: AppModel
@@ -25,7 +25,7 @@ struct HistorySheet: View {
                                 Text("\(s.repo) · \(s.branch)").font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            Button("Restore") { sessions.restore(s) }.buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.backward"))
+                            Button("Unarchive") { sessions.restore(s) }.buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.backward"))
                         }
                         .padding(.vertical, 10)
                         .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }

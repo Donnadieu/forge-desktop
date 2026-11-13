@@ -8,7 +8,8 @@ struct SessionsScreen: View {
 
     private var list: [Sessions.Session] { sessions.sessions(in: model.workspace?.id) }
     private var panelSession: Sessions.Session? {
-        guard let s = sessions.current, !sessions.composing, sessions.split == nil else { return nil }
+        // An archived session has no folder to show changes of: it opens read-only, chat only.
+        guard let s = sessions.current, !s.archived, !sessions.composing, sessions.split == nil else { return nil }
         return s
     }
 

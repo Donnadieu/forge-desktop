@@ -16,6 +16,35 @@ enum SessionsCheck {
         return code
     }
 
+    /// The branch a folder is on (checks), nil when it isn't a checkout.
+    static func currentBranch(of folder: String) -> String? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = ["git", "-C", folder, "branch", "--show-current"]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return nil }
+        p.waitUntilExit()
+        guard p.terminationStatus == 0 else { return nil }
+        return String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// A checkout with an origin (a bare repo beside it) and one commit on main, in `scratch`.
+    static func scratchCheckout(in scratch: URL) -> URL? {
+        let bare = scratch.appendingPathComponent("origin.git")
+        let local = scratch.appendingPathComponent("checkout")
+        try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        let made =
+            sh(["git", "init", "-q", "--bare", "-b", "main", bare.path], in: scratch)
+            && sh(["git", "clone", "-q", bare.path, local.path], in: scratch)
+            && sh(
+                ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "start"],
+                in: local)
+            && sh(["git", "push", "-q", "origin", "HEAD:main"], in: local)
+        return made ? local : nil
+    }
+
     private static func sh(_ args: [String], in dir: URL) -> Bool {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")

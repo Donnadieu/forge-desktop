@@ -51,8 +51,17 @@ struct ChatColumn: View {
             } else if let chat {
                 TranscriptView(sessions: sessions, chat: chat, transcript: sessions.transcript(chat.id))
                     .opensFileLinks(sessions, root: session.folder)
-                Composer(sessions: sessions, session: session, chat: chat, compact: compact).padding(.horizontal, compact ? 12 : 24).padding(
-                    .bottom, 16)
+                if session.archived {
+                    // Read-only: no message box until it's unarchived.
+                    Text("Archived. Its chat is here to read; Unarchive to keep working in it.")
+                        .font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, compact ? 12 : 24).padding(.vertical, 16)
+                        .overlay(alignment: .top) { Rectangle().fill(Theme.border).frame(height: 1) }
+                } else {
+                    Composer(sessions: sessions, session: session, chat: chat, compact: compact).padding(.horizontal, compact ? 12 : 24).padding(
+                        .bottom, 16)
+                }
             } else {
                 Spacer()
             }
@@ -68,6 +77,7 @@ struct ChatColumn: View {
         case "working": return Pill(text: "Working", tone: .heat, dot: Theme.heat, pulsing: true)
         case "review": return Pill(text: "Ready for review", tone: .info)
         case "merged": return Pill(text: "Merged", tone: .green)
+        case "archived": return Pill(text: "Archived", tone: .ghost)
         default: return Pill(text: "Idle", tone: .ghost)
         }
     }
@@ -83,7 +93,11 @@ struct ChatColumn: View {
                 Text(session.title).font(Theme.display(compact ? .sessionTitleCompact : .sessionTitle)).foregroundStyle(Theme.text).lineLimit(1)
                 statusPill
                 Spacer(minLength: 8)
-                if !session.archived {
+                if session.archived {
+                    Button("Unarchive") { sessions.restore(session) }
+                        .buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.backward"))
+                        .help("Bring it back to its group, with its folder on its branch")
+                } else {
                     OpenInButton(openIn: openIn, session: session, checkouts: model.mainCheckouts(of: session), compact: compact, side: closable)
                     let open = terminals.shown.contains(session.id)
                     Button(open ? "Hide Terminal" : "Terminal") { terminals.toggle(session, env: model.sessionEnv(session.workspaceId)) }

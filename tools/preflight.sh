@@ -76,6 +76,9 @@ if "$BIN" --engine-check; then ok "the engine starts, answers only with its toke
 SCRATCH=$(mktemp -d -t forge-sessions)
 if FORGE_HOME="$SCRATCH" FORGE_CLAUDE_COMMAND="$PWD/engine/test/fixtures/sessions/fake-claude.mjs" "$BIN" --sessions-check; then ok "a chat runs end to end: steer, queue, stop, turns read back"; else bad "sessions check failed" "see the ✗ lines above; its log is in $SCRATCH/logs"; fi
 rm -rf "$SCRATCH"
+SCRATCH=$(mktemp -d -t forge-archive)
+if FORGE_HOME="$SCRATCH" FORGE_CLAUDE_COMMAND="$PWD/engine/test/fixtures/sessions/fake-claude.mjs" "$BIN" --archive-check; then ok "a session archives and comes back from its row, its header and after a relaunch"; else bad "archive check failed" "see the ✗ lines above; its log is in $SCRATCH/logs"; fi
+rm -rf "$SCRATCH"
 if "$BIN" --transcript-check 2>/dev/null; then ok "a 12,000-turn chat and a 5,000-line diff stay in budget"; else bad "the long-chat budget failed" "see docs/design/sessions.md section 7"; fi
 
 echo; echo "Guardrails"

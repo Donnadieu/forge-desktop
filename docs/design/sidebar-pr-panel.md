@@ -149,8 +149,12 @@ A card session's branch belongs to the board's agent: Rename is hidden there (Co
 - Hover a row: the row takes the hover fill and an archive icon (`archivebox`) appears at its right edge, where the
   unread dot sits (the dot hides while hovered). Click = archive. The right-click menu keeps Archive too.
 - Archived sessions move to an **Archived** group at the bottom of the list, folded by default, with its count like the
-  other groups ("ARCHIVED 12"). Opening it lists them dimmed; hover shows **Restore** (`arrow.uturn.backward`) in the
-  same spot. Restore = today's `unarchive` (folder back on its branch, files as they were).
+  other groups ("ARCHIVED 12"). Opening it lists them dimmed; hover shows **Unarchive** (`arrow.uturn.backward`) in
+  the same spot, and the right-click menu says Unarchive; an archived row never offers Archive. Unarchive = `unarchive`
+  (folder back on its branch from the repo it came from, files as they were; the session goes back to its group).
+- Clicking an archived row opens it read-only: its chat, an Archived pill, **Unarchive** in its header, no message box
+  and no Changes panel. If its folder and branch are both gone, Unarchive says so plainly and the chat stays readable.
+- An imported session's folder is the other app's (a Conductor workspace): archiving it only hides it, like a card's.
 - History stays as the full list with search (bottom of the sidebar), so the Archived group shows the 20 newest and
   "Show all in History" after that.
 - **A running card session asks once:** "Archive AIT-3? Forge is still working this card. Archiving hides it here; the

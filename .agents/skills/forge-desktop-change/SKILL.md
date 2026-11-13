@@ -294,6 +294,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `CI` is set.
 - A card session's folder is the running card's own workspace: archiving one must only hide it (no snapshot, no
   `git worktree remove`), or the card loses its work mid-run (`host.archive`, `branch-archive.test.ts`).
+- A `LazyVStack` row that moves from one group to another (archived, unarchived) can keep its old view: the hover button,
+  right-click menu and tap still acted on the old state, so an archived row offered Archive ("Already archived.").
+  Key a grouped list's rows by group and id (`.id("\(group)/\(id)")`), read state from the row's data, not its group,
+  and test a move on the SAME off-screen screen (a new screen per step hides it: `ArchiveCheck`, `--archive-check`).
+- The app sends no checkout with Unarchive, so the host finds the folder's repo itself (`SessionsHost.rootOf`). An engine
+  test that passes the root in by hand never sees that path: call host actions the way the app does.
+- An imported session's folder belongs to Conductor: never `git worktree remove` it (archive only hides it).
 - GitHub closes a pull request whose head branch is renamed (`POST /branches/{b}/rename` or push-new/delete-old) and
   it can't be reopened or pointed at another branch: a rename is only offered before a PR is open.
 - `mergeable`/`mergeStateStatus` come back `UNKNOWN` on the first ask while GitHub computes them (24 of 60 open PRs on

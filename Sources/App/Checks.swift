@@ -11,6 +11,7 @@ import SwiftUI
 ///   Forge --window-check <file> opens normally, writes what windows it shows to <file>, quits
 ///   Forge --workspaces-check    opens a copy of Forge's folder (FORGE_HOME) and prints its workspaces after the upgrade
 ///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
+///   Forge --archive-check       archive and unarchive on the real Sessions screen against a scratch sessions host
 ///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
 ///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it);
@@ -22,7 +23,10 @@ import SwiftUI
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
         // Checks and renders draw at 100%, whatever zoom the person picked (and never save one).
-        let drawing = ["--selftest", "--type-check", "--pane-check", "--paste-check", "--copy-check", "--render-screens", "--transcript-check"]
+        let drawing = [
+            "--selftest", "--type-check", "--pane-check", "--paste-check", "--copy-check", "--render-screens", "--transcript-check",
+            "--archive-check",
+        ]
         if args.contains(where: drawing.contains) {
             Zoom.shared.set(1, persist: false)
             // A check never hands anything to another app, whatever keys are held on the Mac; checks that test
@@ -127,6 +131,9 @@ enum Checks {
         }
         if args.contains("--sessions-check") {
             return SessionsCheck.run()
+        }
+        if args.contains("--archive-check") {
+            return ArchiveCheck.run()
         }
         if args.contains("--transcript-check") {
             return TranscriptCheck.run()

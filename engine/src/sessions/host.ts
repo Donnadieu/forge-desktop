@@ -13,6 +13,7 @@ import { personMcpServers, shareWithTerminal, writeMcpFile } from "../workspace/
 import { CardWatcher } from "./cards.js";
 import { Chats, contextWindow } from "./chats.js";
 import { cutTranscript, restore } from "./checkpoints.js";
+import { conductorRoot } from "./conductor.js";
 import {
   accountFor,
   branches,
@@ -74,6 +75,8 @@ export interface HostOptions {
   claudeHome?: string;
   /** Forge's own folder (`FORGE_HOME`): only checkouts in it get the terminal's `.mcp.json`. */
   forgeHome?: string;
+  /** Conductor's database, where an import's repo is found (tests point it elsewhere). Absent ⇒ Conductor's own. */
+  conductorDb?: string;
   /** Tests shorten how long a message may go unread and how long Stop waits (chats.ts). */
   chatTimings?: { deliveryMs?: number; stopGraceMs?: number };
 }
@@ -533,8 +536,9 @@ export class SessionsHost {
   async archive(id: string) {
     const s = this.store.session(id);
     if (!s || s.archived) return { ok: false, problem: "Already archived." };
-    // A card's session is only hidden: its folder is the running card's own workspace.
-    if (s.origin === "card") {
+    // A card's session is only hidden: its folder is the running card's own workspace. An imported one too: its
+    // folder is the other app's (Conductor's workspace), never Forge's to put away.
+    if (s.origin === "card" || s.origin === "import") {
       this.store.putSession({ ...s, archived: true, updatedAt: new Date().toISOString() });
       this.touched(id);
       return { ok: true };
@@ -563,32 +567,65 @@ export class SessionsHost {
     return { ok: true };
   }
 
-  /** Brings an archived session back: its folder on its branch, then the files as they were. */
+  /**
+   * Brings an archived session back: its folder on its branch, then the files as they were. The folder comes back
+   * from the repo it was made from (the person's checkout, Conductor's repo for an import, else Forge's own clone);
+   * a folder that's still there (a card's, an import's) is only shown again.
+   */
   async unarchive(id: string, local: string | null) {
     const s = this.store.session(id);
     if (!s?.archived) return { ok: false, problem: "This session isn't archived." };
-    if (s.origin === "card") {
+    const back = () => {
       this.store.putSession({ ...s, archived: false, updatedAt: new Date().toISOString() });
       this.touched(id);
       return { ok: true };
-    }
-    const root =
-      local && existsSync(join(local, ".git"))
-        ? local
-        : join(this.o.home, "repos", s.repo.replace("/", "-"));
+    };
+    if (s.origin === "card" || existsSync(s.folder)) return back();
+    const root = this.rootOf(s, local);
+    if (!root)
+      return {
+        ok: false,
+        problem: `Its folder is gone and Forge can't find the ${s.repo} checkout it came from. Its chat stays here to read.`,
+      };
+    // A folder deleted by hand is still listed by git until it's pruned, and `worktree add` refuses it.
+    await run("git", ["worktree", "prune"], root);
+    const branch =
+      (await run("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${s.branch}`], root)).ok ||
+      (
+        await run(
+          "git",
+          ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${s.branch}`],
+          root,
+        )
+      ).ok;
+    if (!branch)
+      return {
+        ok: false,
+        problem: `Its folder is gone and so is its branch ${s.branch}, so it can't come back. Its chat stays here to read.`,
+      };
     const w = await run("git", ["worktree", "add", s.folder, s.branch], root);
     if (!w.ok)
       return {
         ok: false,
-        problem: `Couldn't bring the folder back: ${w.err.trim().slice(0, 300)}`,
+        problem: `Couldn't bring the folder back: ${w.err.trim().slice(0, 300) || "git gave no reason."}`,
       };
     if (s.archiveRef) {
       const sha = (await run("git", ["rev-parse", s.archiveRef], root)).out.trim();
       if (sha) await restore(s.folder, sha);
     }
-    this.store.putSession({ ...s, archived: false, updatedAt: new Date().toISOString() });
-    this.touched(id);
-    return { ok: true };
+    return back();
+  }
+
+  /** The repo an archived session's folder came from, or null when none of them is on this Mac any more. */
+  private rootOf(s: SessionRecord, local: string | null): string | null {
+    const conductor =
+      s.origin === "import"
+        ? conductorRoot(s.id.replace(/^conductor-/, ""), this.o.conductorDb)
+        : null;
+    for (const p of [local, s.root, conductor, this.mirrorFor(s.repo)]) {
+      if (p && existsSync(join(p, ".git"))) return p;
+    }
+    return null;
   }
 
   /** Goes back to before a turn: files as they were, that turn and later ones gone, the agent forgets them. */

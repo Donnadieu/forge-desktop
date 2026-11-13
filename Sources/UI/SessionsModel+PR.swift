@@ -57,6 +57,8 @@ extension SessionsModel {
     func merge(_ s: Sessions.Session) { acted(s) { try await $0.merge(session: s.id) } }
 
     func archive(_ s: Sessions.Session) {
+        // An archived session is never archived again: its row and header offer Unarchive instead.
+        guard !s.archived else { return }
         // Its Terminal tabs close first: their shells end with the session (Terminals.swift).
         Terminals.shared.closeAll(s.id)
         act { try await $0.archive(session: s.id) }
@@ -102,6 +104,7 @@ extension SessionsModel {
 
     /// Archive from the list, ⌘⇧A or a sheet: asks once when something still runs.
     func requestArchive(_ s: Sessions.Session) {
+        guard !s.archived else { return }
         if let ask = archiveQuestion(s) { archiveAsk = ask } else { archive(s) }
     }
 }

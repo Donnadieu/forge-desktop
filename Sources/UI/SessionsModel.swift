@@ -141,9 +141,10 @@ final class SessionsModel: ObservableObject {
     /// The skills each session can run, cached until a skill folder changes (Core/Skills.swift).
     let skillCatalog = SkillCatalog()
 
-    init(preview: Bool) {
+    /// `remembersLayout: false` (checks) leaves the person's saved sidebar widths alone.
+    init(preview: Bool, remembersLayout: Bool = true) {
         self.preview = preview
-        if preview { SampleSessions.fill(self) } else { layoutStore = SessionsLayout.Store(defaults: .standard) }
+        if preview { SampleSessions.fill(self) } else if remembersLayout { layoutStore = SessionsLayout.Store(defaults: .standard) }
     }
 
     func chat(_ id: String?) -> Sessions.Chat? {
@@ -186,6 +187,8 @@ final class SessionsModel: ObservableObject {
                 onFrame: { [weak self] f in Task { @MainActor in self?.apply(f) } },
                 onClose: { [weak self] in
                     Task { @MainActor in
+                        // Closed on purpose (`disconnect`): no reconnect.
+                        guard self?.client != nil else { return }
                         self?.client = nil
                         self?.connected = false
                         try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -195,6 +198,14 @@ final class SessionsModel: ObservableObject {
         } catch {
             problem = "Forge couldn't start its sessions: \(error)"
         }
+    }
+
+    /// Lets go of the host (a check's relaunch): the live stream closes and nothing reconnects.
+    func disconnect() {
+        client = nil
+        connected = false
+        live?.cancel()
+        live = nil
     }
 
     func apply(_ f: Sessions.Frame) {

@@ -81,6 +81,8 @@ describe("bringing Conductor work into one workspace", () => {
     const r = runImport(store, { ids: ["w2"], workspace: "ws-app" }, db);
     expect(r.sessions).toBe(1);
     expect(store.session("conductor-w2")?.workspaceId).toBe("ws-app");
+    // The repo its folder belongs to, so Unarchive can find the branch again.
+    expect(store.session("conductor-w2")?.root).toBe("/r/app");
     expect(store.session("conductor-w1")).toBeFalsy();
     expect(store.session("conductor-w3")).toBeFalsy();
     expect(runImport(store, { ids: ["w2"], workspace: "ws-app" }, db).sessions).toBe(0);

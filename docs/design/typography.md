@@ -69,9 +69,10 @@ Checks and renders always draw at 100% and never save a zoom; `FORGE_ZOOM=1.5 Fo
   the chat size; every text colour (greys included) is 4.5:1 or better on the background and on a surface; zoom steps,
   stops at 85% and 150%, is remembered, ⌘= works, every token scales, drawn text grows; at 85% and 150% the Changes
   panel fits at its narrowest, usual and widest width, the sessions list at its narrowest and widest, every pane's
-  header line meets at one height; an open window redraws at a new zoom; and the Sessions, Orchestrator (running and
-  with Your turn moves), Settings and Workflow Studio screens fit the narrowest window (1100) at every zoom step,
-  read from the pixels (`topBarFitChecks`).
+  header line meets at one height; an open window redraws at a new zoom; and the Sessions and Orchestrator (running and
+  with Your turn moves) screens fit the narrowest window (1100) at 85, 100, 110 and 150%, Settings and Workflow Studio
+  at 150%, read from the pixels (`topBarFitChecks`). Text only grows with the zoom, so those are the hardest step of
+  each group that draws the same way (the board's card column gives way above 100%, "Open session" above 110%).
 - `tools/lint/forge-lint.py`: `type-tokens` (no hard-coded size; canary in `--prove`).
 - Red first: before the change the lint found 417 hard-coded sizes in 57 files; `--type-check` failed 9 (chat body
   13, no line height, code 11, the board and app steps, muted grey 3.8:1 and 3.1:1, zoom not remembered); with the new

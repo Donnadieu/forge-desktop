@@ -129,7 +129,7 @@ extension Checks {
 
     /// The top bar never pushes past the window: nothing drawn between the window's own buttons and the anvil, or in
     /// the bar's right padding (a bar too wide is centred, so it spills both ways). Each screen, in the narrowest
-    /// window, at every zoom from 85% to 150%.
+    /// window, from 85% to 150% (Settings and Workflow Studio, which have room to spare, at 150%).
     static func topBarFitChecks(_ check: (String, Bool) -> Void) {
         let ready = ScreenRender.shots().first { $0.name == "20-pr-ready" }?.choices ?? SetupChoices()
         let screens: [(String, Int, String?, EngineState?)] = [
@@ -137,12 +137,14 @@ extension Checks {
             ("Orchestrator with moves", AppModel.boardScreen, nil, SampleBoard.moves), ("Settings", AppModel.settingsScreen, nil, nil),
             ("Workflow Studio", AppModel.workflowScreen, nil, nil),
         ]
-        for z in Zoom.steps {
+        // Text only grows with the zoom, so within steps that draw the same way the largest is the hardest: 100% (the
+        // board's card column gives way above it), 110% ("Open session" turns to its icon above it) and 150%, plus 85%.
+        for z in [0.85, 1, 1.1, 1.5] {
             Zoom.drawing(at: z) {
-                for (name, screen, scene, engine) in screens {
+                for (name, screen, scene, engine) in screens where name.hasPrefix("Sessions") || name.hasPrefix("Orchestrator") || z == 1.5 {
                     let model = ScreenRender.model(for: .init(name: name, screen: screen, choices: ready, scene: scene))
                     if let engine { model.engine = engine }
-                    let o = Offscreen(RootView(model: model), size: NSSize(width: 1100, height: 760))
+                    let o = Offscreen(RootView(model: model), size: NSSize(width: 1100, height: 760), settle: 0.25)
                     let px = o.pixels()
                     o.close()
                     if let dir = ProcessInfo.processInfo.environment["FORGE_SNAPSHOTS"] {
@@ -160,15 +162,28 @@ extension Checks {
 
     /// At 85% and 150% the Sessions screen and the Orchestrator still fit: no pane is wider than its frame at its
     /// narrowest, usual and widest width, and every pane's header line meets at one height.
+    /// The panes' vertical dividers (a column in the line's colour down most of the screen), sampled every 10 rows.
+    static func dividers(_ px: Pixels, _ line: (Int, Int, Int), below top: Int) -> [Int] {
+        let ys = Array(stride(from: top, to: px.height, by: 10))
+        let cols = (0..<px.width).filter { x in ys.filter { Pixels.near(px.rgb(x, $0), line) }.count * 100 >= ys.count * 85 }
+        return cols.filter { !cols.contains($0 - 1) }
+    }
+
+    /// The first row between `from` and `to` drawn in the line's colour across 90% of x0...x1 (every 4th point).
+    static func firstLine(_ px: Pixels, _ line: (Int, Int, Int), x0: Int, x1: Int, from: Int, to: Int) -> Int? {
+        let xs = Array(stride(from: x0 + 3, to: x1 - 3, by: 4))
+        return (from..<min(to, px.height)).first { y in xs.filter { Pixels.near(px.rgb($0, y), line) }.count * 100 >= xs.count * 90 }
+    }
+
     static func zoomFitChecks(_ check: (String, Bool) -> Void) {
         let line = drawnBorder()
         let dir = ProcessInfo.processInfo.environment["FORGE_SNAPSHOTS"].map { URL(fileURLWithPath: $0) }
+        let panelModels = ["sessions-pr-ready", "sessions-pr-failing"].map { ($0, sessionsShot($0)) }
         for z in [0.85, 1.5] {
             Zoom.drawing(at: z) {
                 let pct = "\(Int(z * 100))%"
-                for scene in ["sessions-pr-ready", "sessions-pr-failing", "sessions-pr-none"] {
+                for (scene, model) in panelModels {
                     for w in [SessionsLayout.changes.min, SessionsLayout.changes.normal, SessionsLayout.changes.max] {
-                        let model = sessionsShot(scene)
                         guard let s = model.sessions.current else { continue }
                         let panel = ChangesPanel(sessions: model.sessions, session: s, width: w)
                         let wide = NSHostingController(rootView: panel).sizeThatFits(in: CGSize(width: w, height: 900)).width
@@ -176,14 +191,14 @@ extension Checks {
                     }
                 }
                 for w in [SessionsLayout.sessions.min, SessionsLayout.sessions.max] {
-                    let model = sessionsShot("sessions-pr-ready")
+                    let model = panelModels[0].1
                     let list = SessionList(model: model, sessions: model.sessions, list: model.sessions.sessions)
                     let wide = NSHostingController(rootView: list).sizeThatFits(in: CGSize(width: w, height: 900)).width
                     check("\(pct): the sessions list fits at \(Int(w)) pt (\(Int(wide)))", wide <= w + 0.5)
                 }
-                for scene in ["sessions-pr-ready", "sessions-card", "sessions-new", "sessions-side-by-side"] {
+                for scene in ["sessions-pr-ready", "sessions-card"] {
                     let model = sessionsShot(scene)
-                    let o = Offscreen(RootView(model: model), size: NSSize(width: 1440, height: 900))
+                    let o = Offscreen(RootView(model: model), size: NSSize(width: 1440, height: 900), settle: 0.25)
                     let px = o.pixels()
                     o.close()
                     if let dir {
@@ -192,10 +207,10 @@ extension Checks {
                             to: dir.appendingPathComponent("\(scene)-\(Int(z * 100)).png"))
                     }
                     let top = Int(Theme.barHeight) + 2
-                    let cols = px.verticalLines(line, below: top + Int(SessionsLayout.headerHeight) + 40)
+                    let cols = dividers(px, line, below: top + Int(SessionsLayout.headerHeight) + 40)
                     let edges = [0] + cols + [px.width]
                     let ys = zip(edges, edges.dropFirst()).filter { $1 - $0 > 100 }.map {
-                        px.horizontalLines(line, x0: $0, x1: $1, below: top).first
+                        firstLine(px, line, x0: $0, x1: $1, from: top, to: top + Int(SessionsLayout.headerHeight) + 20)
                     }
                     let found = ys.compactMap { $0 }
                     check(

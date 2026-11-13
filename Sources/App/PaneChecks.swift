@@ -9,7 +9,8 @@ final class Offscreen {
     let host: NSView
     let size: NSSize
 
-    init<V: View>(_ view: V, size: NSSize) {
+    /// `settle`: how long layout and `.task`s get before the first look (a pixel check of a static screen needs less).
+    init<V: View>(_ view: V, size: NSSize, settle wait: Double = 0.5) {
         self.size = size
         let h = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
         h.frame = NSRect(origin: .zero, size: size)
@@ -22,7 +23,7 @@ final class Offscreen {
         window.contentView = h
         window.orderFrontRegardless()
         host = h
-        settle()
+        settle(wait)
     }
 
     func close() { window.orderOut(nil) }

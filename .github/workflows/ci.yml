@@ -14,7 +14,9 @@ permissions:
 jobs:
   app:
     runs-on: macos-26
-    timeout-minutes: 8
+    # The build plus the selftest's off-screen checks take 6.5 to 8 minutes on GitHub's Mac runners; at 8 the job was
+    # cut off mid-check several times on Nov 12 and 13 with nothing failing.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }

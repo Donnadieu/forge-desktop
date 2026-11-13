@@ -581,7 +581,7 @@ export class SessionsHost {
       return { ok: true };
     };
     if (s.origin === "card" || existsSync(s.folder)) return back();
-    const root = this.rootOf(s, local);
+    const root = await this.rootOf(s, local);
     if (!root)
       return {
         ok: false,
@@ -616,16 +616,39 @@ export class SessionsHost {
     return back();
   }
 
-  /** The repo an archived session's folder came from, or null when none of them is on this Mac any more. */
-  private rootOf(s: SessionRecord, local: string | null): string | null {
-    const conductor =
-      s.origin === "import"
-        ? conductorRoot(s.id.replace(/^conductor-/, ""), this.o.conductorDb)
+  /**
+   * The repo an archived session's folder came from, or null when none is on this Mac any more. Candidates, in order:
+   * the checkout passed in, the session's own, Conductor's for an import, those of the other sessions of the same repo
+   * (an import Conductor no longer lists), then Forge's own clone. The one holding the session's saved files wins,
+   * then one that has its branch.
+   */
+  private async rootOf(s: SessionRecord, local: string | null): Promise<string | null> {
+    const fromConductor = (r: SessionRecord) =>
+      r.origin === "import"
+        ? conductorRoot(r.id.replace(/^conductor-/, ""), this.o.conductorDb)
         : null;
-    for (const p of [local, s.root, conductor, this.mirrorFor(s.repo)]) {
-      if (p && existsSync(join(p, ".git"))) return p;
+    const others = this.store.sessions().filter((o) => o.id !== s.id && o.repo === s.repo);
+    const all = [
+      local,
+      s.root,
+      fromConductor(s),
+      ...others.flatMap((o) => [o.root, fromConductor(o)]),
+      this.mirrorFor(s.repo),
+    ];
+    const roots = [...new Set(all)].filter((p): p is string =>
+      Boolean(p && existsSync(join(p, ".git"))),
+    );
+    const has = async (root: string, ref: string) =>
+      (await run("git", ["rev-parse", "--verify", "--quiet", ref], root)).ok;
+    if (s.archiveRef) for (const r of roots) if (await has(r, s.archiveRef)) return r;
+    for (const r of roots) {
+      if (
+        (await has(r, `refs/heads/${s.branch}`)) ||
+        (await has(r, `refs/remotes/origin/${s.branch}`))
+      )
+        return r;
     }
-    return null;
+    return roots[0] ?? null;
   }
 
   /** Goes back to before a turn: files as they were, that turn and later ones gone, the agent forgets them. */

@@ -197,8 +197,9 @@ shell that isn't interactive has no `mise activate`, so `npx` servers failed to 
 - Omar archived sessions and couldn't bring them back: the archived row still offered Archive ("Already archived."),
   and Unarchive failed anyway ("Couldn't bring the folder back"). An archived row now offers only Unarchive (hover,
   right-click, the header of the session opened read-only); ⌘⇧A does nothing on an archived session.
-- Unarchive finds the repo the folder came from itself (the person's checkout, Conductor's repo for an import, else
-  Forge's own clone); the app sends none. A folder deleted by hand comes back from its branch; with the branch gone too,
+- Unarchive finds the repo the folder came from itself (the person's checkout, Conductor's repo for an import, the repo
+  another session of the same GitHub repo uses, else Forge's own clone; the one holding its saved files first); the app
+  sends none. A folder deleted by hand comes back from its branch; with the branch gone too,
   it says so and the chat stays readable.
 - Archiving an imported session only hides it, like a card's: its folder is Conductor's workspace. Before this, archiving
   an import removed that Conductor folder (its files kept in a private ref, `refs/forge/archive/<session>`, in the repo);

@@ -176,6 +176,33 @@ describe("a session's branch and archive", () => {
     await h.chats.closeAll();
   });
 
+  it("an import Conductor no longer knows comes back from the repo another session of that repo uses", async () => {
+    const folder = worktree("providence", "interview-feedback-1");
+    writeFileSync(join(folder, "notes.md"), "kept\n");
+    const ref = "refs/forge/archive/conductor-gone";
+    const sha = await snapshot(folder, ref);
+    git(root, "worktree", "remove", "--force", folder);
+    store.putSession({
+      ...session("conductor-gone", "import", folder, "interview-feedback-1"),
+      archived: true,
+      archiveRef: sha ? ref : null,
+    });
+    // Another session of acme/app knows where the repo is; Conductor's database doesn't list this workspace.
+    store.putSession({ ...session("s2", "person", join(dir, "elsewhere"), "omar/other"), root });
+    const db = join(dir, "conductor.db");
+    conductorDb(db, root);
+    const h = new SessionsHost(store, {
+      home: dir,
+      command: FAKE,
+      notify: () => {},
+      conductorDb: db,
+    });
+    expect(await h.unarchive("conductor-gone", null)).toEqual({ ok: true });
+    expect(git(folder, "branch", "--show-current")).toBe("interview-feedback-1");
+    expect(readFileSync(join(folder, "notes.md"), "utf8")).toBe("kept\n");
+    await h.chats.closeAll();
+  });
+
   it("a folder deleted by hand (still listed by git) comes back from its branch", async () => {
     const folder = worktree("gone", "omar/gone");
     rmSync(folder, { recursive: true, force: true });

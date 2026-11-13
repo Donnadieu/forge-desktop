@@ -118,11 +118,11 @@ struct SetupSidebar: View {
                     .disabled(updater.installing)
             }
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: changing ? "hand.point.up.left" : "lock").font(.system(size: 10, weight: .medium))
+                Image(systemName: changing ? "hand.point.up.left" : "lock").font(Theme.icon(.glyphS, .medium))
                 Text(changing ? "Pick any step to change it. Continue saves it on this Mac." : "Continue saves your answers on this Mac.")
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .font(Theme.sans(11))
+            .font(Theme.sans(.caption))
             .foregroundStyle(Theme.textMuted)
             .padding(.horizontal, 8)
         }
@@ -177,11 +177,11 @@ struct StepRow: View {
             .frame(width: 24)
             HStack(spacing: 10) {
                 if goal {
-                    Text("→ \(title.uppercased())").font(Theme.mono(11)).tracking(1.5).foregroundStyle(Theme.textMuted)
+                    Text("→ \(title.uppercased())").font(Theme.mono(.caption)).tracking(1.5).foregroundStyle(Theme.textMuted)
                 } else {
-                    Text(String(format: "%02d", number)).font(Theme.mono(11)).foregroundStyle(state == .here ? Theme.textSec : Theme.textMuted)
+                    Text(String(format: "%02d", number)).font(Theme.mono(.caption)).foregroundStyle(state == .here ? Theme.textSec : Theme.textMuted)
                     Text(title)
-                        .font(Theme.sans(13, state == .here ? .semibold : .regular))
+                        .font(Theme.sans(.body, state == .here ? .semibold : .regular))
                         .foregroundStyle(state == .here || hover ? Theme.text : (state == .done ? Theme.textSec : Theme.textMuted))
                         .lineLimit(1)
                 }

@@ -9,7 +9,7 @@ struct EnvEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: "Environment")
             Text("Given to every agent, script and Terminal in this workspace. Secrets stay in your Mac's Keychain and are never written to a file.")
-                .font(Theme.sans(12)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.sans(.small)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
             if !rows.isEmpty {
                 HStack(spacing: 10) {
                     SectionLabel(text: "Key").frame(width: 220, alignment: .leading)
@@ -23,7 +23,7 @@ struct EnvEditor: View {
                     TextField("", text: $row.key).forgeField(mono: true, hint: "KEY", empty: row.key.isEmpty).frame(width: 220)
                         .overlay(alignment: .trailing) {
                             if !row.key.isEmpty, !WorkspaceEnv.validKey(row.key) {
-                                Text("letters, digits, _").font(Theme.sans(10)).foregroundStyle(Theme.heatBright).padding(.trailing, 10)
+                                Text("letters, digits, _").font(Theme.sans(.label)).foregroundStyle(Theme.heatBright).padding(.trailing, 10)
                             }
                         }
                     Group {
@@ -40,7 +40,7 @@ struct EnvEditor: View {
                     Button {
                         rows.removeAll { $0.id == row.id }
                     } label: {
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                        Image(systemName: "xmark").font(Theme.icon(.glyphS, .semibold))
                     }
                     .buttonStyle(ForgeButton(kind: .ghost)).frame(width: 28).help("Remove this variable")
                 }
@@ -90,15 +90,15 @@ struct RepoFileList: View {
                             ? "No repo of this workspace has a checkout on this Mac, so there's nothing to copy."
                             : "Git ignores nothing in your checkout."
                     )
-                    .font(Theme.sans(12)).foregroundStyle(Theme.textSec).padding(14)
+                    .font(Theme.sans(.small)).foregroundStyle(Theme.textSec).padding(14)
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(found, id: \.repo) { r in
-                            if found.count > 1 { Text(r.repo).font(Theme.mono(10)).foregroundStyle(Theme.textMuted).padding(.top, 6) }
+                            if found.count > 1 { Text(r.repo).font(Theme.mono(.label)).foregroundStyle(Theme.textMuted).padding(.top, 6) }
                             ForEach(r.paths.filter { !$0.hasPrefix(".env") }, id: \.self) { p in
                                 let on = picked.contains(p)
-                                CheckRow(on: .constant(on)) { Text(p).font(Theme.mono(12)).foregroundStyle(Theme.text) }
+                                CheckRow(on: .constant(on)) { Text(p).font(Theme.mono(.small)).foregroundStyle(Theme.text) }
                                     .padding(.vertical, 4).contentShape(Rectangle())
                                     .onTapGesture { if !on { add(p) } }
                             }
@@ -110,7 +110,7 @@ struct RepoFileList: View {
             } else {
                 HStack(spacing: 8) {
                     Spinner()
-                    Text("Reading your checkout…").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                    Text("Reading your checkout…").font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                 }
                 .padding(14)
             }

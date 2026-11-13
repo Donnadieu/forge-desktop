@@ -9,11 +9,11 @@ struct HarnessMark: View {
         switch badge {
         case .none: EmptyView()
         case .tick:
-            Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.textMuted)
+            Image(systemName: "checkmark").font(Theme.icon(.glyphS, .semibold)).foregroundStyle(Theme.textMuted)
         case .check:
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.good)
+            Image(systemName: "checkmark.circle.fill").font(Theme.icon(.glyphL, .medium)).foregroundStyle(Theme.good)
         case .half:
-            Image(systemName: "circle.lefthalf.filled").font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.heat)
+            Image(systemName: "circle.lefthalf.filled").font(Theme.icon(.glyphL, .medium)).foregroundStyle(Theme.heat)
         case .notDone:
             Circle().stroke(Theme.bad, lineWidth: 1.5).frame(width: 11, height: 11).frame(width: 13, height: 13)
         }
@@ -38,11 +38,11 @@ struct HarnessStatusPanel: View {
         HStack(alignment: .top, spacing: 12) {
             HarnessMark(badge: HarnessMark.of(record.status)).padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(record.status.rawValue) · \(repo)").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(record.line).font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                Text("\(record.status.rawValue) · \(repo)").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(record.line).font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                 if record.prLine != nil || record.cardURL != nil {
                     HStack(spacing: 12) {
-                        if let pr = record.prLine { Text(pr).font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
+                        if let pr = record.prLine { Text(pr).font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted) }
                         if let url = record.cardURL, let card = record.card, let openCard {
                             Button("Open \(card) in \(url.contains("basecamp") ? "Basecamp" : url.contains("github.com") ? "GitHub" : "Linear")") {
                                 openCard(url)
@@ -76,12 +76,12 @@ struct ReportView: View {
                 ForEach(findings ? report.summary : [], id: \.self) { line in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Circle().fill(Theme.textMuted).frame(width: 4, height: 4).alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
-                        Text(line).font(Theme.sans(14)).foregroundStyle(Theme.text)
+                        Text(line).font(Theme.sans(.emphasis)).foregroundStyle(Theme.text)
                     }
                 }
                 if findings, let m = report.missing, !m.isEmpty {
                     HStack(spacing: 6) {
-                        Text("Missing").font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.trailing, 4)
+                        Text("Missing").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).padding(.trailing, 4)
                         ForEach(m, id: \.self) { Chip(text: $0, tone: .warn) }
                     }
                     .padding(.top, 6)
@@ -119,8 +119,8 @@ struct ReportView: View {
 
     private func words(_ g: RepoReader.Guardrail, dim: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(g.title).font(Theme.sans(14, .medium)).foregroundStyle(dim ? Theme.textSec : Theme.text)
-            Text(g.why).font(Theme.sans(12)).foregroundStyle(dim ? Theme.textMuted : Theme.textSec)
+            Text(g.title).font(Theme.sans(.emphasis, .medium)).foregroundStyle(dim ? Theme.textSec : Theme.text)
+            Text(g.why).font(Theme.sans(.small)).foregroundStyle(dim ? Theme.textMuted : Theme.textSec)
         }
     }
 

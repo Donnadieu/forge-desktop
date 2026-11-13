@@ -37,7 +37,7 @@ struct BranchMenu: View {
                     Button("Rename branch…") { sessions.renameAsk = session }
                 }
             } label: {
-                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+                Image(systemName: "chevron.down").font(Theme.icon(.glyphTiny, .semibold))
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }

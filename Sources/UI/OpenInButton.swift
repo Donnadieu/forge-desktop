@@ -128,7 +128,7 @@ struct OpenInButton: View {
                     if let app {
                         Image(nsImage: openIn.icon(app)).resizable().interpolation(.high).frame(width: 16, height: 16)
                     } else {
-                        Image(systemName: "folder").font(.system(size: 11, weight: .medium))
+                        Image(systemName: "folder").font(Theme.icon(.glyph, .medium))
                     }
                     if !compact || app == nil { Text(openIn.opened[session.id] ?? app?.name ?? "Open in…") }
                 }
@@ -137,7 +137,7 @@ struct OpenInButton: View {
             .help(app.map { "Open \(session.title) in \($0.name) ⌘O" } ?? "Pick an app to open this session's folder")
             Rectangle().fill(Theme.border).frame(width: 1, height: 14)
             Button(action: show) {
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                Image(systemName: "chevron.down").font(Theme.icon(.glyphXS, .semibold))
             }
             .buttonStyle(ForgeButton(kind: .ghost))
             .help("Open in…")
@@ -177,7 +177,7 @@ struct OpenInMenu: View {
         let chosen = openIn.defaultApp(in: session.workspaceId)?.id
         VStack(alignment: .leading, spacing: 0) {
             if openIn.apps.isEmpty {
-                Text("Forge found no app on this Mac to open this folder.").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                Text("Forge found no app on this Mac to open this folder.").font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                     .padding(.horizontal, 14).padding(.vertical, 8)
             }
             ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
@@ -199,8 +199,8 @@ struct OpenInMenu: View {
                 close()
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Copy path").font(Theme.sans(13)).foregroundStyle(Theme.text)
-                    Text(Self.short(session.folder)).font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+                    Text("Copy path").font(Theme.sans(.body)).foregroundStyle(Theme.text)
+                    Text(Self.short(session.folder)).font(Theme.mono(.label)).foregroundStyle(Theme.textMuted)
                         .lineLimit(1).truncationMode(.middle)
                 }
                 .padding(.leading, 36).padding(.trailing, 14).padding(.vertical, 4)
@@ -234,10 +234,10 @@ struct OpenInRow: View {
     var body: some View {
         Button(action: pick) {
             HStack(spacing: 8) {
-                Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.text).frame(width: 12)
+                Image(systemName: "checkmark").font(Theme.icon(.glyphXS, .bold)).foregroundStyle(Theme.text).frame(width: 12)
                     .opacity(chosen ? 1 : 0)
                 Image(nsImage: icon).resizable().interpolation(.high).frame(width: 16, height: 16)
-                Text(name).font(Theme.sans(13)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(name).font(Theme.sans(.body)).foregroundStyle(Theme.text).lineLimit(1)
                 Spacer(minLength: 8)
                 if chosen { KeyHint(text: "⌘O") }
             }

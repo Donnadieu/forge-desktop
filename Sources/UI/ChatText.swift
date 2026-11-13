@@ -10,6 +10,10 @@ struct RichMessage: NSViewRepresentable {
     let key: Int
     /// Takes the whole width (the agent's words); a bubble sizes to its text.
     var fill = true
+    /// Read where the message is built, so a zoom change draws and measures it again.
+    var zoom = Zoom.shared.level
+    /// The message at this zoom.
+    private var zoomedKey: Int { RichText.zoomed(key) }
 
     func makeNSView(context: Context) -> ChatTextView {
         // TextKit 1: AppKit draws code panels and tables (text blocks) only there.
@@ -24,7 +28,7 @@ struct RichMessage: NSViewRepresentable {
     private func update(_ v: ChatTextView, context: Context) {
         let open = context.environment.openURL
         v.onLink = { open($0) }
-        if v.key != key { v.show(RichText.build(parts, key: key), source: text, key: key) }
+        if v.key != zoomedKey { v.show(RichText.build(parts, key: zoomedKey), source: text, key: zoomedKey) }
     }
 
     /// Sizes already measured, by message and width (a list asks for a row's size many times).
@@ -36,14 +40,14 @@ struct RichMessage: NSViewRepresentable {
         let asked = proposal.width ?? 600
         let width = asked.isFinite ? min(max(asked, 60), 20_000) : 600
         var h = Hasher()
-        h.combine(key)
+        h.combine(zoomedKey)
         h.combine(Int(width))
         let sizeKey = h.finalize()
         let used: NSSize
         if let hit = Self.sizes[sizeKey] {
             used = hit
         } else {
-            if v.key != key { v.show(RichText.build(parts, key: key), source: text, key: key) }
+            if v.key != zoomedKey { v.show(RichText.build(parts, key: zoomedKey), source: text, key: zoomedKey) }
             used = v.measure(width: width)
             if Self.sizes.count > 5000 { Self.sizes.removeAll() }
             Self.sizes[sizeKey] = used

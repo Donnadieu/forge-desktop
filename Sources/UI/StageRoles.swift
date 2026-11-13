@@ -56,10 +56,10 @@ struct DefaultProviderLine: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let a = model.account {
-                Text("\(a.provider.name) · \(a.name)").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(model.choices.model ?? "its usual model").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                Text("\(a.provider.name) · \(a.name)").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(model.choices.model ?? "its usual model").font(Theme.mono(.caption)).foregroundStyle(Theme.textSec)
             } else {
-                Text("None yet").font(Theme.sans(13)).foregroundStyle(Theme.textMuted)
+                Text("None yet").font(Theme.sans(.body)).foregroundStyle(Theme.textMuted)
             }
         }
     }

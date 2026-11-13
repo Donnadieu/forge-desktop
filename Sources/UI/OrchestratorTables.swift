@@ -17,12 +17,12 @@ struct StatsRow: View {
     private func stat(value: String?, label: String, note: String, heat: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let value {
-                Text(value).font(Theme.display(40)).foregroundStyle(heat ? Theme.heat : Theme.text).monospacedDigit()
+                Text(value).font(Theme.display(.stat)).foregroundStyle(heat ? Theme.heat : Theme.text).monospacedDigit()
             } else {
                 RoundedRectangle(cornerRadius: Theme.rSm).fill(Theme.wash2).frame(width: 64, height: 32).padding(.vertical, 4)
             }
             SectionLabel(text: label)
-            Text(note).font(Theme.mono(10.5)).tracking(0.4).foregroundStyle(Theme.textMuted).lineLimit(1)
+            Text(note).font(Theme.mono(.boardNote)).tracking(0.4).foregroundStyle(Theme.textMuted).lineLimit(1)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -151,8 +151,8 @@ struct OrchestratorTables: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
-                Text(title.uppercased()).font(Theme.mono(11)).tracking(1.5).foregroundStyle(Theme.textSec)
-                if let count { Text("(\(count))").font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
+                Text(title.uppercased()).font(Theme.mono(.boardMono)).tracking(1.5).foregroundStyle(Theme.textSec)
+                if let count { Text("(\(count))").font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted) }
                 Spacer()
                 if let bulk {
                     Button(bulk.0, action: bulk.1).buttonStyle(ForgeButton(kind: .secondary)).lineLimit(1).fixedSize()
@@ -162,7 +162,7 @@ struct OrchestratorTables: View {
                         StageDot(stage: stage)
                         Text(stage)
                     }
-                    .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    .font(Theme.sans(.boardSmall)).foregroundStyle(Theme.textMuted)
                 }
             }
             // Same height with or without a bulk button, so side-by-side sections line up.
@@ -177,7 +177,7 @@ struct OrchestratorTables: View {
     }
 
     private func empty(_ text: String) -> some View {
-        Text(text).font(Theme.serifItalic(14)).foregroundStyle(Theme.textMuted).frame(maxWidth: .infinity).padding(.vertical, 24)
+        Text(text).font(Theme.serifItalic(.boardQuiet)).foregroundStyle(Theme.textMuted).frame(maxWidth: .infinity).padding(.vertical, 24)
     }
 
     private var skeleton: some View {
@@ -198,13 +198,13 @@ struct OrchestratorTables: View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Color.clear.frame(width: 24)
-                head("Card").frame(minWidth: 320, maxWidth: .infinity, alignment: .leading)
-                head("Stage").frame(width: 128, alignment: .leading)
-                head("Turns").frame(width: 56, alignment: .leading)
+                head("Card").frame(minWidth: BoardColumns.card, maxWidth: .infinity, alignment: .leading)
+                head("Stage").frame(width: BoardColumns.stage, alignment: .leading)
+                head("Turns").frame(width: BoardColumns.turns, alignment: .leading)
                 head("What it's doing").frame(maxWidth: .infinity, alignment: .leading)
-                head("Helpers").frame(width: 96, alignment: .leading)
-                head("Elapsed").frame(width: 80, alignment: .leading)
-                head("Attempt").frame(width: 64, alignment: .leading)
+                head("Helpers").frame(width: BoardColumns.helpers, alignment: .leading)
+                head("Elapsed").frame(width: BoardColumns.elapsed, alignment: .leading)
+                head("Attempt").frame(width: BoardColumns.attempt, alignment: .leading)
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
             .background(Theme.wash1)
@@ -224,7 +224,7 @@ struct OrchestratorTables: View {
         }
     }
 
-    private func head(_ t: String) -> some View { SectionLabel(text: t) }
+    private func head(_ t: String) -> some View { SectionLabel(text: t).lineLimit(1) }
 
     private func expandedBinding(_ id: String) -> Binding<Bool> {
         Binding(
@@ -237,14 +237,16 @@ struct OrchestratorTables: View {
     private func yourTurnRow(_ c: EngineState.Card) -> some View {
         HStack(spacing: 12) {
             cardCell(c).frame(maxWidth: .infinity, alignment: .leading)
-            Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
-                .frame(width: 72, alignment: .leading)
+            Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(.boardMono)).foregroundStyle(
+                Theme.textSec
+            )
+            .frame(width: 72, alignment: .leading)
             Text(
                 mergeOn
                     ? "Look at the pull request, then merge it or ask for changes."
                     : "Look at the pull request, then merge it yourself or ask for changes."
             )
-            .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            .font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec)
             .lineLimit(2).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
             if let pr = c.prUrl {
                 Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
@@ -269,14 +271,16 @@ struct OrchestratorTables: View {
                 cardCell(c)
                 HStack(spacing: 8) {
                     Pill(text: "Waiting on you", stage: "Human Review")
-                    Text("Still in \(c.state) on \(model.choices.boardName)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    Text("Still in \(c.state) on \(model.choices.boardName)").font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
-                .frame(width: 72, alignment: .leading)
+            Text(c.prUrl.flatMap { $0.split(separator: "/").last.map { "#\($0)" } } ?? "—").font(Theme.mono(.boardMono)).foregroundStyle(
+                Theme.textSec
+            )
+            .frame(width: 72, alignment: .leading)
             Text(c.parked?.line ?? "")
-                .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                .font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec)
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
             if let pr = c.prUrl {
                 Button("Open pull request ↗") { model.openLink(pr) }.buttonStyle(ForgeButton(kind: .ghost)).lineLimit(1).fixedSize()
@@ -294,7 +298,7 @@ struct OrchestratorTables: View {
             VStack(alignment: .leading, spacing: 4) {
                 cardCell(c)
                 if c.state == "Todo", let waiting = CardMoves.waitingLine(c) {
-                    Text(waiting).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    Text(waiting).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -321,8 +325,8 @@ struct OrchestratorTables: View {
 
     private func cardCell(_ c: EngineState.Card) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(c.identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
-            Text(c.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+            Text(c.identifier).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
+            Text(c.title).font(Theme.sans(.boardText, .medium)).foregroundStyle(Theme.text).lineLimit(1)
         }
     }
 }
@@ -337,8 +341,8 @@ struct EmptyBoard: View {
     var body: some View {
         VStack(spacing: 12) {
             AnvilMark().sized(48, Theme.textMuted)
-            Text("Nothing on the anvil yet").font(Theme.serifItalic(24)).foregroundStyle(Theme.textSec)
-            Text("Add a card to Todo in \(tracker), then press Start.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Text("Nothing on the anvil yet").font(Theme.serifItalic(.emptyTitle)).foregroundStyle(Theme.textSec)
+            Text("Add a card to Todo in \(tracker), then press Start.").font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec)
             Button("Open \(project) in \(tracker) ↗", action: openLinear)
                 .buttonStyle(ForgeButton(kind: .primary, large: true))
                 .padding(.top, 4)

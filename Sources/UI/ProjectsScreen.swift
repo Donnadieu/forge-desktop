@@ -79,7 +79,7 @@ struct ProjectsScreen: View {
             HStack {
                 SectionLabel(text: "\(t.kind.name) · \(t.title)")
                 Spacer()
-                if !all.isEmpty { Text("\(mine) of \(all.count) picked").font(Theme.mono(11)).foregroundStyle(Theme.textMuted) }
+                if !all.isEmpty { Text("\(mine) of \(all.count) picked").font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted) }
             }
             .padding(.bottom, 12)
             if let p = problems[t.id] {
@@ -87,10 +87,10 @@ struct ProjectsScreen: View {
             } else if lists[t.id] == nil {
                 HStack(spacing: 8) {
                     Spinner(heat: true)
-                    Text("Reading \(t.kind.name)…").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text("Reading \(t.kind.name)…").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 }
             } else if all.isEmpty {
-                Text("No projects there yet.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                Text("No projects there yet.").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
             }
             ForEach(shown) { c in row(c) }
         }
@@ -112,8 +112,8 @@ struct ProjectsScreen: View {
                 })
         ) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(c.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(note).font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                Text(c.name).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(note).font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
             }
         }
         .opacity(elsewhere != nil ? 0.45 : 1)

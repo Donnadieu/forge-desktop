@@ -20,17 +20,17 @@ struct AccountList<Form: View>: View {
             ForEach(accounts) { a in
                 row(a.id) {
                     HStack(spacing: 8) {
-                        Text(a.name).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
+                        Text(a.name).font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.text)
                         if a.id == inUse { Pill(text: "In use", tone: .green, dot: Theme.good) }
                     }
-                    Text(a.line).font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text(a.line).font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 } trailing: {
                     Button("Clear") { clear(a) }.buttonStyle(ForgeButton(kind: .ghost, icon: "xmark"))
                 }
             }
             row(AIAccount.addingID) {
-                Text(accounts.isEmpty ? "Add your first account" : "Add an account").font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
-                Text("Sign in with the browser or paste an API key. Keep as many as you like.").font(Theme.sans(13))
+                Text(accounts.isEmpty ? "Add your first account" : "Add an account").font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.text)
+                Text("Sign in with the browser or paste an API key. Keep as many as you like.").font(Theme.sans(.body))
                     .foregroundStyle(Theme.textSec)
                 if selection == AIAccount.addingID { form().padding(.top, 6) }
             } trailing: {
@@ -73,13 +73,13 @@ struct ClearAccountSheet: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Clear \(account.name)?").font(Theme.display(24)).foregroundStyle(Theme.text)
+                        Text("Clear \(account.name)?").font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text)
                         Text("Forge forgets this account and removes \(what) from your Keychain. Your other accounts stay signed in.")
-                            .font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                            .font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     Button(action: cancel) {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSec)
+                        Image(systemName: "xmark").font(Theme.icon(.glyph, .semibold)).foregroundStyle(Theme.textSec)
                             .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
@@ -90,7 +90,7 @@ struct ClearAccountSheet: View {
                 if !projects.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         SectionLabel(text: "Projects that need another account")
-                        ForEach(projects, id: \.self) { Text($0).font(Theme.mono(12)).foregroundStyle(Theme.text) }
+                        ForEach(projects, id: \.self) { Text($0).font(Theme.mono(.small)).foregroundStyle(Theme.text) }
                     }
                     .padding(24)
                 }

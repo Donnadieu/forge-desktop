@@ -40,6 +40,8 @@ enum ScreenRender {
         var failed = 0
         // FORGE_SHOTS=14-sessions,16- draws only the shots whose names start with one of these.
         let only = ProcessInfo.processInfo.environment["FORGE_SHOTS"]?.split(separator: ",").map(String.init) ?? []
+        // FORGE_ZOOM=1.5 draws every shot at that zoom (never saved).
+        if let z = ProcessInfo.processInfo.environment["FORGE_ZOOM"].flatMap(Double.init) { Zoom.shared.set(z, persist: false) }
         for shot in shots() where only.isEmpty || only.contains(where: { shot.name.hasPrefix($0) }) {
             Terminals.shared = Terminals()
             let model = model(for: shot)

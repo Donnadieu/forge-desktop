@@ -62,11 +62,11 @@ struct GitHubBoardSignInPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let code = signIn.code {
-                Text("Enter this code on GitHub").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(code.userCode).font(Theme.mono(28, .medium)).foregroundStyle(Theme.heatBright).textSelection(.enabled)
+                Text("Enter this code on GitHub").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(code.userCode).font(Theme.mono(.codeDisplay, .medium)).foregroundStyle(Theme.heatBright).textSelection(.enabled)
                 HStack(spacing: 10) {
                     Spinner(heat: true)
-                    Text("Waiting for you to approve it in your browser…").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text("Waiting for you to approve it in your browser…").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 }
                 HStack(spacing: 16) {
                     Button("Open the page again") { openLink(code.verificationURL) }.buttonStyle(ForgeButton(kind: .plain))
@@ -74,17 +74,17 @@ struct GitHubBoardSignInPanel: View {
                 }
                 .padding(.top, 4)
             } else {
-                Text("Sign in with your browser").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                Text("Sign in with your browser").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                 Text(
                     "Forge opens GitHub and shows a short code. Enter it there and approve; Forge can then read your "
                         + "project, move its issues between columns, assign itself the ones it works on and comment on them."
                 )
-                .font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Image(systemName: "lock").font(.system(size: 10))
+                    Image(systemName: "lock").font(Theme.icon(.glyphS))
                     Text("No password here. The sign-in is kept in your Mac's Keychain and nowhere else.")
                 }
-                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).padding(.top, 4)
+                .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).padding(.top, 4)
             }
         }
         .padding(20)
@@ -146,7 +146,7 @@ struct GitHubProjectScreen: View {
                     .fixedSize()
                 }
             }
-            .font(Theme.sans(13))
+            .font(Theme.sans(.body))
             .foregroundStyle(Theme.textSec)
             .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: detail != nil, where: "GitHub")

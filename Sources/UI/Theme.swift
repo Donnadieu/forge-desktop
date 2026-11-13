@@ -19,7 +19,8 @@ enum Theme {
     static let text = Color(hex: 0xF7F5F1)
     static let silver = Color(hex: 0xEDE9E3)
     static let textSec = Color(hex: 0xB0A99F)
-    static let textMuted = Color(hex: 0x7A7470)
+    // Muted was 0x7A7470 (3.8:1 on bg, 3.1:1 on surface): brightened to WCAG AA on both (Omar, Nov 13; typography.md).
+    static let textMuted = Color(hex: 0x9A9490)
     static let faint = Color(hex: 0x4A4640)
 
     // Soft washes (--silver-wash-1/2/3): cream at 4, 8 and 14 percent.
@@ -87,11 +88,11 @@ enum Theme {
         }
     }
 
-    // Type. Sizes are the system's (--text-xs 11, -sm 13, -md 15, -lg 18, -xl 24, -2xl 32) or a kit's own.
-    static func display(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Black", size: size) }
-    static func serifItalic(_ size: CGFloat) -> Font { .custom("PlayfairDisplay-Italic", size: size) }
-    /// `sans(size)` for AppKit views (the message box's text view).
-    static func sansFont(_ size: CGFloat, _ weight: Font.Weight = .regular) -> NSFont {
+    // Type. Every size is a `TextSize` token (Typography.swift): the scale and the zoom live there, never a number here.
+    static func display(_ size: TextSize) -> Font { .custom("PlayfairDisplay-Black", fixedSize: size.points) }
+    static func serifItalic(_ size: TextSize) -> Font { .custom("PlayfairDisplay-Italic", fixedSize: size.points) }
+    /// `sans(size)` for AppKit views (the message box's text view, a chat message).
+    static func sansFont(_ size: TextSize, _ weight: Font.Weight = .regular) -> NSFont {
         let name =
             switch weight {
             case .medium: "DMSans-Medium"
@@ -99,22 +100,33 @@ enum Theme {
             case .bold, .heavy, .black: "DMSans-Bold"
             default: "DMSans-Regular"
             }
-        return NSFont(name: name, size: size) ?? .systemFont(ofSize: size)
+        return NSFont(name: name, size: size.points) ?? .systemFont(ofSize: size.points)
     }
     /// `mono(size)` for AppKit views.
-    static func monoFont(_ size: CGFloat) -> NSFont {
-        NSFont(name: "DMMono-Regular", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+    static func monoFont(_ size: TextSize) -> NSFont {
+        NSFont(name: "DMMono-Regular", size: size.points) ?? .monospacedSystemFont(ofSize: size.points, weight: .regular)
     }
-    static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+    static func sans(_ size: TextSize, _ weight: Font.Weight = .regular) -> Font {
         switch weight {
-        case .medium: return .custom("DMSans-Medium", size: size)
-        case .semibold: return .custom("DMSans-SemiBold", size: size)
-        case .bold, .heavy, .black: return .custom("DMSans-Bold", size: size)
-        default: return .custom("DMSans-Regular", size: size)
+        case .medium: return .custom("DMSans-Medium", fixedSize: size.points)
+        case .semibold: return .custom("DMSans-SemiBold", fixedSize: size.points)
+        case .bold, .heavy, .black: return .custom("DMSans-Bold", fixedSize: size.points)
+        default: return .custom("DMSans-Regular", fixedSize: size.points)
         }
     }
-    static func mono(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .custom(weight == .regular ? "DMMono-Regular" : "DMMono-Medium", size: size)
+    static func mono(_ size: TextSize, _ weight: Font.Weight = .regular) -> Font {
+        .custom(weight == .regular ? "DMMono-Regular" : "DMMono-Medium", fixedSize: size.points)
+    }
+    /// An SF Symbol next to text, at a glyph token.
+    static func icon(_ size: TextSize, _ weight: Font.Weight = .regular) -> Font { .system(size: size.points, weight: weight) }
+    /// A paragraph style that sets a token's line height (the chat's roomier lines).
+    @discardableResult
+    static func lines(_ size: TextSize, _ style: NSMutableParagraphStyle = NSMutableParagraphStyle()) -> NSMutableParagraphStyle {
+        if let h = size.lineHeight {
+            style.minimumLineHeight = h
+            style.maximumLineHeight = h
+        }
+        return style
     }
 
     /// The eyebrow's tracking (--tr-mark, 0.14em) at its 10px size.

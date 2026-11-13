@@ -15,9 +15,9 @@ struct ModelChip: View {
             open.toggle()
         } label: {
             HStack(spacing: 6) {
-                Text(short ? Sessions.modelName(model) : "\(Sessions.modelName(model)) · \(Sessions.effortName(effort))").font(Theme.mono(11))
+                Text(short ? Sessions.modelName(model) : "\(Sessions.modelName(model)) · \(Sessions.effortName(effort))").font(Theme.mono(.caption))
                     .foregroundStyle(Theme.text)
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textMuted)
+                Image(systemName: "chevron.down").font(Theme.icon(.glyphXS, .semibold)).foregroundStyle(Theme.textMuted)
             }
             .padding(.horizontal, 10).frame(height: 30)
             .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.bg))
@@ -47,8 +47,8 @@ struct ModelPicker: View {
                     pick(m.id, effort)
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).opacity(m.id == model ? 1 : 0)
-                        Text(m.name).font(Theme.sans(13))
+                        Image(systemName: "checkmark").font(Theme.icon(.glyphS, .bold)).opacity(m.id == model ? 1 : 0)
+                        Text(m.name).font(Theme.sans(.body))
                         Spacer()
                     }
                     .foregroundStyle(Theme.text)
@@ -66,7 +66,7 @@ struct ModelPicker: View {
                     Button {
                         pick(model, e.id)
                     } label: {
-                        Text(e.name).font(Theme.sans(11, e.id == effort ? .semibold : .regular))
+                        Text(e.name).font(Theme.sans(.caption, e.id == effort ? .semibold : .regular))
                             .foregroundStyle(e.id == effort ? Theme.heatBright : Theme.textSec)
                             .padding(.horizontal, 10).frame(height: 28)
                             .background(e.id == effort ? Theme.heatWash : .clear)
@@ -77,7 +77,7 @@ struct ModelPicker: View {
             }
             .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))
             .padding(.horizontal, 14).padding(.top, 8)
-            Text("Applies from the next turn").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+            Text("Applies from the next turn").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                 .padding(.horizontal, 14).padding(.vertical, 12)
         }
         .frame(width: 330)
@@ -128,7 +128,7 @@ struct Composer: View {
             }
             ZStack(alignment: .topLeading) {
                 if text.wrappedValue.isEmpty {
-                    Text(placeholder).font(Theme.sans(13)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1).lineLimit(1)
+                    Text(placeholder).font(Theme.sans(.body)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1).lineLimit(1)
                 }
                 MessageBox(
                     text: text, focused: $focused, focusRequest: focusRequest,
@@ -148,7 +148,11 @@ struct Composer: View {
             ViewThatFits(in: .horizontal) {
                 controls(short: compact)
                 controls(short: true)
+                controls(short: true, skillsIcon: true)
                 controls(short: true, skillsButton: false)
+                // The narrowest of all (a card's chat beside the Changes panel in the smallest window, or a big zoom):
+                // the context meter steps out until there's room again.
+                controls(short: true, skillsButton: false, meter: false)
             }
         }
         .padding(14)
@@ -176,7 +180,7 @@ struct Composer: View {
         return hands ? "You have the wheel" : "Steering the card's agent"
     }
 
-    private func controls(short: Bool, skillsButton: Bool = true) -> some View {
+    private func controls(short: Bool, skillsButton: Bool = true, skillsIcon: Bool = false, meter: Bool = true) -> some View {
         HStack(spacing: 8) {
             if !cardsOwn {
                 Menu {
@@ -188,7 +192,7 @@ struct Composer: View {
                         sessions.set(chat, ask: !chat.askBeforeChanges)
                     }
                 } label: {
-                    Image(systemName: "plus").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textSec)
+                    Image(systemName: "plus").font(Theme.icon(.glyphM, .medium)).foregroundStyle(Theme.textSec)
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .frame(width: 30, height: 30)
@@ -197,7 +201,7 @@ struct Composer: View {
                 Pill(text: wheelWords(short: short), tone: .ghost)
             }
             // The narrowest boxes (two chats side by side) keep Skills in the + menu instead.
-            if skillsButton || cardsOwn { SkillsButton(open: $skillsOpen).fixedSize() }
+            if skillsButton || cardsOwn { SkillsButton(open: $skillsOpen, iconOnly: skillsIcon || !skillsButton).fixedSize() }
             if chat.planMode { Pill(text: "Plan mode", tone: .info) }
             if (chat.queued ?? 0) > 0 { Pill(text: "\(chat.queued ?? 0) queued", tone: .ghost) }
             Spacer(minLength: 8)
@@ -207,7 +211,7 @@ struct Composer: View {
                 }
                 .fixedSize()
             }
-            ContextMeter(percent: chat.contextPercent, short: short).fixedSize()
+            if meter { ContextMeter(percent: chat.contextPercent, short: short).fixedSize() }
             if let card = sessions.card(of: chat) {
                 if card.handsOn {
                     Button("Hand back to Forge") { sessions.wheel(chat, take: false) }
@@ -279,7 +283,7 @@ struct ContextMeter: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(short ? "\(percent)%" : "Context \(percent)%").font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+            Text(short ? "\(percent)%" : "Context \(percent)%").font(Theme.mono(.label)).foregroundStyle(Theme.textMuted)
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.wash2).frame(width: 28, height: 4)
                 Capsule().fill(percent > 80 ? Theme.heat : Theme.textSec).frame(width: 28 * CGFloat(percent) / 100, height: 4)

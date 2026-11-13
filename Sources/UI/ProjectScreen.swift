@@ -46,11 +46,11 @@ struct ProjectScreen: View {
                 .fixedSize()
                 .disabled(teamID.isEmpty)
             }
-            .font(Theme.sans(13))
+            .font(Theme.sans(.body))
             .foregroundStyle(Theme.textSec)
             .padding(.bottom, 6)
             Text("Only pick up cards from one project. With none, Forge works on all of \(teamName)'s cards.")
-                .font(Theme.sans(12))
+                .font(Theme.sans(.small))
                 .foregroundStyle(Theme.textSec)
                 .padding(.bottom, 18)
             ColumnList(existing: existing, showMarks: !teamID.isEmpty)
@@ -157,11 +157,11 @@ struct ColumnList: View {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     StageDot(stage: c.name).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
                     Text(c.name)
-                        .font(Theme.sans(13, .semibold))
+                        .font(Theme.sans(.body, .semibold))
                         .foregroundStyle(Theme.text)
                         .frame(width: 108, alignment: .leading)
                     Text(c.line)
-                        .font(Theme.sans(13))
+                        .font(Theme.sans(.body))
                         .foregroundStyle(Theme.textSec)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
@@ -194,19 +194,19 @@ struct MissingColumnsNote: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 12) {
                     Text("\(missing.count) column\(missing.count == 1 ? " is" : "s are") missing from \(from).")
-                        .font(Theme.sans(13))
+                        .font(Theme.sans(.body))
                         .foregroundStyle(required.isEmpty ? Theme.textSec : Theme.heatBright)
                     Button("Add them to \(tracker)…", action: add)
                         .buttonStyle(ForgeButton(kind: required.isEmpty ? .secondary : .fix))
                 }
                 if !required.isEmpty {
                     Text("Forge needs \(Pipeline.listed(required.map(\.name))) to start: there's nowhere to pick up or finish cards without them.")
-                        .font(Theme.sans(13))
+                        .font(Theme.sans(.body))
                         .foregroundStyle(Theme.heatBright)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let line = Pipeline.withoutLine(existing: existing) {
                     Text(line)
-                        .font(Theme.sans(13))
+                        .font(Theme.sans(.body))
                         .foregroundStyle(Theme.textSec)
                         .fixedSize(horizontal: false, vertical: true)
                 }

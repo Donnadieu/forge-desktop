@@ -30,7 +30,7 @@ struct TerminalPanel: View {
                 TerminalCanvas(tab: tab).id(tab.id)
                     .frame(maxWidth: .infinity).frame(height: terminals.height)
             } else if let p = terminals.problem {
-                Text(p).font(Theme.sans(12)).foregroundStyle(Theme.textSec).frame(maxWidth: .infinity, minHeight: 60)
+                Text(p).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).frame(maxWidth: .infinity, minHeight: 60)
             }
         }
         .background(Theme.bg)
@@ -41,12 +41,12 @@ struct TerminalPanel: View {
             ForEach(terminals.tabs(of: session.id)) { tab in
                 let on = tab.id == terminals.current(of: session.id)?.id
                 HStack(spacing: 6) {
-                    Image(systemName: "terminal").font(.system(size: 10))
-                    Text(tab.title).font(Theme.sans(11, on ? .semibold : .regular))
+                    Image(systemName: "terminal").font(Theme.icon(.glyphS))
+                    Text(tab.title).font(Theme.sans(.caption, on ? .semibold : .regular))
                     Button {
                         terminals.close(tab, in: session.id)
                     } label: {
-                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                        Image(systemName: "xmark").font(Theme.icon(.glyphTiny, .bold))
                     }
                     .buttonStyle(.plain).help("Close this Terminal tab; its shell ends")
                 }
@@ -59,11 +59,11 @@ struct TerminalPanel: View {
             Button {
                 terminals.open(session, env: env())
             } label: {
-                Image(systemName: "plus").font(.system(size: 11, weight: .medium))
+                Image(systemName: "plus").font(Theme.icon(.glyph, .medium))
             }
             .buttonStyle(ForgeButton(kind: .ghost)).help("Another Terminal tab in this session's folder")
             Spacer()
-            Text(session.folder).font(Theme.mono(10)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.head)
+            Text(session.folder).font(Theme.mono(.label)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.head)
             Button("Hide") { terminals.shown.remove(session.id) }
                 .buttonStyle(ForgeButton(kind: .ghost, hint: "⌃`", icon: "chevron.down"))
         }
@@ -75,6 +75,8 @@ struct TerminalPanel: View {
 /// Hosts the drawn terminal and keeps it in step with its shell's output.
 struct TerminalCanvas: NSViewRepresentable {
     @ObservedObject var tab: TerminalTab
+    /// Read where the canvas is built, so a zoom change re-fits the shell to the new cell size.
+    var zoom = Zoom.shared.level
 
     func makeNSView(context: Context) -> TerminalNSView {
         let v = TerminalNSView()
@@ -85,6 +87,7 @@ struct TerminalCanvas: NSViewRepresentable {
 
     func updateNSView(_ v: TerminalNSView, context: Context) {
         v.tab = tab
+        v.zoomChanged()
         v.needsDisplay = true
     }
 }
@@ -96,9 +99,10 @@ final class TerminalNSView: NSView, NSMenuItemValidation {
     weak var tab: TerminalTab?
     private var scrollBack = 0
     private(set) var selection: TerminalSelection?
-    private let font = NSFont(name: "DMMono-Regular", size: 12) ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
-    private lazy var cellW: CGFloat = ceil(("M" as NSString).size(withAttributes: [.font: font]).width)
-    private lazy var lineH: CGFloat = ceil(font.ascender - font.descender + font.leading) + 2
+    /// DM Mono at the terminal token: the cell size follows the zoom (`zoomChanged` re-fits the shell).
+    private var font: NSFont { Theme.monoFont(.terminal) }
+    private var cellW: CGFloat { ceil(("M" as NSString).size(withAttributes: [.font: font]).width) }
+    private var lineH: CGFloat { ceil(font.ascender - font.descender + font.leading) + 2 }
     private let pad: CGFloat = 8
 
     override var isFlipped: Bool { true }
@@ -179,7 +183,15 @@ final class TerminalNSView: NSView, NSMenuItemValidation {
         MainActor.assumeIsolated { fit() }
     }
 
+    /// The cell size follows the zoom: re-fit the shell's rows and columns when it changed.
+    private var fittedAt: CGFloat = 0
+    @MainActor func zoomChanged() {
+        guard fittedAt != TextSize.terminal.points else { return }
+        fit()
+    }
+
     @MainActor private func fit() {
+        fittedAt = TextSize.terminal.points
         let cols = Int((bounds.width - pad * 2) / cellW)
         let rows = Int((bounds.height - pad * 2) / lineH)
         if cols > 4, rows > 1 { tab?.resize(cols: cols, rows: rows) }

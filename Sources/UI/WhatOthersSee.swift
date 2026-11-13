@@ -17,13 +17,13 @@ struct WhatOthersSee: View {
             SectionLabel(text: "What others see")
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Keep Forge invisible").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                    Text("Keep Forge invisible").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                     Text(
                         invisible
                             ? "Nothing says Forge. Pull requests, branches, commits and card notes look like your own work."
                             : "Off: pull requests get the forge label."
                     )
-                    .font(Theme.sans(11)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                    .font(Theme.sans(.caption)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 ForgeToggle(
@@ -38,8 +38,8 @@ struct WhatOthersSee: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(Self.promises, id: \.self) { line in
                         HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.good).padding(.top, 3)
-                            Text(line).font(Theme.sans(12)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                            Image(systemName: "checkmark").font(Theme.icon(.glyphXS, .bold)).foregroundStyle(Theme.good).padding(.top, 3)
+                            Text(line).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -47,7 +47,7 @@ struct WhatOthersSee: View {
             field("Pull request label", text: $label, hint: "None")
             field("Branch prefix", text: Binding(get: { prefix }, set: { prefix = Self.cleanPrefix($0) }), hint: "None")
             Text("Branches look like \(Self.branch(card: sampleCard, prefix: prefix, tracker: trackerBranch))")
-                .font(Theme.mono(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -60,7 +60,7 @@ struct WhatOthersSee: View {
 
     private func field(_ title: String, text: Binding<String>, hint: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(Theme.sans(12, .medium)).foregroundStyle(Theme.textSec)
+            Text(title).font(Theme.sans(.small, .medium)).foregroundStyle(Theme.textSec)
             TextField("", text: text).forgeField(mono: true, hint: hint, empty: text.wrappedValue.isEmpty)
         }
     }

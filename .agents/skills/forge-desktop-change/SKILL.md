@@ -127,6 +127,16 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `opensFileLinks(_:root:)` sets on a transcript; Markdown parts are cached per text AND worktree, so a view without
   a worktree never gets links.
 
+- Text sizes are `TextSize` tokens only (`Typography.swift`); the font helpers take no numbers. A size that reads the
+  zoom inside an AppKit view (`NSViewRepresentable`) only redraws if the representable is rebuilt: give it a
+  `var zoom = Zoom.shared.level` property (read where it's built, so SwiftUI tracks it) and fold the zoom into any
+  cache key (`RichText.zoomed`). Checks draw at a zoom with `Zoom.drawing(at:)`, never `Zoom.shared.set` with saving.
+- `NSHostingController.sizeThatFits` returns the proposed width for any screen built from flexible frames, even when
+  its content spills past the window (SwiftUI then centres it and both edges get cut). Prove a whole screen fits from
+  the pixels instead: `Checks.topBarFitChecks` looks for ink between the window's buttons and the anvil and in the top
+  bar's right padding. The top bar steps down by itself (`TopBar` tiers through `\.tightRow`: no key hints, icons only,
+  no wordmark word), so a new top-bar button is a `ForgeButton` with an icon; a fixed-width table column that holds
+  text grows with the zoom (`BoardColumns`).
 - Vision (`Checks.readScreen`) misreads 11 pt words at 1x ("Open in…" came back "Openin...", a menu's lower rows went
   missing). Draw a small view scaled up (`Checks.big`, 2.5x) before reading it.
 - A render scene that sets state for one session must not run for every scene: `SampleSetup.scene` selected s1 for any

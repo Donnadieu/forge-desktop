@@ -103,13 +103,13 @@ struct ToolRow: View {
             if !parts.isEmpty { open.toggle() }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
+                Image(systemName: open ? "chevron.down" : "chevron.right").font(Theme.icon(.glyphTiny, .bold))
                     .foregroundStyle(Theme.textMuted).opacity(parts.isEmpty ? 0.3 : 1)
-                Image(systemName: ToolStyle.of(event.name).icon).font(.system(size: 10))
+                Image(systemName: ToolStyle.of(event.name).icon).font(Theme.icon(.glyphS))
                     .foregroundStyle(failed ? Theme.heat : Theme.textMuted).frame(width: 14)
-                Text(event.text).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec).lineLimit(1)
+                Text(event.text).font(Theme.mono(.toolTitle)).foregroundStyle(failed ? Theme.heat : Theme.textSec).lineLimit(1)
                 if running { Spinner() }
-                if failed { Text("failed").font(Theme.mono(10)).foregroundStyle(Theme.heat) }
+                if failed { Text("failed").font(Theme.mono(.toolMeta)).foregroundStyle(Theme.heat) }
                 Spacer(minLength: 0)
             }
             .contentShape(Rectangle())
@@ -125,8 +125,8 @@ struct ToolRow: View {
             openURL(url)
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "arrow.up.forward.square").font(.system(size: 10))
-                Text("Open").font(Theme.mono(10))
+                Image(systemName: "arrow.up.forward.square").font(Theme.icon(.glyphS))
+                Text("Open").font(Theme.mono(.toolMeta))
             }
             .foregroundStyle(Theme.heatBright)
         }
@@ -138,15 +138,15 @@ struct ToolRow: View {
         switch p {
         case .command(let c):
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("$").font(Theme.mono(11, .medium)).foregroundStyle(Theme.heatBright)
-                Text(FileLinks.linked(c, root: worktree)).font(Theme.mono(11)).foregroundStyle(Theme.text).textSelection(.enabled)
+                Text("$").font(Theme.mono(.toolTitle, .medium)).foregroundStyle(Theme.heatBright)
+                Text(FileLinks.linked(c, root: worktree)).font(Theme.mono(.toolTitle)).foregroundStyle(Theme.text).textSelection(.enabled)
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.wash1)
         case .output(let text, let failed):
             ScrollView {
-                Text(FileLinks.linked(text, root: worktree)).font(Theme.mono(11)).foregroundStyle(failed ? Theme.heat : Theme.textSec)
+                Text(FileLinks.linked(text, root: worktree)).font(Theme.mono(.toolTitle)).foregroundStyle(failed ? Theme.heat : Theme.textSec)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(10)
             }
@@ -166,8 +166,8 @@ struct ToolRow: View {
 
     private func line(_ mark: String, _ text: String, _ wash: Color, _ tint: Color) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(mark).font(Theme.mono(11)).foregroundStyle(tint).frame(width: 10)
-            Text(text.isEmpty ? AttributedString(" ") : Syntax.attributed(text, language: language)).font(Theme.mono(11)).lineLimit(1)
+            Text(mark).font(Theme.mono(.toolTitle)).foregroundStyle(tint).frame(width: 10)
+            Text(text.isEmpty ? AttributedString(" ") : Syntax.attributed(text, language: language)).font(Theme.mono(.toolTitle)).lineLimit(1)
                 .textSelection(.enabled)
         }
         .padding(.horizontal, 10).frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)

@@ -30,12 +30,12 @@ struct CardDetail: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 6) {
                         SectionLabel(text: "Workpad")
-                        Text("The agent's one running note on this card.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                        Text("The agent's one running note on this card.").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
                             .padding(.bottom, 10)
                         if let workpad, !workpad.isEmpty {
                             WorkpadView(text: workpad)
                         } else {
-                            Text(loaded ? "No workpad on this card yet." : "Reading…").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                            Text(loaded ? "No workpad on this card yet." : "Reading…").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                         }
                     }
                     .padding(24)
@@ -61,10 +61,10 @@ struct CardDetail: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
-                    Text(card.identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    Text(card.identifier).font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted)
                     Pill(text: card.state, stage: card.state, dot: card.agent != nil ? Theme.stage(card.state).dot : nil, pulsing: card.agent != nil)
                 }
-                Text(card.title).font(Theme.display(24)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                Text(card.title).font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 24)
             if card.agent != nil {
@@ -91,12 +91,12 @@ struct CardDetail: View {
                 HStack(alignment: .top, spacing: 12) {
                     Spinner(heat: true).padding(.top, 4)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(card.activity ?? "Working").font(Theme.sans(15)).foregroundStyle(Theme.text)
-                        Text("Turn \(agent.turn) · attempt \(agent.attempt)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                        Text(card.activity ?? "Working").font(Theme.sans(.subtitle)).foregroundStyle(Theme.text)
+                        Text("Turn \(agent.turn) · attempt \(agent.attempt)").font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted)
                     }
                 }
             } else {
-                Text("No agent has this card right now.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                Text("No agent has this card right now.").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
             }
         }
         if !card.helpers.isEmpty {
@@ -109,9 +109,9 @@ struct CardDetail: View {
                             if h.running {
                                 Spinner(heat: true)
                             } else {
-                                Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.good)
+                                Image(systemName: "checkmark.circle.fill").font(Theme.icon(.glyphM)).foregroundStyle(Theme.good)
                             }
-                            Text(h.description).font(Theme.sans(13)).foregroundStyle(h.running ? Theme.text : Theme.textSec)
+                            Text(h.description).font(Theme.sans(.body)).foregroundStyle(h.running ? Theme.text : Theme.textSec)
                             Spacer()
                             Chip(text: h.running ? "Running" : "Done", tone: h.running ? .heat : .quiet)
                         }
@@ -130,7 +130,7 @@ struct CardDetail: View {
                         Text(Self.time(l.at)).foregroundStyle(Theme.textMuted)
                         Text(l.line).foregroundStyle(i == 0 ? Theme.text : Theme.textSec)
                     }
-                    .font(Theme.mono(12))
+                    .font(Theme.mono(.small))
                 }
             }
         }
@@ -144,12 +144,12 @@ struct CardDetail: View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel(text: "Steer")
             if let steerProblem {
-                Text(steerProblem).font(Theme.sans(12)).foregroundStyle(Theme.heat)
+                Text(steerProblem).font(Theme.sans(.small)).foregroundStyle(Theme.heat)
             }
             HStack(spacing: 8) {
                 TextField(handsOn ? "Send the next message…" : "Steer the agent right now…", text: $steerText, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(Theme.sans(13))
+                    .font(Theme.sans(.body))
                     .padding(.horizontal, 10).padding(.vertical, 8)
                     .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(Theme.wash1))
                     .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(Theme.border))
@@ -200,9 +200,9 @@ struct CardDetail: View {
             SectionLabel(text: "Code")
             if let b = card.branchName {
                 HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.branch").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-                    Text("Branch").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
-                    Text(b).font(Theme.mono(12)).foregroundStyle(Theme.text).textSelection(.enabled)
+                    Image(systemName: "arrow.triangle.branch").font(Theme.icon(.glyph)).foregroundStyle(Theme.textMuted)
+                    Text("Branch").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
+                    Text(b).font(Theme.mono(.small)).foregroundStyle(Theme.text).textSelection(.enabled)
                         .padding(.horizontal, 8).frame(height: 22)
                         .background(RoundedRectangle(cornerRadius: 4).fill(Color.black.opacity(0.25)))
                 }
@@ -244,23 +244,23 @@ struct WorkpadView: View {
 
     @ViewBuilder private func line(_ l: String) -> some View {
         if l.hasPrefix("### ") {
-            Text(String(l.dropFirst(4))).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.textSec).padding(.top, 6)
+            Text(String(l.dropFirst(4))).font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.textSec).padding(.top, 6)
         } else if l.hasPrefix("## ") || l.hasPrefix("# ") {
-            Text(String(l.drop { $0 == "#" }.dropFirst())).font(Theme.sans(16, .semibold)).foregroundStyle(Theme.text)
+            Text(String(l.drop { $0 == "#" }.dropFirst())).font(Theme.sans(.title, .semibold)).foregroundStyle(Theme.text)
         } else if l.hasPrefix("- [x] ") || l.hasPrefix("- [X] ") || l.hasPrefix("- [ ] ") {
             let done = !l.hasPrefix("- [ ] ")
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: done ? "checkmark.square.fill" : "square").font(.system(size: 12))
+                Image(systemName: done ? "checkmark.square.fill" : "square").font(Theme.icon(.glyphM))
                     .foregroundStyle(done ? Theme.textSec : Theme.textMuted)
-                Text(inline(String(l.dropFirst(6)))).font(Theme.sans(13)).foregroundStyle(done ? Theme.textSec : Theme.text)
+                Text(inline(String(l.dropFirst(6)))).font(Theme.sans(.body)).foregroundStyle(done ? Theme.textSec : Theme.text)
             }
         } else if l.hasPrefix("- ") || l.hasPrefix("* ") {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("•").foregroundStyle(Theme.textMuted)
-                Text(inline(String(l.dropFirst(2)))).font(Theme.sans(13)).foregroundStyle(Theme.text)
+                Text(inline(String(l.dropFirst(2)))).font(Theme.sans(.body)).foregroundStyle(Theme.text)
             }
         } else if !l.isEmpty {
-            Text(inline(l)).font(Theme.sans(13)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+            Text(inline(l)).font(Theme.sans(.body)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
         }
     }
 

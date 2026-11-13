@@ -35,8 +35,8 @@ struct NextStepList: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         StageDot(stage: step.stage)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(step.label).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                            Text(step.hint).font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                            Text(step.label).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                            Text(step.hint).font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 0)

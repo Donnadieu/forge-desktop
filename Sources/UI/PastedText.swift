@@ -29,11 +29,11 @@ struct TextChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "doc.plaintext").font(.system(size: 11)).foregroundStyle(Theme.textSec)
-            Text(words).font(Theme.sans(11, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+            Image(systemName: "doc.plaintext").font(Theme.icon(.glyph)).foregroundStyle(Theme.textSec)
+            Text(words).font(Theme.sans(.chatCaption, .medium)).foregroundStyle(Theme.text).lineLimit(1)
             if let remove {
                 Button(action: remove) {
-                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textMuted)
+                    Image(systemName: "xmark").font(Theme.icon(.glyphXS, .semibold)).foregroundStyle(Theme.textMuted)
                 }
                 .buttonStyle(.plain).help("Remove")
             }

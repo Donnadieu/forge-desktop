@@ -12,16 +12,26 @@ struct TopBar<Right: View>: View {
     @Environment(\.forgeModel) private var model
 
     var body: some View {
+        // Bigger text or a narrow window: key hints go first, then words beside icons, then the wordmark's word.
+        ViewThatFits(in: .horizontal) {
+            ForEach(0..<4) { level in bar(level).environment(\.tightRow, level) }
+        }
+        .frame(height: Theme.barHeight)
+        .background(Theme.bg.opacity(0.85))
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
+    }
+
+    private func bar(_ level: Int) -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
                 AnvilMark().sized(32)
-                Text(AppInfo.name).font(Theme.display(20)).foregroundStyle(Theme.text).fixedSize()
+                if level < 3 { Text(AppInfo.name).font(Theme.display(.wordmark)).foregroundStyle(Theme.text).fixedSize() }
                 if let model { WorkspaceChip(model: model).padding(.leading, 8) }
                 if let leading { leading }
                 if let model, ScreenSwitch.screens.contains(suffix) {
                     ScreenSwitch(model: model, shown: suffix).padding(.leading, 8)
                 } else {
-                    Text(suffix.uppercased()).font(Theme.mono(11, .medium)).tracking(1.5).foregroundStyle(Theme.textSec).padding(.leading, 8)
+                    Text(suffix.uppercased()).font(Theme.mono(.caption, .medium)).tracking(1.5).foregroundStyle(Theme.textSec).padding(.leading, 8)
                 }
             }
             Spacer(minLength: 16)
@@ -30,9 +40,6 @@ struct TopBar<Right: View>: View {
         // Room on the left for the window's own three buttons.
         .padding(.leading, 96)
         .padding(.trailing, 24)
-        .frame(height: Theme.barHeight)
-        .background(Theme.bg.opacity(0.85))
-        .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
     }
 }
 
@@ -53,7 +60,7 @@ struct ScreenSwitch: View {
                 Button {
                     model.go(name == "Sessions" ? AppModel.sessionsScreen : AppModel.boardScreen)
                 } label: {
-                    Text(name.uppercased()).font(Theme.mono(10, .medium)).tracking(1)
+                    Text(name.uppercased()).font(Theme.mono(.label, .medium)).tracking(1)
                         .foregroundStyle(name == shown ? Theme.text : Theme.textMuted)
                         .padding(.horizontal, 8).frame(height: 26)
                         .background(name == shown ? Theme.surfaceHover : .clear)
@@ -94,9 +101,9 @@ struct PageHeader<Aside: View>: View {
             HStack(alignment: .bottom, spacing: 32) {
                 VStack(alignment: .leading, spacing: 0) {
                     SectionLabel(text: eyebrow)
-                    Text(title).font(Theme.display(40)).foregroundStyle(Theme.text).padding(.top, 8)
+                    Text(title).font(Theme.display(.pageTitle)).foregroundStyle(Theme.text).padding(.top, 8)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(lead).font(Theme.sans(13)).foregroundStyle(Theme.textSec).lineSpacing(4).padding(.top, 8)
+                    Text(lead).font(Theme.sans(.body)).foregroundStyle(Theme.textSec).lineSpacing(4).padding(.top, 8)
                         .frame(maxWidth: 560, alignment: .leading).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -120,7 +127,7 @@ struct BottomBar<Status: View, Actions: View>: View {
 
     var body: some View {
         HStack(spacing: 20) {
-            status().font(Theme.sans(13)).foregroundStyle(Theme.textMuted)
+            status().font(Theme.sans(.body)).foregroundStyle(Theme.textMuted)
             Spacer(minLength: 12)
             HStack(spacing: 8) { actions() }
         }
@@ -154,11 +161,11 @@ struct Notice<Fix: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: icon).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.heat)
+                Image(systemName: icon).font(Theme.icon(.glyphXL, .medium)).foregroundStyle(Theme.heat)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                    Text(title).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
                     if let detail {
-                        Text(detail).font(mono ? Theme.mono(11) : Theme.sans(11)).foregroundStyle(Theme.textSec)
+                        Text(detail).font(mono ? Theme.mono(.caption) : Theme.sans(.caption)).foregroundStyle(Theme.textSec)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -193,7 +200,7 @@ struct GoodLine: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle().fill(Theme.good).frame(width: 8, height: 8).shadow(color: Theme.goodBorder, radius: 4)
-            Text(text).font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Text(text).font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
         }
     }
 }

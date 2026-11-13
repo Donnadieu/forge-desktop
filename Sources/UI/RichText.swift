@@ -18,9 +18,9 @@ enum RichText {
 
     private static var spacer: NSAttributedString {
         let style = NSMutableParagraphStyle()
-        style.maximumLineHeight = 6
-        style.minimumLineHeight = 6
-        return NSAttributedString(string: "\n", attributes: [.font: Theme.sansFont(4), .paragraphStyle: style, spacerKey: true])
+        style.maximumLineHeight = Zoom.shared.scaled(6)
+        style.minimumLineHeight = Zoom.shared.scaled(6)
+        return NSAttributedString(string: "\n", attributes: [.font: Theme.sansFont(.spacer), .paragraphStyle: style, spacerKey: true])
     }
 
     struct Built {
@@ -31,30 +31,40 @@ enum RichText {
 
     private static var cache: [Int: Built] = [:]
 
+    /// A message's key at the current zoom: a zoom change builds and measures every message again at the new size.
+    static func zoomed(_ key: Int) -> Int {
+        var h = Hasher()
+        h.combine(key)
+        h.combine(Zoom.shared.level)
+        return h.finalize()
+    }
+
     static func build(_ parts: [MarkdownPart], key: Int) -> Built {
         if let hit = cache[key] { return hit }
+        let z = Zoom.shared.scaled
         let out = NSMutableAttributedString()
         var codes: [String] = []
         for (i, part) in parts.enumerated() {
             let last = i == parts.count - 1
             // Words right under a code panel or a table keep a gap from it.
-            let gap: CGFloat = i > 0 && (parts[i - 1].isCode || parts[i - 1].table != nil) ? 8 : 0
+            let gap: CGFloat = i > 0 && (parts[i - 1].isCode || parts[i - 1].table != nil) ? z(10) : 0
             switch part {
             case .prose(let a): out.append(paragraph(inline(a), last: last, before: gap))
             case .heading(let level, let a):
-                let head = inline(a, font: Theme.sansFont(level <= 2 ? 15 : 14, .semibold))
-                out.append(paragraph(head, last: last, before: max(gap, 4)))
+                let size: TextSize = level <= 2 ? .chatHeading : .chatSubheading
+                let head = inline(a, size: size, weight: .semibold)
+                out.append(paragraph(head, last: last, size: size, before: max(gap, z(6))))
             case .item(let marker, let a, let depth):
                 let line = NSMutableAttributedString(
                     string: marker + "\t",
-                    attributes: [.font: Theme.sansFont(13), .foregroundColor: NSColor(marker == "☑" ? Theme.heatBright : Theme.textMuted)])
+                    attributes: [.font: Theme.sansFont(.chatBody), .foregroundColor: NSColor(marker == "☑" ? Theme.heatBright : Theme.textMuted)])
                 line.append(inline(a))
                 let style = NSMutableParagraphStyle()
-                let indent = CGFloat(depth) * 18
-                style.tabStops = [NSTextTab(textAlignment: .left, location: indent + 20)]
+                let indent = CGFloat(depth) * z(20)
+                style.tabStops = [NSTextTab(textAlignment: .left, location: indent + z(22))]
                 style.firstLineHeadIndent = indent
-                style.headIndent = indent + 20
-                let item = NSMutableAttributedString(attributedString: paragraph(line, last: last, style: style, before: gap, after: 3))
+                style.headIndent = indent + z(22)
+                let item = NSMutableAttributedString(attributedString: paragraph(line, last: last, style: style, before: gap, after: z(4)))
                 item.addAttribute(itemKey, value: true, range: NSRange(location: 0, length: item.length))
                 out.append(item)
             case .code(let c, let lang):
@@ -72,33 +82,35 @@ enum RichText {
         return built
     }
 
-    static var base: [NSAttributedString.Key: Any] { [.font: Theme.sansFont(13), .foregroundColor: NSColor(Theme.text)] }
+    static var base: [NSAttributedString.Key: Any] { [.font: Theme.sansFont(.chatBody), .foregroundColor: NSColor(Theme.text)] }
 
     private static func paragraph(
-        _ s: NSAttributedString, last: Bool, style: NSMutableParagraphStyle = NSMutableParagraphStyle(), before: CGFloat = 0, after: CGFloat = 6
+        _ s: NSAttributedString, last: Bool, style: NSMutableParagraphStyle = NSMutableParagraphStyle(), size: TextSize = .chatBody,
+        before: CGFloat = 0, after: CGFloat? = nil
     ) -> NSAttributedString {
         let p = NSMutableAttributedString(attributedString: s)
         if !last { p.append(NSAttributedString(string: "\n", attributes: base)) }
-        style.lineSpacing = 3
-        style.paragraphSpacing = after
+        Theme.lines(size, style)
+        style.paragraphSpacing = after ?? Zoom.shared.scaled(10)
         style.paragraphSpacingBefore = before
         p.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: p.length))
         return p
     }
 
     /// Inline Markdown (bold, italic, struck, `code`, links) as AppKit attributes.
-    static func inline(_ a: AttributedString, font: NSFont = Theme.sansFont(13)) -> NSAttributedString {
+    static func inline(_ a: AttributedString, size: TextSize = .chatBody, weight: Font.Weight = .regular) -> NSAttributedString {
         let out = NSMutableAttributedString()
+        let font = Theme.sansFont(size, weight)
         for run in a.runs {
             var attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor(Theme.text)]
             let intent = run.inlinePresentationIntent ?? []
-            if intent.contains(.stronglyEmphasized) { attrs[.font] = Theme.sansFont(font.pointSize, .bold) }
+            if intent.contains(.stronglyEmphasized) { attrs[.font] = Theme.sansFont(size, .bold) }
             if intent.contains(.emphasized) {
                 attrs[.font] = NSFontManager.shared.convert(attrs[.font] as? NSFont ?? font, toHaveTrait: .italicFontMask)
             }
             if intent.contains(.strikethrough) { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
             if intent.contains(.code) {
-                attrs[.font] = Theme.monoFont(12)
+                attrs[.font] = Theme.monoFont(.chatCode)
                 attrs[.foregroundColor] = NSColor(Theme.silver)
                 attrs[.backgroundColor] = NSColor(Theme.wash2)
             }
@@ -114,17 +126,18 @@ enum RichText {
         block.backgroundColor = NSColor(Theme.bg)
         block.setBorderColor(NSColor(Theme.border))
         block.setWidth(1, type: .absoluteValueType, for: .border)
-        block.setWidth(10, type: .absoluteValueType, for: .padding)
+        block.setWidth(Zoom.shared.scaled(12), type: .absoluteValueType, for: .padding)
         // Room on the right for the block's copy button.
-        block.setWidth(34, type: .absoluteValueType, for: .padding, edge: .maxX)
-        let style = NSMutableParagraphStyle()
+        block.setWidth(Zoom.shared.scaled(34), type: .absoluteValueType, for: .padding, edge: .maxX)
+        let style = Theme.lines(.chatCode)
         style.textBlocks = [block]
         style.lineBreakMode = .byCharWrapping
         let s = NSMutableAttributedString()
         for t in Syntax.tokens(c, language: language) {
-            s.append(NSAttributedString(string: t.text, attributes: [.font: Theme.monoFont(11), .foregroundColor: NSColor(Syntax.color(t.kind))]))
+            s.append(
+                NSAttributedString(string: t.text, attributes: [.font: Theme.monoFont(.chatCode), .foregroundColor: NSColor(Syntax.color(t.kind))]))
         }
-        s.append(NSAttributedString(string: "\n", attributes: [.font: Theme.monoFont(11)]))
+        s.append(NSAttributedString(string: "\n", attributes: [.font: Theme.monoFont(.chatCode)]))
         s.addAttributes([.paragraphStyle: style, codeKey: index], range: NSRange(location: 0, length: s.length))
         if last { s.deleteCharacters(in: NSRange(location: s.length - 1, length: 1)) }
         return s
@@ -142,16 +155,16 @@ enum RichText {
                 let block = NSTextTableBlock(table: table, startingRow: r, rowSpan: 1, startingColumn: c, columnSpan: 1)
                 block.setBorderColor(NSColor(Theme.border))
                 block.setWidth(1, type: .absoluteValueType, for: .border)
-                block.setWidth(6, type: .absoluteValueType, for: .padding)
-                block.setWidth(12, type: .absoluteValueType, for: .padding, edge: .minX)
-                block.setWidth(12, type: .absoluteValueType, for: .padding, edge: .maxX)
+                block.setWidth(Zoom.shared.scaled(7), type: .absoluteValueType, for: .padding)
+                block.setWidth(Zoom.shared.scaled(12), type: .absoluteValueType, for: .padding, edge: .minX)
+                block.setWidth(Zoom.shared.scaled(12), type: .absoluteValueType, for: .padding, edge: .maxX)
                 block.backgroundColor = r == 0 ? NSColor(Theme.wash2) : r % 2 == 0 ? NSColor(Theme.wash1) : nil
                 let style = NSMutableParagraphStyle()
                 style.textBlocks = [block]
                 let align = c < t.align.count ? t.align[c] : .leading
                 style.alignment = align == .center ? .center : align == .trailing ? .right : .left
                 let words = NSMutableAttributedString(
-                    attributedString: inline(cell, font: r == 0 ? Theme.sansFont(12, .semibold) : Theme.sansFont(13)))
+                    attributedString: inline(cell, size: .chatTable, weight: r == 0 ? .semibold : .regular))
                 if r == 0 { words.addAttribute(.foregroundColor, value: NSColor(Theme.textSec), range: NSRange(location: 0, length: words.length)) }
                 words.append(NSAttributedString(string: "\n", attributes: base))
                 words.addAttributes([.paragraphStyle: style, cellKey: "\(id),\(r),\(c)"], range: NSRange(location: 0, length: words.length))

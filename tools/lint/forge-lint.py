@@ -89,6 +89,18 @@ def r_raw_workflow_ui(path, lines, ctx):
         if re.search(r'\bWorkflowFile\b|\bWorkflowCheck\b|WORKFLOW\.md', code_part(l)):
             yield i, "a screen touches the raw workflow file"
 
+TYPE_FILE = "Sources/UI/Typography.swift"
+HARD_SIZE = re.compile(
+    r'Theme\.(sans|mono|display|serifItalic|sansFont|monoFont|icon)\(\s*[0-9]'   # a number where a TextSize goes
+    r'|\.system\(\s*size:|ofSize:\s*[0-9.]|NSFont\([^)]*size:\s*[0-9.]'            # system or AppKit fonts by number
+    r'|Font\.custom\(|\.custom\("|\.font\(\.(largeTitle|title[23]?|headline|subheadline|body|callout|footnote|caption2?)\b')
+def r_type_tokens(path, lines, ctx):
+    """Every text and icon size is a TextSize token (Sources/UI/Typography.swift), so zoom and the scale reach it."""
+    if path in (TYPE_FILE, "Sources/UI/Theme.swift"): return
+    for i, l in enumerate(lines, 1):
+        if HARD_SIZE.search(code_part(l)):
+            yield i, "a font size written as a number, not a TextSize token"
+
 # ---------------------------------------------------------------- repo-wide rules (every committed text file)
 
 BANNED_WORD = "sym" + "phony"   # split so this file doesn't trip its own rule
@@ -162,8 +174,10 @@ def r_docs_map(path, lines, ctx):
     if path.startswith("docs/") and path.endswith(".md") and path not in ctx["indexed"] and path != "docs/INDEX.md":
         yield 1, "not linked from docs/INDEX.md"
 
-SWIFT_RULES = {"file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area", "keychain-only", "raw-workflow-ui"}
+SWIFT_RULES = {"type-tokens", "file-length", "core-imports", "no-browser-view", "ui-jargon", "process-area", "keychain-only", "raw-workflow-ui"}
 RULES = {
+    "type-tokens":   (r_type_tokens, "Text sized by a number skips the type scale and the zoom: it stays small when everything else grows.",
+                      "Use a TextSize token from Sources/UI/Typography.swift (Theme.sans(.body), Theme.icon(.glyph)); add a token there if none fits."),
     "file-length":   (r_file_length, "Big files are hard to read and to change safely.",
                       "Move whole declarations into a new file for that area (see docs/ARCHITECTURE.md)."),
     "core-imports":  (r_core_imports, "Core holds plain logic every layer can use; UI frameworks there tangle the layers.",
@@ -194,6 +208,7 @@ RULES = {
 
 # One planted violation per rule, used by --prove: (file, content).
 CANARIES = {
+    "type-tokens": ("Sources/UI/Canary.swift", 'let a = Text("x").font(Theme.sans(13))\nlet b = Image(systemName: "x").font(.system(size: 9))\n'),
     "file-length": ("Sources/UI/Canary.swift", "import SwiftUI\n" + "let x = 1\n" * 401),
     "core-imports": ("Sources/Core/Canary.swift", "import SwiftUI\n"),
     "no-browser-view": ("Sources/UI/Canary.swift", "import WebKit\n"),

@@ -21,7 +21,7 @@ struct RunningRow: View {
                 Button {
                     withAnimation(.easeOut(duration: 0.2)) { expanded.toggle() }
                 } label: {
-                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    Image(systemName: "chevron.right").font(Theme.icon(.glyphS, .semibold))
                         .rotationEffect(.degrees(expanded ? 90 : 0))
                         .foregroundStyle(expanded ? Theme.text : Theme.textMuted)
                         .frame(width: 24, height: 24)
@@ -30,29 +30,34 @@ struct RunningRow: View {
                 .buttonStyle(.plain)
                 .disabled(lines.isEmpty)
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(card.identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
-                    Text(card.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                    Text(card.identifier).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
+                    Text(card.title).font(Theme.sans(.boardText, .medium)).foregroundStyle(Theme.text).lineLimit(1)
                 }
-                .frame(minWidth: 320, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: BoardColumns.card, maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) { Pill(text: card.state, stage: card.state, dot: live ? Theme.stage(card.state).dot : nil, pulsing: live) }
-                    .frame(width: 128, alignment: .leading)
-                Text(run?.turn_count.map(String.init) ?? "—").font(Theme.mono(11, .medium)).foregroundStyle(Theme.text)
-                    .frame(width: 56, alignment: .leading)
+                    .frame(width: BoardColumns.stage, alignment: .leading)
+                Text(run?.turn_count.map(String.init) ?? "—").font(Theme.mono(.boardMono, .medium)).foregroundStyle(Theme.text)
+                    .frame(width: BoardColumns.turns, alignment: .leading)
                 Group {
                     if waitingForLimit && !live {
                         LimitPill()
                     } else {
-                        Text(doing).font(Theme.sans(13)).foregroundStyle(Theme.textSec).lineLimit(1)
+                        Text(doing).font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec).lineLimit(1)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text(helpers).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 96, alignment: .leading)
-                Text(elapsed).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 80, alignment: .leading)
-                Text(run?.attempt.map(String.init) ?? card.agent.map { "\($0.attempt)" } ?? "—").font(Theme.mono(11)).foregroundStyle(Theme.textSec)
-                    .frame(width: 64, alignment: .leading)
+                Text(helpers).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textSec).lineLimit(1)
+                    .frame(width: BoardColumns.helpers, alignment: .leading)
+                Text(elapsed).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textSec).lineLimit(1)
+                    .frame(width: BoardColumns.elapsed, alignment: .leading)
+                Text(run?.attempt.map(String.init) ?? card.agent.map { "\($0.attempt)" } ?? "—").font(Theme.mono(.boardMono)).foregroundStyle(
+                    Theme.textSec
+                )
+                .frame(width: BoardColumns.attempt, alignment: .leading)
                 if let openSession, live {
                     Button("Open session", action: openSession)
                         .buttonStyle(ForgeButton(kind: .secondary, icon: "bubble.left.and.text.bubble.right"))
+                        .environment(\.tightRow, BoardColumns.tight ? 2 : 0)
                         .help("Read the agent's whole conversation and steer it")
                 }
             }
@@ -74,11 +79,12 @@ struct RunningRow: View {
             ForEach(Array(lines.enumerated()), id: \.offset) { i, l in
                 let now = i == lines.count - 1 && live
                 HStack(spacing: 12) {
-                    Text(now ? "now" : Self.time(l.at)).foregroundStyle(now ? Theme.heat : Theme.textMuted).frame(width: 64, alignment: .leading)
+                    Text(now ? "now" : Self.time(l.at)).foregroundStyle(now ? Theme.heat : Theme.textMuted).lineLimit(1)
+                        .frame(width: BoardColumns.attempt, alignment: .leading)
                     Text(l.line).foregroundStyle(now ? Theme.text : (i >= lines.count - 3 ? Theme.textSec : Theme.textMuted)).lineLimit(1)
                     if now { Rectangle().fill(Theme.text).frame(width: 1, height: 14) }
                 }
-                .font(Theme.mono(11))
+                .font(Theme.mono(.boardMono))
             }
         }
         .padding(.top, 12).padding(.bottom, 16).padding(.trailing, 16)
@@ -114,4 +120,17 @@ struct RunningRow: View {
         f.dateFormat = "HH:mm:ss"
         return f.string(from: d)
     }
+}
+
+/// The Running sessions table's columns: they grow with the zoom so a heading or a time never wraps, and the card's
+/// title gives way first (it truncates) so the row never runs past the window.
+enum BoardColumns {
+    static var card: CGFloat { Zoom.shared.level > 1 ? 160 : 320 }
+    static var stage: CGFloat { Zoom.shared.scaled(128) }
+    static var turns: CGFloat { Zoom.shared.scaled(56) }
+    static var helpers: CGFloat { Zoom.shared.scaled(96) }
+    static var elapsed: CGFloat { Zoom.shared.scaled(80) }
+    static var attempt: CGFloat { Zoom.shared.scaled(64) }
+    /// Above 110% "Open session" is its icon (with its tooltip).
+    static var tight: Bool { Zoom.shared.level > 1.1 }
 }

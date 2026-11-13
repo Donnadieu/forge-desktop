@@ -4,6 +4,7 @@ import SwiftUI
 /// Headless checks the agent can run (it can't see the screen). Used by tools/preflight.sh and CI.
 ///   Forge --selftest            facts about the app + the main view draws
 ///   Forge --version             prints the version
+///   Forge --type-check          the type scale, grey text contrast, zoom (steps, remembered) and fit at 85% and 150%
 ///   Forge --pane-check          the Sessions screen's panes only: resize by drag, header lines, the panel's fit, rows
 ///   Forge --paste-check         paste, the Edit keys, right-click and dictation in the message box and the other fields
 ///   Forge --copy-check          copying out of the Terminal (drag, word, line, block, ⌘C vs ⌃C) and the chat
@@ -20,6 +21,9 @@ import SwiftUI
 @MainActor
 enum Checks {
     static func run(_ args: [String]) -> Int32? {
+        // Checks and renders draw at 100%, whatever zoom the person picked (and never save one).
+        let drawing = ["--selftest", "--type-check", "--pane-check", "--paste-check", "--copy-check", "--render-screens", "--transcript-check"]
+        if args.contains(where: drawing.contains) { Zoom.shared.set(1, persist: false) }
         if args.contains("--version") {
             print(AppInfo.version)
             return 0
@@ -42,6 +46,15 @@ enum Checks {
             setvbuf(stdout, nil, _IONBF, 0)
             var failed = 0
             copyChecks { name, ok in
+                print("\(ok ? "✓" : "✗") \(name)")
+                if !ok { failed += 1 }
+            }
+            return failed == 0 ? 0 : 1
+        }
+        if args.contains("--type-check") {
+            setvbuf(stdout, nil, _IONBF, 0)
+            var failed = 0
+            typeChecks { name, ok in
                 print("\(ok ? "✓" : "✗") \(name)")
                 if !ok { failed += 1 }
             }
@@ -280,6 +293,7 @@ enum Checks {
         composerKeyChecks(check)
         questionChecks(check)
         openInChecks(check)
+        typeChecks(check)
         print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
         return failed == 0 ? 0 : 1
     }

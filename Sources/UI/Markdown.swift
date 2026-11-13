@@ -239,7 +239,7 @@ enum MarkdownCache {
     static func inline(_ s: String, folder: String? = nil) -> AttributedString {
         var a = (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(s)
         for run in a.runs where run.inlinePresentationIntent?.contains(.code) == true {
-            a[run.range].font = Theme.mono(12)
+            a[run.range].font = Theme.mono(.chatCode)
             a[run.range].foregroundColor = Theme.silver
             a[run.range].backgroundColor = Theme.wash2
         }

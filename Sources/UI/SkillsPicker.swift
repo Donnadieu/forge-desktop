@@ -4,14 +4,16 @@ import SwiftUI
 /// repo's, your Claude Code and Codex skills, Forge's own), with a search; clicking one runs it. "/" opens it too.
 struct SkillsButton: View {
     @Binding var open: Bool
+    /// Just the sparkles, for a tight row (the word comes back as soon as there's room).
+    var iconOnly = false
 
     var body: some View {
         Button {
             open.toggle()
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "sparkles").font(.system(size: 11, weight: .medium))
-                Text("Skills").font(Theme.sans(12, .medium))
+                Image(systemName: "sparkles").font(Theme.icon(.glyph, .medium))
+                if !iconOnly { Text("Skills").font(Theme.sans(.small, .medium)) }
             }
             .foregroundStyle(Theme.textSec)
             .padding(.horizontal, 10).frame(height: 30)
@@ -36,7 +38,7 @@ struct SkillList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if query == nil {
-                TextField("", text: $search).textFieldStyle(.plain).font(Theme.sans(13))
+                TextField("", text: $search).textFieldStyle(.plain).font(Theme.sans(.body))
                     .forgeField(hint: "Search skills", empty: search.isEmpty, icon: "magnifyingglass")
                     .padding(10)
             } else {
@@ -44,7 +46,7 @@ struct SkillList: View {
             }
             if shown.isEmpty {
                 Text(skills.isEmpty ? "No skills found for this session." : "No skill matches that.")
-                    .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(14)
+                    .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).padding(14)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -54,12 +56,12 @@ struct SkillList: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 8) {
-                                    Text(s.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                                    Text(s.name).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                                     Chip(text: s.source.label, tone: .quiet)
                                     Spacer(minLength: 0)
                                 }
                                 if !s.summary.isEmpty {
-                                    Text(s.summary).font(Theme.sans(12)).foregroundStyle(Theme.textSec).lineLimit(2)
+                                    Text(s.summary).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).lineLimit(2)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }

@@ -22,7 +22,10 @@ Every colour, font and control comes from `Sources/UI/Theme.swift` and `Sources/
 - **Type:** Playfair Display for screen titles and the project name, DM Sans for everything people
   read, DM Mono for labels, card numbers, branches and keys. The fonts ship in `Resources/Fonts`
   (SIL Open Font License, licences beside them) and are registered at launch; the selftest checks
-  they load.
+  they load. Every size is a token from one scale (`Sources/UI/Typography.swift`, design in
+  [design/typography.md](design/typography.md)): the chat reads at 16 pt with 1.5 lines, the app one step up from
+  0.2.42, the Orchestrator compact. View > Zoom scales all of it (85 to 150%, remembered). Grey text is never under
+  4.5:1 on the background or a surface.
 - **Mark:** the Forjado AI anvil (`AnvilMark`), drawn from the brand's SVG.
 - **App icon:** the amber anvil on a warm near-black rounded square, made in Claude Design (project
   "Forge Desktop", files `Forge App Icon.svg` and `Forge App Icon small.svg`). The SVGs and their PNG

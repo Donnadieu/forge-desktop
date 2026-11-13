@@ -48,7 +48,7 @@ struct RepoReadyScreen: View {
                         line in
                         HStack(spacing: 10) {
                             Circle().fill(Theme.heat).frame(width: 5, height: 5)
-                            Text(line).font(Theme.sans(14)).foregroundStyle(Theme.textSec)
+                            Text(line).font(Theme.sans(.emphasis)).foregroundStyle(Theme.textSec)
                         }
                     }
                 }
@@ -188,12 +188,12 @@ struct ReadingPanel: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 12) {
                     Spinner(heat: true)
-                    Text("Reading \(repo)…").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                    Text("Reading \(repo)…").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                     Spacer()
                     Button("Cancel", action: cancel).buttonStyle(ForgeButton(kind: .ghost))
                 }
                 Text("Usually a few minutes · \(s / 60):\(String(format: "%02d", s % 60)) so far")
-                    .font(Theme.mono(11)).foregroundStyle(Theme.textMuted).padding(.leading, 24)
+                    .font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted).padding(.leading, 24)
             }
             .padding(20)
             .frame(maxWidth: 640)

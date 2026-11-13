@@ -49,12 +49,12 @@ struct RepoScreen: View {
                         let on = selected == r.fullName
                         if i > 0 { Rectangle().fill(Theme.border).frame(height: 1) }
                         HStack(spacing: 10) {
-                            Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(on ? Theme.heatBright : Theme.textMuted)
-                            Text(r.fullName).font(Theme.mono(13)).foregroundStyle(on ? Theme.text : Theme.textSec)
+                            Image(systemName: "folder").font(Theme.icon(.glyphM)).foregroundStyle(on ? Theme.heatBright : Theme.textMuted)
+                            Text(r.fullName).font(Theme.mono(.body)).foregroundStyle(on ? Theme.text : Theme.textSec)
                             Spacer()
                             if !r.canPush { Chip(text: "Read only") }
-                            if locked != nil { Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(Theme.textMuted) }
-                            if on { Image(systemName: "checkmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.heatBright) }
+                            if locked != nil { Image(systemName: "lock.fill").font(Theme.icon(.glyphS)).foregroundStyle(Theme.textMuted) }
+                            if on { Image(systemName: "checkmark").font(Theme.icon(.glyph, .semibold)).foregroundStyle(Theme.heatBright) }
                         }
                         .padding(.horizontal, 14)
                         .frame(height: 38)

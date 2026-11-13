@@ -77,9 +77,9 @@ extension Checks {
         for c in 1...clicks { mouseDrag(window, from: p, to: p, steps: 0, clicks: c) }
     }
 
-    /// The middle of a terminal cell, in window coordinates (the terminal's own metrics: DM Mono 12, 8 pt inset).
+    /// The middle of a terminal cell, in window coordinates (the terminal's own metrics and 8 pt inset).
     static func cellPoint(_ view: NSView, row: Int, col: Int) -> NSPoint {
-        let font = NSFont(name: "DMMono-Regular", size: 12) ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
+        let font = Theme.monoFont(.terminal)
         let w = ceil(("M" as NSString).size(withAttributes: [.font: font]).width)
         let h = ceil(font.ascender - font.descender + font.leading) + 2
         return view.convert(NSPoint(x: 8 + CGFloat(col) * w + w / 2, y: 8 + CGFloat(row) * h + h / 2), to: nil)

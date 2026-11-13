@@ -18,9 +18,9 @@ struct OptionList<Value: Hashable, Detail: View>: View {
                 HStack(alignment: .top, spacing: 12) {
                     Radio(on: on).padding(.top, 2)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(option.1).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
+                        Text(option.1).font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.text)
                         if let line = lines[option.0] {
-                            Text(line).font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                            Text(line).font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                         }
                         if on { detail(option.0).padding(.top, 6) }
                     }
@@ -65,7 +65,7 @@ struct Segmented<Value: Hashable>: View {
                 let on = option.0 == selection
                 if i > 0 { Rectangle().fill(Theme.border).frame(width: 1) }
                 Text(option.1)
-                    .font(mono ? Theme.mono(13, on ? .medium : .regular) : Theme.sans(13, .medium))
+                    .font(mono ? Theme.mono(.body, on ? .medium : .regular) : Theme.sans(.body, .medium))
                     .foregroundStyle(on ? (heat ? Theme.heatBright : Theme.text) : Theme.textSec)
                     .frame(maxWidth: .infinity)
                     .frame(height: 36)
@@ -91,7 +91,7 @@ struct CheckRow<Label: View>: View {
             ZStack {
                 RoundedRectangle(cornerRadius: Theme.rSm).fill(on ? Theme.text : .clear)
                 RoundedRectangle(cornerRadius: Theme.rSm).stroke(on ? Theme.text : Theme.borderHover, lineWidth: 1)
-                if on { Image(systemName: "checkmark").font(.system(size: 9, weight: .heavy)).foregroundStyle(Theme.bg) }
+                if on { Image(systemName: "checkmark").font(Theme.icon(.glyphXS, .heavy)).foregroundStyle(Theme.bg) }
             }
             .frame(width: 16, height: 16)
             .padding(.top, 2)

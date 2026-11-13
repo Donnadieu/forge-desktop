@@ -23,15 +23,19 @@ struct ForgeButton: ButtonStyle {
     /// `.btn` (36 high) when true, `.btn.sm` (28 high) when false.
     var large = false
     @Environment(\.isEnabled) private var enabled
+    /// How tight the row is (the top bar at a big zoom or a narrow window): 1 drops the key hint, 2 shows only the icon.
+    @Environment(\.tightRow) private var tight
     @State private var hover = false
 
     private var amber: Bool { kind == .primary || kind == .fix }
 
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(systemName: icon).font(.system(size: large ? 12 : 11, weight: .medium)) }
-            configuration.label.font(Theme.sans(kind == .plain ? 11 : (large ? 12 : 11), amber ? .semibold : .medium))
-            if let hint { KeyHint(text: hint, onAmber: amber) }
+            if let icon { Image(systemName: icon).font(Theme.icon(large ? .glyphM : .glyph, .medium)) }
+            if icon == nil || tight < 2 {
+                configuration.label.font(Theme.sans(kind != .plain && large ? .small : .caption, amber ? .semibold : .medium))
+            }
+            if let hint, tight < 1 { KeyHint(text: hint, onAmber: amber) }
         }
         .lineLimit(1)
         .fixedSize()
@@ -87,7 +91,7 @@ struct KeyHint: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.mono(10))
+            .font(Theme.mono(.label))
             .foregroundStyle(onAmber ? Theme.bg : Theme.textSec)
             .padding(.horizontal, 4)
             .frame(minWidth: 18, minHeight: 18)
@@ -111,7 +115,7 @@ struct Pill: View {
         HStack(spacing: 8) {
             if spinning { Spinner(heat: tone == .heat || tone == .amber) }
             if let dot { PulseDot(color: dot, pulsing: pulsing) }
-            Text(text).font(Theme.sans(10, .semibold)).tracking(0.4)
+            Text(text).font(Theme.sans(.label, .semibold)).tracking(0.4)
         }
         .foregroundStyle(colors.word)
         .padding(.horizontal, 12)
@@ -147,7 +151,7 @@ struct Chip: View {
 
     var body: some View {
         Text(text)
-            .font(Theme.mono(10.5))
+            .font(Theme.mono(.label))
             .foregroundStyle(word)
             .lineLimit(1).truncationMode(.middle)
             .padding(.horizontal, 8)
@@ -235,7 +239,7 @@ struct SectionLabel: View {
     let text: String
     var color = Theme.textMuted
     var body: some View {
-        Text(text.uppercased()).font(Theme.mono(10, .medium)).tracking(Theme.labelTracking).foregroundStyle(color)
+        Text(text.uppercased()).font(Theme.mono(.label, .medium)).tracking(Theme.labelTracking).foregroundStyle(color)
     }
 }
 
@@ -247,7 +251,7 @@ struct Initials: View {
     var body: some View {
         let letters = name.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         Text(letters.isEmpty ? "?" : letters)
-            .font(Theme.sans(11, .semibold))
+            .font(Theme.sans(.caption, .semibold))
             .foregroundStyle(Theme.text)
             .frame(width: size, height: size)
             .background(Circle().fill(Theme.surfaceRaised))
@@ -291,17 +295,32 @@ extension View {
     /// optional icon on the left inside the box (the lock on a key).
     func forgeField(mono: Bool = false, hint: String = "", empty: Bool = false, icon: String? = nil) -> some View {
         HStack(spacing: 8) {
-            if let icon { Image(systemName: icon).font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.textMuted) }
+            if let icon { Image(systemName: icon).font(Theme.icon(.glyphM, .medium)).foregroundStyle(Theme.textMuted) }
             textFieldStyle(.plain)
                 .background(alignment: .leading) {
-                    if empty { Text(hint).font(mono ? Theme.mono(13) : Theme.sans(13)).foregroundStyle(Theme.textMuted).allowsHitTesting(false) }
+                    if empty {
+                        Text(hint).font(mono ? Theme.mono(.body) : Theme.sans(.body)).foregroundStyle(Theme.textMuted).allowsHitTesting(false)
+                    }
                 }
-                .font(mono ? Theme.mono(13) : Theme.sans(13))
+                .font(mono ? Theme.mono(.body) : Theme.sans(.body))
                 .foregroundStyle(Theme.text)
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
         .background(RoundedRectangle(cornerRadius: Theme.rLg).fill(Theme.bg))
         .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.border))
+    }
+}
+
+/// How tight a row of buttons is: 0 as designed, 1 without key hints, 2 icons only, 3 the top bar drops its wordmark.
+/// `TopBar` steps it up until the bar fits (`ViewThatFits`), so big text never pushes a button off the window.
+private struct TightRowKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    var tightRow: Int {
+        get { self[TightRowKey.self] }
+        set { self[TightRowKey.self] = newValue }
     }
 }

@@ -69,8 +69,8 @@ struct DiffLines: View {
     /// A file's header row in a diff of several files.
     private func header(_ file: String) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "doc.text").font(.system(size: 10)).foregroundStyle(Theme.textMuted)
-            Text(file).font(Theme.mono(11, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
+            Image(systemName: "doc.text").font(Theme.icon(.glyphS)).foregroundStyle(Theme.textMuted)
+            Text(file).font(Theme.mono(.caption, .medium)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
         }
         .frame(maxWidth: .infinity, alignment: .leading).frame(height: 26)
         .padding(.horizontal, 8).background(Theme.wash2)
@@ -79,7 +79,8 @@ struct DiffLines: View {
 
     private func row(_ l: Line) -> some View {
         HStack(spacing: 8) {
-            Text(l.number.map(String.init) ?? "").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
+            Text(l.number.map(String.init) ?? "").font(Theme.mono(.diffNumber)).foregroundStyle(Theme.textMuted).frame(
+                width: Zoom.shared.scaled(40), alignment: .trailing)
             Group {
                 if l.text.hasPrefix("@@") || l.text.isEmpty {
                     Text(l.text.isEmpty ? " " : l.text).foregroundStyle(Theme.textMuted)
@@ -87,7 +88,7 @@ struct DiffLines: View {
                     Text(Self.styled(l.text, language: l.language ?? language))
                 }
             }
-            .font(Theme.mono(11)).lineLimit(1)
+            .font(Theme.mono(.diffCode)).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)
         .padding(.horizontal, 8)
@@ -159,10 +160,10 @@ struct DiffReader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(path).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
+                Text(path).font(Theme.mono(.small)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle)
                 Spacer()
                 if comment != nil, picked == nil {
-                    Text("Click a line to comment on it").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    Text("Click a line to comment on it").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                 }
                 if let close { Button("Close", action: close).buttonStyle(ForgeButton(kind: .ghost)).keyboardShortcut(.escape, modifiers: []) }
             }

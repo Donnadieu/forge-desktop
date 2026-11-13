@@ -24,11 +24,13 @@ struct ForgeApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1200, height: 800)
+        .commands { ZoomCommands() }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var termSource: DispatchSourceSignal?
+    private var zoomKeys: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         WindowCheck.startIfAsked(CommandLine.arguments)
@@ -38,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         src.setEventHandler { AppDelegate.quitSoon() }
         src.resume()
         termSource = src
+        // ⌘= zooms in too (the View menu's Zoom In shows ⌘+, which needs Shift on most keyboards).
+        zoomKeys = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { Zoom.shared.handlesKey($0) ? nil : $0 }
         Updater.shared.startChecking()
         // Stage Manager and the Dock draw the icon macOS keeps for the bundle id: clear it if it's stale (see AppIcon).
         let bundleID = Bundle.main.bundleIdentifier ?? ""

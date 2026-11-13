@@ -64,7 +64,7 @@ struct WorkerScreen: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 12) {
-                        Text("Default model").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                        Text("Default model").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                         Picker("", selection: $agentModel) {
                             ForEach(provider.models, id: \.self) { Text($0.isEmpty ? "Its usual model" : $0).tag($0) }
                         }
@@ -72,7 +72,7 @@ struct WorkerScreen: View {
                         .fixedSize()
                     }
                     Text("Each stage can use another provider, account or model in Workflow Studio.")
-                        .font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                        .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
                 }
                 if works { GoodLine(text: "\(chosen?.name ?? provider.name) answered. It's ready to work.") }
                 if let problem {
@@ -123,7 +123,7 @@ struct WorkerScreen: View {
                 SecureField("", text: $key).forgeField(mono: true, hint: provider.keyName, empty: key.isEmpty, icon: "key").frame(maxWidth: 420)
             }
             Text(addingWithBrowser ? browserLine : "Paid per use from that account. The key stays in your Mac's Keychain.")
-                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 

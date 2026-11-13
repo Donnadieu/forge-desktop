@@ -16,7 +16,8 @@ struct TranscriptView: View {
                 if transcript.hasOlder {
                     HStack {
                         Spacer()
-                        Text(transcript.loading ? "Loading earlier turns…" : "Earlier turns").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                        Text(transcript.loading ? "Loading earlier turns…" : "Earlier turns").font(Theme.sans(.chatCaption)).foregroundStyle(
+                            Theme.textMuted)
                         Spacer()
                     }
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
@@ -125,7 +126,7 @@ struct TurnView: View {
                 case "plan": PlanCard(sessions: sessions, chat: chat, event: e)
                 case "permission": PermissionCard(sessions: sessions, chat: chat, event: e)
                 case "error": Notice(title: e.text)
-                case "note": Text(e.text).font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                case "note": Text(e.text).font(Theme.sans(.chatNote)).foregroundStyle(Theme.textMuted)
                 default: EmptyView()
                 }
             }
@@ -158,9 +159,9 @@ struct TurnView: View {
             default: nil
             }
         HStack(spacing: 10) {
-            if let line { Text(line).font(Theme.sans(11)).foregroundStyle(Theme.textMuted) }
+            if let line { Text(line).font(Theme.sans(.chatCaption)).foregroundStyle(Theme.textMuted) }
             if turn.files > 0 {
-                Text("\(turn.files == 1 ? "1 file" : "\(turn.files) files") +\(turn.added) −\(turn.removed)").font(Theme.mono(10))
+                Text("\(turn.files == 1 ? "1 file" : "\(turn.files) files") +\(turn.added) −\(turn.removed)").font(Theme.mono(.toolMeta))
                     .foregroundStyle(Theme.textMuted)
             }
             if turn.status == "working", turn.events.last?.kind == "user" { Spinner() }
@@ -228,13 +229,13 @@ struct SteerBubble: View {
             HStack(spacing: 6) {
                 SectionLabel(text: label)
                 if delivery == "failed" {
-                    Text("Not delivered").font(Theme.sans(11, .medium)).foregroundStyle(Theme.heat)
+                    Text("Not delivered").font(Theme.sans(.chatCaption, .medium)).foregroundStyle(Theme.heat)
                     if let retry { Button("Retry", action: retry).buttonStyle(ForgeButton(kind: .secondary)) }
                 } else if let delivery {
-                    Text(delivery == "delivered" ? "Delivered" : "Sending…").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    Text(delivery == "delivered" ? "Delivered" : "Sending…").font(Theme.sans(.chatCaption)).foregroundStyle(Theme.textMuted)
                 }
             }
-            Text(text).font(Theme.sans(13)).foregroundStyle(Theme.text).textSelection(.enabled)
+            Text(text).font(Theme.sans(.chatBody)).foregroundStyle(Theme.text).textSelection(.enabled)
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .overlay(RoundedRectangle(cornerRadius: Theme.rLg).stroke(Theme.borderHover, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
         }
@@ -258,19 +259,19 @@ struct FoldRow: View {
                 if detail != nil { open.toggle() }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
+                    Image(systemName: open ? "chevron.down" : "chevron.right").font(Theme.icon(.glyphTiny, .bold))
                         .foregroundStyle(Theme.textMuted).opacity(detail == nil ? 0.3 : 1)
-                    Image(systemName: icon).font(.system(size: 10)).foregroundStyle(Theme.textMuted).frame(width: 14)
-                    Text(title).font(Theme.mono(11)).foregroundStyle(isError ? Theme.heat : Theme.textSec).lineLimit(1)
+                    Image(systemName: icon).font(Theme.icon(.glyphS)).foregroundStyle(Theme.textMuted).frame(width: 14)
+                    Text(title).font(Theme.mono(.toolTitle)).foregroundStyle(isError ? Theme.heat : Theme.textSec).lineLimit(1)
                     if running { Spinner() }
-                    if let tail { Text(tail).font(Theme.sans(12)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.tail) }
+                    if let tail { Text(tail).font(Theme.sans(.chatNote)).foregroundStyle(Theme.textMuted).lineLimit(1).truncationMode(.tail) }
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             if open, let detail {
-                Text(detail).font(Theme.mono(11)).foregroundStyle(Theme.textSec).textSelection(.enabled)
+                Text(detail).font(Theme.mono(.toolTitle)).foregroundStyle(Theme.textSec).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10).background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.bg))
                     .overlay(RoundedRectangle(cornerRadius: Theme.rMd).stroke(Theme.border))

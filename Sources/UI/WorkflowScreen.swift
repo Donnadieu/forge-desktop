@@ -91,14 +91,14 @@ struct WorkflowScreen: View {
                 HStack(spacing: 16) {
                     StageDot(stage: c.name).opacity(isOff ? 0.4 : 1)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(c.name).font(Theme.sans(15, .medium)).foregroundStyle(Theme.text).opacity(isOff ? 0.4 : 1)
-                        Text(c.line).font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                        Text(c.name).font(Theme.sans(.subtitle, .medium)).foregroundStyle(Theme.text).opacity(isOff ? 0.4 : 1)
+                        Text(c.line).font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                             .opacity(isOff ? 0.4 : 1)
                         if case .unavailable(let why) = model.choices.stageState(c.name) {
-                            Text(why).font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                            Text(why).font(Theme.mono(.caption)).foregroundStyle(Theme.textSec)
                         } else if isOff {
                             Text(Pipeline.skipLine(c.name, off: Array(off.union(model.choices.unavailableStages))))
-                                .font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                                .font(Theme.mono(.caption)).foregroundStyle(Theme.textSec)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -129,8 +129,8 @@ struct WorkflowScreen: View {
     @ViewBuilder private func worker(_ stage: String) -> some View {
         switch StageRole.cell(stage) {
         case .picker(let r): StageWorkerPicker(model: model, roles: $roles, role: r)
-        case .follows(let first): Text("Same as \(first)").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
-        case .usesDefault: Text("Default provider").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+        case .follows(let first): Text("Same as \(first)").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
+        case .usesDefault: Text("Default provider").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
         case .you: Chip(text: "you", tone: .quiet)
         case .none: EmptyView()
         }
@@ -150,7 +150,7 @@ struct WorkflowScreen: View {
             Text(
                 "Works every stage of \(model.choices.projectName ?? "this project") that has no provider of its own. Accounts are added in Settings."
             )
-            .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+            .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             SectionLabel(text: "Agents at once")
             Segmented(
@@ -165,20 +165,20 @@ struct WorkflowScreen: View {
             if more {
                 HStack(spacing: 8) {
                     TextField("", value: $agents, format: .number).forgeField(mono: true).frame(width: 96)
-                    Text("agents").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text("agents").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 }
             }
             Text("Each agent takes one card and may send its own helpers. This is for each project in \(model.workspace?.name ?? "this workspace").")
-                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             SectionLabel(text: "Across all workspaces")
             HStack(spacing: 8) {
                 TextField("", value: $ceiling, format: .number).forgeField(mono: true).frame(width: 96)
-                Text("agents at most").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                Text("agents at most").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
             }
             Text("Running workspaces share this Mac and your accounts' usage limits. Cards wait until an agent is free.")
-                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).fixedSize(horizontal: false, vertical: true)
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
             whatOthersSee
             Rectangle().fill(Theme.border).frame(height: 1).padding(.vertical, 4)
@@ -211,15 +211,15 @@ struct WorkflowScreen: View {
                     : "Triage is off, so new cards stay in Backlog.",
                 on: $toTriage, enabled: triageOn)
             moveRow("Ready cards to Todo", "Cards marked ready go to Todo, so an agent builds them.", on: $toTodo, enabled: true)
-            Text("Forge checks Backlog every 5 minutes.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+            Text("Forge checks Backlog every 5 minutes.").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
         }
     }
 
     private func moveRow(_ title: String, _ line: String, on: Binding<Bool>, enabled: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(line).font(Theme.sans(11)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(line).font(Theme.sans(.caption)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             ForgeToggle(on: enabled ? on : .constant(false)).opacity(enabled ? 1 : 0.4).allowsHitTesting(enabled)
@@ -239,7 +239,7 @@ struct WorkflowScreen: View {
             } else {
                 HStack(spacing: 8) {
                     if changes > 0 {
-                        Text("\(changes) change\(changes == 1 ? "" : "s") not saved").font(Theme.mono(11)).foregroundStyle(Theme.text)
+                        Text("\(changes) change\(changes == 1 ? "" : "s") not saved").font(Theme.mono(.caption)).foregroundStyle(Theme.text)
                         Text("·")
                     }
                     Text("Saving restarts the engine. Running agents pause and pick their cards back up.")

@@ -15,6 +15,13 @@ struct MessageBox: NSViewRepresentable {
     var onPaste: ((NSPasteboard) -> Bool)?
 
     static let maxHeight: CGFloat = 180
+    /// Read where the box is built, so a zoom change reaches `updateNSView`.
+    var zoom = Zoom.shared.level
+
+    /// The message box's text: the composer token at its line height.
+    static var typing: [NSAttributedString.Key: Any] {
+        [.font: Theme.sansFont(.composer), .foregroundColor: NSColor(Theme.text), .paragraphStyle: Theme.lines(.composer)]
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -29,10 +36,11 @@ struct MessageBox: NSViewRepresentable {
         tv.importsGraphics = false
         tv.allowsUndo = true
         tv.drawsBackground = false
-        tv.font = Theme.sansFont(13)
+        tv.font = Theme.sansFont(.composer)
         tv.textColor = NSColor(Theme.text)
+        tv.defaultParagraphStyle = Theme.lines(.composer)
         tv.insertionPointColor = NSColor(Theme.text)
-        tv.typingAttributes = [.font: Theme.sansFont(13), .foregroundColor: NSColor(Theme.text)]
+        tv.typingAttributes = Self.typing
         tv.textContainerInset = .zero
         tv.minSize = .zero
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
@@ -56,6 +64,15 @@ struct MessageBox: NSViewRepresentable {
         context.coordinator.box = self
         guard let tv = scroll.documentView as? MessageTextView else { return }
         context.coordinator.wire(tv)
+        // The zoom changed: the text takes the new size, whatever is typed so far included.
+        if tv.font?.pointSize != TextSize.composer.points {
+            tv.font = Theme.sansFont(.composer)
+            tv.defaultParagraphStyle = Theme.lines(.composer)
+            tv.typingAttributes = Self.typing
+            if let storage = tv.textStorage, storage.length > 0 {
+                storage.setAttributes(Self.typing, range: NSRange(location: 0, length: storage.length))
+            }
+        }
         // A typed letter that isn't committed yet (an input method's marked text) stays until it is.
         if tv.string != text, !tv.hasMarkedText() {
             // Changed from outside (sent, a skill picked, review comments pulled in): undo starts over from here.
@@ -79,7 +96,7 @@ struct MessageBox: NSViewRepresentable {
         let measured = text.isEmpty || text.hasSuffix("\n") ? text + " " : text
         let height = (measured as NSString).boundingRect(
             with: NSSize(width: max(width - padding, 10), height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: Theme.sansFont(13)]
+            attributes: Self.typing
         ).height
         return CGSize(width: width, height: min(ceil(height), Self.maxHeight))
     }

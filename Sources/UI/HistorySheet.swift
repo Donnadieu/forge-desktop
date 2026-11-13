@@ -21,8 +21,8 @@ struct HistorySheet: View {
                     ForEach(list) { s in
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(s.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
-                                Text("\(s.repo) · \(s.branch)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                                Text(s.title).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                                Text("\(s.repo) · \(s.branch)").font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             Button("Restore") { sessions.restore(s) }.buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.uturn.backward"))

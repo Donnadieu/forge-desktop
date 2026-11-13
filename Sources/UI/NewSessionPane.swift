@@ -42,7 +42,7 @@ struct NewSessionPane: View {
     private var form: some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer(minLength: 24)
-            Text("What should we build?").font(Theme.display(40)).foregroundStyle(Theme.text)
+            Text("What should we build?").font(Theme.display(.pageTitle)).foregroundStyle(Theme.text)
             HStack(spacing: 8) {
                 repoMenu
                 Segmented(options: [(false, "New branch"), (true, "Existing branch")], selection: $existing).frame(width: 250)
@@ -53,7 +53,7 @@ struct NewSessionPane: View {
             if adding { addRow.padding(.top, 8) }
             box.padding(.top, 20)
             Text(footnote)
-                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(.top, 12)
+                .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).padding(.top, 12)
             if let p = sessions.problem { Notice(title: p).padding(.top, 12) }
             Spacer(minLength: 24)
         }
@@ -82,12 +82,12 @@ struct NewSessionPane: View {
             Menu {
                 ForEach(repos) { r in Button(r.repo) { pick(r) } }
             } label: {
-                Label(picked?.repo ?? "Pick a repo", systemImage: "lock").font(Theme.mono(12)).foregroundStyle(Theme.text)
+                Label(picked?.repo ?? "Pick a repo", systemImage: "lock").font(Theme.mono(.small)).foregroundStyle(Theme.text)
             }
             .menuStyle(.borderlessButton).fixedSize()
             .modifier(Field())
         } else if let r = picked {
-            Label(r.repo, systemImage: "lock").font(Theme.mono(12)).foregroundStyle(Theme.text).fixedSize().modifier(Field())
+            Label(r.repo, systemImage: "lock").font(Theme.mono(.small)).foregroundStyle(Theme.text).fixedSize().modifier(Field())
                 .help("This workspace's sessions work on its repo")
         } else {
             Button("Add the repo…") { adding = true }.buttonStyle(ForgeButton(kind: .secondary, icon: "folder", large: true))
@@ -96,15 +96,15 @@ struct NewSessionPane: View {
 
     private var newBranch: some View {
         HStack(spacing: 6) {
-            Image(systemName: "arrow.triangle.branch").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-            TextField("", text: $branchName).textFieldStyle(.plain).font(Theme.mono(12)).foregroundStyle(Theme.text).frame(width: 150)
+            Image(systemName: "arrow.triangle.branch").font(Theme.icon(.glyph)).foregroundStyle(Theme.textMuted)
+            TextField("", text: $branchName).textFieldStyle(.plain).font(Theme.mono(.small)).foregroundStyle(Theme.text).frame(width: 150)
                 .background(alignment: .leading) {
                     if branchName.isEmpty {
-                        Text("name it (optional)").font(Theme.mono(12)).foregroundStyle(Theme.textMuted).allowsHitTesting(false)
+                        Text("name it (optional)").font(Theme.mono(.small)).foregroundStyle(Theme.textMuted).allowsHitTesting(false)
                     }
                 }
-            Text(verbatim: "off").font(Theme.sans(12)).foregroundStyle(Theme.textSec).fixedSize()
-            TextField("", text: $base).textFieldStyle(.plain).font(Theme.mono(12)).foregroundStyle(Theme.text).frame(width: 70)
+            Text(verbatim: "off").font(Theme.sans(.small)).foregroundStyle(Theme.textSec).fixedSize()
+            TextField("", text: $base).textFieldStyle(.plain).font(Theme.mono(.small)).foregroundStyle(Theme.text).frame(width: 70)
         }
         .modifier(Field())
     }
@@ -117,7 +117,7 @@ struct NewSessionPane: View {
             ForEach(branchList, id: \.self) { b in Button(b) { branchPick = b } }
         } label: {
             Label(branchPick ?? (loadingBranches ? "Reading the branches…" : "Pick a branch"), systemImage: "arrow.triangle.branch")
-                .font(Theme.mono(12)).foregroundStyle(Theme.text)
+                .font(Theme.mono(.small)).foregroundStyle(Theme.text)
         }
         .menuStyle(.borderlessButton).fixedSize()
         .modifier(Field())
@@ -161,9 +161,9 @@ struct NewSessionPane: View {
         VStack(alignment: .leading, spacing: 12) {
             ZStack(alignment: .topLeading) {
                 if message.isEmpty {
-                    Text("Message the agent…").font(Theme.sans(14)).foregroundStyle(Theme.textMuted).padding(.top, 1).padding(.leading, 5)
+                    Text("Message the agent…").font(Theme.sans(.emphasis)).foregroundStyle(Theme.textMuted).padding(.top, 1).padding(.leading, 5)
                 }
-                TextEditor(text: $message).font(Theme.sans(14)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
+                TextEditor(text: $message).font(Theme.sans(.emphasis)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
                     .frame(minHeight: 110, maxHeight: 260)
             }
             HStack(spacing: 8) {

@@ -56,8 +56,8 @@ struct FileSheet: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: "doc.text").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-            Text(shown).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+            Image(systemName: "doc.text").font(Theme.icon(.glyph)).foregroundStyle(Theme.textMuted)
+            Text(shown).font(Theme.mono(.small)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
             Spacer()
             if !file.missing {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
@@ -71,11 +71,11 @@ struct FileSheet: View {
     @ViewBuilder private var content: some View {
         let read = file.missing ? (text: nil, cut: false) : Self.read(file.url)
         if file.missing {
-            Text("File not found in this session's folder.").font(Theme.sans(13)).foregroundStyle(Theme.textSec).padding(24)
+            Text("File not found in this session's folder.").font(Theme.sans(.body)).foregroundStyle(Theme.textSec).padding(24)
         } else if let text = read.text {
             VStack(alignment: .leading, spacing: 0) {
                 if read.cut {
-                    Text("Showing the first 2 MB of this file.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    Text("Showing the first 2 MB of this file.").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                         .padding(.horizontal, 16).padding(.vertical, 6)
                 }
                 switch FileKind.of(path: file.url.path, text: text) {
@@ -89,7 +89,7 @@ struct FileSheet: View {
                 }
             }
         } else {
-            Text("This file isn't text. Show in Finder to open it with another app.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Text("This file isn't text. Show in Finder to open it with another app.").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 .padding(24)
         }
     }
@@ -104,8 +104,8 @@ struct CodeLines: View {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).prefix(50_000).enumerated().map { ($0.offset, String($0.element)) }
         List(lines, id: \.0) { n, line in
             HStack(spacing: 8) {
-                Text("\(n + 1)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
-                Text(line.isEmpty ? AttributedString(" ") : Syntax.attributed(line, language: language)).font(Theme.mono(11)).lineLimit(1)
+                Text("\(n + 1)").font(Theme.mono(.label)).foregroundStyle(Theme.textMuted).frame(width: 40, alignment: .trailing)
+                Text(line.isEmpty ? AttributedString(" ") : Syntax.attributed(line, language: language)).font(Theme.mono(.caption)).lineLimit(1)
                     .textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading).frame(height: 18)

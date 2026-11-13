@@ -42,7 +42,7 @@ struct WorkspaceSetupScreen: View {
                                 ? "Saved. New sessions and Terminal tabs use it now."
                                 : "New sessions and Terminal tabs use these at once; card agents get the variables when the engine restarts."
                         )
-                        .font(Theme.sans(11)).foregroundStyle(saved ? Theme.heatBright : Theme.textMuted)
+                        .font(Theme.sans(.caption)).foregroundStyle(saved ? Theme.heatBright : Theme.textMuted)
                         Spacer()
                         Button("Cancel") { model.go(AppModel.settingsScreen) }.buttonStyle(ForgeButton(kind: .secondary, large: true))
                         Button("Save") { save() }.buttonStyle(ForgeButton(kind: .primary, hint: "⌘S", large: true))
@@ -84,7 +84,7 @@ struct WorkspaceSetupScreen: View {
     private func tile<C: View>(_ title: String, _ lead: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: title)
-            Text(lead).font(Theme.sans(12)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+            Text(lead).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
             content()
         }
         .padding(20).frame(maxWidth: .infinity, alignment: .leading).panel()
@@ -95,14 +95,14 @@ struct WorkspaceSetupScreen: View {
             VStack(spacing: 0) {
                 ForEach(copy, id: \.self) { p in
                     HStack {
-                        Image(systemName: p.hasSuffix("/") ? "folder" : "doc").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
-                        Text(p).font(Theme.mono(12)).foregroundStyle(Theme.text)
+                        Image(systemName: p.hasSuffix("/") ? "folder" : "doc").font(Theme.icon(.glyph)).foregroundStyle(Theme.textMuted)
+                        Text(p).font(Theme.mono(.small)).foregroundStyle(Theme.text)
                         Spacer()
                         Button {
                             copy.removeAll { $0 == p }
                             saved = false
                         } label: {
-                            Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                            Image(systemName: "xmark").font(Theme.icon(.glyphS, .semibold))
                         }
                         .buttonStyle(ForgeButton(kind: .ghost)).help("Stop copying \(p)")
                     }
@@ -122,9 +122,9 @@ struct WorkspaceSetupScreen: View {
         tile(title, lead) {
             ZStack(alignment: .topLeading) {
                 if text.wrappedValue.isEmpty {
-                    Text(hint).font(Theme.mono(12)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1)
+                    Text(hint).font(Theme.mono(.small)).foregroundStyle(Theme.textMuted).padding(.leading, 5).padding(.top, 1)
                 }
-                TextEditor(text: text).font(Theme.mono(12)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
+                TextEditor(text: text).font(Theme.mono(.small)).foregroundStyle(Theme.text).scrollContentBackground(.hidden)
                     .frame(minHeight: 58, maxHeight: 140).fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)

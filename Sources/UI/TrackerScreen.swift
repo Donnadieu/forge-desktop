@@ -74,11 +74,11 @@ struct TrackerScreen: View {
         let inUse = model.choices.board == picked && model.choices.connection == t.id && model.choices.trackerUser != nil
         return row(on: on) {
             HStack(spacing: 8) {
-                Text(t.title).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
+                Text(t.title).font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.text)
                 if inUse { Pill(text: "In use", tone: .green, dot: Theme.good) }
             }
             Text(t.line + (users.isEmpty ? "" : " · used by \(users.map(\.name).joined(separator: ", "))"))
-                .font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                .font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
             if on && again { signInPanel.padding(.top, 6) }
             if on && !again {
                 Button(t.kind == .linear ? "Use a different key" : "Sign in again") { again = true }
@@ -97,9 +97,9 @@ struct TrackerScreen: View {
 
     private var addRow: some View {
         row(on: pick == Self.adding) {
-            Text(list.isEmpty ? "Connect \(picked.name)" : "Connect another \(picked.name)").font(Theme.sans(13, .semibold))
+            Text(list.isEmpty ? "Connect \(picked.name)" : "Connect another \(picked.name)").font(Theme.sans(.body, .semibold))
                 .foregroundStyle(Theme.text)
-            Text("A new sign-in. Your other connections stay signed in.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Text("A new sign-in. Your other connections stay signed in.").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
             if pick == Self.adding {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionLabel(text: "Name")
@@ -201,7 +201,7 @@ struct TrackerScreen: View {
     private var linearPanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Linear personal key").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
+                Text("Linear personal key").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
                 Spacer()
                 Button("Where do I find it?") { model.openLink("https://linear.app/settings/account/security") }
                     .buttonStyle(ForgeButton(kind: .plain))
@@ -209,10 +209,10 @@ struct TrackerScreen: View {
             SecureField("", text: $key)
                 .forgeField(mono: true, hint: "Paste your key here", empty: key.isEmpty, icon: "lock")
             HStack(spacing: 8) {
-                Image(systemName: "lock").font(.system(size: 10))
+                Image(systemName: "lock").font(Theme.icon(.glyphS))
                 Text("Paste it once. It's kept in your Mac's Keychain and nowhere else.")
             }
-            .font(Theme.sans(11)).foregroundStyle(Theme.textMuted).padding(.top, 4)
+            .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).padding(.top, 4)
         }
         .padding(20)
         .frame(maxWidth: 640)

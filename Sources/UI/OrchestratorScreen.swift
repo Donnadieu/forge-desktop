@@ -162,9 +162,9 @@ struct OrchestratorScreen: View {
                         .foregroundColor(inFlight > 0 ? Theme.heat : Theme.textSec))
                 }
             }
-            .font(Theme.display(38))
+            .font(Theme.display(.headline))
             .padding(.top, 8)
-            Text(lead).font(Theme.sans(13)).foregroundStyle(Theme.textSec).padding(.top, 8)
+            Text(lead).font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec).padding(.top, 8)
             HStack(spacing: 8) { metaPill }.padding(.top, 12)
         }
     }
@@ -283,7 +283,7 @@ struct OrchestratorScreen: View {
                 Button("Open in \(model.choices.board.site) ↗") { model.openLink(model.projectURL) }.buttonStyle(ForgeButton(kind: .plain))
                 Spacer()
             }
-            .font(Theme.mono(11))
+            .font(Theme.mono(.boardMono))
             .foregroundStyle(Theme.textMuted)
         }
         .padding(.horizontal, 32)
@@ -309,18 +309,20 @@ struct OrchestratorScreen: View {
 /// Usage in the top bar: a Claude plan's windows ("5 hours 42% · Week 18%"). Tokens are in the stats, not here.
 struct UsageLine: View {
     let state: EngineState?
+    /// A tight top bar (big zoom, narrow window) shows short window names ("5h 42% · Wk 18%").
+    @Environment(\.tightRow) private var tight
 
     var body: some View {
         if let limits = state?.rate_limits, !limits.isEmpty {
             HStack(spacing: 6) {
                 ForEach(Array(limits.keys.sorted().enumerated()), id: \.element) { i, k in
                     if i > 0 { Text("·").foregroundStyle(Theme.textMuted) }
-                    Text(Self.windowName(k)).foregroundStyle(Theme.textMuted)
+                    Text(tight >= 3 ? Self.shortName(k) : Self.windowName(k)).foregroundStyle(Theme.textMuted)
                     Text(limits[k]?.status == "rejected" ? "limit reached" : limits[k]?.percent.map { "\($0)%" } ?? "in use")
                         .foregroundStyle(limits[k]?.status == "rejected" ? Theme.heat : Theme.text)
                 }
             }
-            .font(Theme.mono(11))
+            .font(Theme.mono(.boardMono))
             .fixedSize()
         }
         // Without a plan's windows there is nothing to add here: tokens today are in the stats below.
@@ -333,6 +335,16 @@ struct UsageLine: View {
         case "seven_day_opus": return "Week (Opus)"
         case "seven_day_sonnet": return "Week (Sonnet)"
         default: return k.replacingOccurrences(of: "_", with: " ").capitalized
+        }
+    }
+
+    static func shortName(_ k: String) -> String {
+        switch k {
+        case "five_hour": return "5h"
+        case "seven_day": return "Wk"
+        case "seven_day_opus": return "Wk Opus"
+        case "seven_day_sonnet": return "Wk Sonnet"
+        default: return windowName(k)
         }
     }
 

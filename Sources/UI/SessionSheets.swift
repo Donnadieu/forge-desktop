@@ -14,8 +14,8 @@ struct SessionSheet<Content: View, Buttons: View>: View {
         ZStack {
             Color.black.opacity(0.5).ignoresSafeArea().onTapGesture(perform: close)
             VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(Theme.display(24)).foregroundStyle(Theme.text)
-                Text(lead).font(Theme.sans(12)).foregroundStyle(Theme.textSec).padding(.top, 6).fixedSize(horizontal: false, vertical: true)
+                Text(title).font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text)
+                Text(lead).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).padding(.top, 6).fixedSize(horizontal: false, vertical: true)
                 content.padding(.top, 16)
                 HStack(spacing: 8) {
                     Spacer()
@@ -50,7 +50,7 @@ struct ReviewCommentsSheet: View {
                     VStack(spacing: 6) {
                         ForEach(sheet.threads) { t in row(t, picked: sheet.picked.contains(t.id)) }
                         if sheet.threads.isEmpty {
-                            Text("No review comments on this pull request yet.").font(Theme.sans(13)).foregroundStyle(Theme.textMuted)
+                            Text("No review comments on this pull request yet.").font(Theme.sans(.body)).foregroundStyle(Theme.textMuted)
                         }
                     }
                 }
@@ -78,11 +78,11 @@ struct ReviewCommentsSheet: View {
                 Initials(name: t.author, size: 24)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(t.place).font(Theme.mono(11)).foregroundStyle(Theme.textSec).lineLimit(1)
+                        Text(t.place).font(Theme.mono(.caption)).foregroundStyle(Theme.textSec).lineLimit(1)
                         if t.outdated { Pill(text: "Outdated", tone: .ghost) }
                         if t.resolved { Pill(text: "Resolved", tone: .ghost) }
                     }
-                    Text(t.body.split(separator: "\n").first.map(String.init) ?? "").font(Theme.sans(13)).foregroundStyle(Theme.text).lineLimit(2)
+                    Text(t.body.split(separator: "\n").first.map(String.init) ?? "").font(Theme.sans(.body)).foregroundStyle(Theme.text).lineLimit(2)
                 }
                 Spacer(minLength: 0)
             }
@@ -150,8 +150,8 @@ struct ImportConductorSheet: View {
                         "\(picked.count) of \(open.count) picked"
                             + (preview.alreadyImported > 0 ? " · \(preview.alreadyImported) already here" : "")
                     )
-                    .font(Theme.sans(12)).foregroundStyle(Theme.textSec).padding(.top, 12)
-                    Text("Don't send to the same chat from Conductor and Forge at once.").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    .font(Theme.sans(.small)).foregroundStyle(Theme.textSec).padding(.top, 12)
+                    Text("Don't send to the same chat from Conductor and Forge at once.").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                         .padding(.top, 4)
                 }
             }
@@ -172,11 +172,11 @@ struct ImportConductorSheet: View {
             }
             .disabled(w.imported)
             VStack(alignment: .leading, spacing: 2) {
-                Text(w.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
-                Text(w.imported ? "\(w.branch) · already here" : w.branch).font(Theme.mono(10)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                Text(w.title).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(w.imported ? "\(w.branch) · already here" : w.branch).font(Theme.mono(.label)).foregroundStyle(Theme.textMuted).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(w.chats)").font(Theme.mono(12)).foregroundStyle(Theme.textSec).frame(width: 60, alignment: .trailing)
+            Text("\(w.chats)").font(Theme.mono(.small)).foregroundStyle(Theme.textSec).frame(width: 60, alignment: .trailing)
         }
         .opacity(w.imported ? 0.5 : 1)
         .frame(height: 44)
@@ -190,7 +190,7 @@ struct ImportConductorSheet: View {
 
     private func toggle(on: Bool, _ flip: @escaping () -> Void) -> some View {
         Button(action: flip) {
-            Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 14))
+            Image(systemName: on ? "checkmark.square.fill" : "square").font(Theme.icon(.glyphXL))
                 .foregroundStyle(on ? Theme.heat : Theme.textMuted)
         }
         .buttonStyle(.plain)

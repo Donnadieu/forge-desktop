@@ -54,11 +54,11 @@ struct GitHubAccountSignInPanel: View {
     var body: some View {
         if let code = signIn.code {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Approve this code on GitHub, signed in as the account to add").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                Text(code.userCode).font(Theme.mono(28, .medium)).foregroundStyle(Theme.heatBright).textSelection(.enabled)
+                Text("Approve this code on GitHub, signed in as the account to add").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                Text(code.userCode).font(Theme.mono(.codeDisplay, .medium)).foregroundStyle(Theme.heatBright).textSelection(.enabled)
                 HStack(spacing: 10) {
                     Spinner(heat: true)
-                    Text("Waiting for you to approve it in your browser…").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                    Text("Waiting for you to approve it in your browser…").font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                 }
                 HStack(spacing: 16) {
                     Button("Open the page again") { openLink(code.verificationURL) }.buttonStyle(ForgeButton(kind: .plain))

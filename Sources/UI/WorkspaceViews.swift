@@ -40,7 +40,7 @@ struct WorkspaceTile: View {
 
     var body: some View {
         Text(initials)
-            .font(Theme.mono(size * 0.42, .medium))
+            .font(Theme.mono(.initials(in: size), .medium))
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(tint.opacity(0.16)))
@@ -54,7 +54,7 @@ struct AllTile: View {
 
     var body: some View {
         Image(systemName: "square.on.square")
-            .font(.system(size: size * 0.45, weight: .medium))
+            .font(Theme.icon(.glyphIn(size), .medium))
             .foregroundStyle(Theme.textSec)
             .frame(width: size, height: size)
             .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(Theme.surfaceHover))
@@ -75,8 +75,8 @@ struct WorkspaceChip: View {
             } label: {
                 HStack(spacing: 8) {
                     if all { AllTile(size: 22) } else { WorkspaceTile(w) }
-                    Text(all ? "All workspaces" : w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
-                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textSec)
+                    Text(all ? "All workspaces" : w.name).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                    Image(systemName: "chevron.down").font(Theme.icon(.glyphXS, .semibold)).foregroundStyle(Theme.textSec)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: Theme.rMd).fill(open ? Theme.surfaceHover : .clear))
@@ -86,7 +86,8 @@ struct WorkspaceChip: View {
             .buttonStyle(.plain)
             .fixedSize()
             .popover(isPresented: $open, arrowEdge: .bottom) {
-                WorkspaceSwitcher(model: model) { open = false }
+                // The top bar may draw its buttons tight; the switcher has room of its own.
+                WorkspaceSwitcher(model: model) { open = false }.environment(\.tightRow, 0)
             }
         }
     }
@@ -110,7 +111,7 @@ struct WorkspaceSwitcher: View {
             plain("Workspace settings", icon: "gearshape") { model.go(AppModel.settingsScreen) }
                 .padding(.bottom, 8)
             Text("Running workspaces share this Mac and your intelligence provider accounts' usage limits.")
-                .font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                .font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                 .padding(.horizontal, 16).padding(.bottom, 14).fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: 460)
@@ -126,11 +127,11 @@ struct WorkspaceSwitcher: View {
             HStack(spacing: 12) {
                 AllTile(size: 28)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("All workspaces").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                    Text("Every running workspace's cards in one place").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                    Text("All workspaces").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                    Text("Every running workspace's cards in one place").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                 }
                 Spacer(minLength: 8)
-                Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.text).opacity(here ? 1 : 0)
+                Image(systemName: "checkmark").font(Theme.icon(.glyphS, .semibold)).foregroundStyle(Theme.text).opacity(here ? 1 : 0)
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
             .background(here ? Theme.surfaceHover : .clear)
@@ -154,16 +155,16 @@ struct WorkspaceSwitcher: View {
                     WorkspaceTile(w, size: 28)
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
-                            Text(w.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                            if here { Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.text) }
+                            Text(w.name).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                            if here { Image(systemName: "checkmark").font(Theme.icon(.glyphS, .semibold)).foregroundStyle(Theme.text) }
                             if on {
                                 PulseDot(color: Theme.heat, pulsing: model.agentsWorking(in: w.id) > 0, size: 6)
-                                Text("Running").font(Theme.sans(11, .medium)).foregroundStyle(Theme.heatBright)
+                                Text("Running").font(Theme.sans(.caption, .medium)).foregroundStyle(Theme.heatBright)
                             } else {
-                                Text("Stopped").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                                Text("Stopped").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                             }
                         }
-                        Text(model.summary(w)).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+                        Text(model.summary(w)).font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).lineLimit(2)
                     }
                     Spacer(minLength: 8)
                 }
@@ -190,8 +191,8 @@ struct WorkspaceSwitcher: View {
             action()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: icon).font(.system(size: 11, weight: .medium)).frame(width: 28)
-                Text(title).font(Theme.sans(13))
+                Image(systemName: icon).font(Theme.icon(.glyph, .medium)).frame(width: 28)
+                Text(title).font(Theme.sans(.body))
                 Spacer()
             }
             .foregroundStyle(Theme.textSec)
@@ -315,8 +316,8 @@ struct ForgeSheet<Content: View>: View {
             Theme.bg.opacity(0.72).ignoresSafeArea().onTapGesture(perform: cancel)
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(Theme.display(24)).foregroundStyle(Theme.text)
-                    Text(lead).font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                    Text(title).font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text)
+                    Text(lead).font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24).padding(.vertical, 20)

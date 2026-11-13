@@ -38,7 +38,7 @@ struct ChatColumn: View {
                             ? "You have the wheel. The agent waits for your messages; Hand back to Forge lets it carry on."
                             : "Forge is working this card. Anything you send steers its agent right away. Stop to take over."
                     )
-                    .font(Theme.sans(12)).foregroundStyle(Theme.text)
+                    .font(Theme.sans(.small)).foregroundStyle(Theme.text)
                     Spacer()
                 }
                 .padding(.horizontal, 20).padding(.vertical, 10)
@@ -80,7 +80,7 @@ struct ChatColumn: View {
     private var headerContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Text(session.title).font(Theme.display(compact ? 20 : 26)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(session.title).font(Theme.display(compact ? .sessionTitleCompact : .sessionTitle)).foregroundStyle(Theme.text).lineLimit(1)
                 statusPill
                 Spacer(minLength: 8)
                 if !session.archived {
@@ -95,7 +95,7 @@ struct ChatColumn: View {
                     Button {
                         sessions.splitChat = nil
                     } label: {
-                        Image(systemName: "xmark").font(.system(size: 11))
+                        Image(systemName: "xmark").font(Theme.icon(.glyph))
                     }
                     .buttonStyle(ForgeButton(kind: .ghost)).help("Close this side")
                 }
@@ -105,7 +105,7 @@ struct ChatColumn: View {
                 BranchMenu(sessions: sessions, session: session)
                 Text("· \(session.origins)").fixedSize()
             }
-            .font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+            .font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted)
             .lineLimit(1).padding(.top, 4)
             ChatTabs(sessions: sessions, session: session, current: chat?.id, side: closable)
                 .padding(.top, 14)
@@ -135,10 +135,10 @@ struct SetupStrip: View {
                 if run.state == "running" {
                     Spinner()
                 } else {
-                    Image(systemName: failed ? "xmark.circle.fill" : "checkmark.circle.fill").font(.system(size: 12))
+                    Image(systemName: failed ? "xmark.circle.fill" : "checkmark.circle.fill").font(Theme.icon(.glyphM))
                         .foregroundStyle(failed ? Theme.bad : Theme.good)
                 }
-                Text(words).font(Theme.sans(12, failed ? .medium : .regular)).foregroundStyle(Theme.text)
+                Text(words).font(Theme.sans(.small, failed ? .medium : .regular)).foregroundStyle(Theme.text)
                 Spacer()
                 if !run.output.isBlank {
                     Button(open ? "Hide" : "Show output") { open.toggle() }.buttonStyle(
@@ -149,7 +149,7 @@ struct SetupStrip: View {
                 ScrollView {
                     // Folded, a failure shows its last lines: that's where the reason is.
                     let tail = run.output.split(separator: "\n", omittingEmptySubsequences: false).suffix(4).joined(separator: "\n")
-                    Text(open ? String(run.output.suffix(20000)) : tail).font(Theme.mono(11)).foregroundStyle(Theme.textSec)
+                    Text(open ? String(run.output.suffix(20000)) : tail).font(Theme.mono(.caption)).foregroundStyle(Theme.textSec)
                         .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
                 }
                 .frame(maxHeight: open ? 220 : 64)

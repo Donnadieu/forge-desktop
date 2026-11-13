@@ -45,9 +45,9 @@ struct GitHubScreen: View {
             if let user {
                 HStack(spacing: 10) {
                     Initials(name: user.name.isEmpty ? user.login : user.name, size: 24)
-                    Text("Signed in to GitHub as").font(Theme.sans(14)).foregroundStyle(Theme.text)
-                    Text("@\(user.login)").font(Theme.mono(13)).foregroundStyle(Theme.text)
-                    Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Theme.good)
+                    Text("Signed in to GitHub as").font(Theme.sans(.emphasis)).foregroundStyle(Theme.text)
+                    Text("@\(user.login)").font(Theme.mono(.body)).foregroundStyle(Theme.text)
+                    Image(systemName: "checkmark.circle.fill").font(Theme.icon(.glyphM)).foregroundStyle(Theme.good)
                 }
                 .padding(.bottom, 20)
                 choices
@@ -108,18 +108,18 @@ struct GitHubScreen: View {
                     Toggle("I understand GitHub will show these commits as Unverified.", isOn: $understood)
                 }
             }
-            .font(Theme.sans(13))
+            .font(Theme.sans(.body))
             .foregroundStyle(Theme.textSec)
             .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: 640)
         if signing == .forgeKey {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "info.circle").font(.system(size: 11))
+                Image(systemName: "info.circle").font(Theme.icon(.glyph))
                 Text("This changes your GitHub account: it adds one SSH signing key named \"Forge\". You can remove it in GitHub's settings.")
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .font(Theme.sans(12))
+            .font(Theme.sans(.small))
             .foregroundStyle(Theme.textMuted)
             .frame(maxWidth: 620, alignment: .leading)
             .padding(.top, 14)
@@ -243,7 +243,7 @@ struct SignInBox: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Forge uses your GitHub sign-in on this Mac. You're not signed in yet.")
-                .font(Theme.sans(14))
+                .font(Theme.sans(.emphasis))
                 .foregroundStyle(Theme.textSec)
             Button("Sign in to GitHub", action: action)
                 .buttonStyle(ForgeButton(kind: .fix, large: true))
@@ -261,11 +261,11 @@ struct DeviceCodeLine: View {
     var body: some View {
         if let code {
             HStack(spacing: 14) {
-                Text(code).font(Theme.mono(22, .medium)).foregroundStyle(Theme.text).textSelection(.enabled)
+                Text(code).font(Theme.mono(.codeDisplaySmall, .medium)).foregroundStyle(Theme.text).textSelection(.enabled)
                     .padding(.horizontal, 12).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.25)))
                 Button("Open GitHub", action: open).buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.right.square"))
-                Text("Type this code there, then come back.").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                Text("Type this code there, then come back.").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
             }
             .padding(.top, 14)
         }

@@ -16,8 +16,9 @@ enum SessionsLayout {
     static let sessions = Range(min: 200, max: 400, normal: 260)
     static let changes = Range(min: 300, max: 560, normal: 360)
     static let chatMin: CGFloat = 480
-    /// Every pane's header (sessions list, chat, Changes panel, New session) is this tall, its line included.
-    static let headerHeight: CGFloat = 112
+    /// Every pane's header (sessions list, chat, Changes panel, New session) is this tall, its line included; it grows
+    /// with the zoom, like the text in it.
+    static var headerHeight: CGFloat { Zoom.shared.scaled(112) }
 
     /// Where the window keeps its sidebars' widths and whether they're open (Forge has one main window, "main").
     struct Store {

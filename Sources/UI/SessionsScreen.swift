@@ -64,7 +64,7 @@ struct SessionsScreen: View {
     private func problemLine(_ p: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.heat)
-            Text(p).font(Theme.sans(12)).foregroundStyle(Theme.text).lineLimit(2)
+            Text(p).font(Theme.sans(.small)).foregroundStyle(Theme.text).lineLimit(2)
             Spacer()
             Button("Dismiss") { sessions.problem = nil }.buttonStyle(ForgeButton(kind: .ghost))
         }

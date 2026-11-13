@@ -76,7 +76,7 @@ struct SessionList: View {
                     }
                     if shown.isEmpty, archived.isEmpty || !search.isEmpty {
                         Text(list.isEmpty ? "No sessions yet. Start one, or bring your Conductor work over." : "Nothing matches.")
-                            .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).padding(16)
+                            .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).padding(16)
                     }
                 }
             }
@@ -84,7 +84,7 @@ struct SessionList: View {
             Button {
                 sessions.showHistory = true
             } label: {
-                Label("History", systemImage: "clock.arrow.circlepath").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                Label("History", systemImage: "clock.arrow.circlepath").font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
@@ -92,7 +92,7 @@ struct SessionList: View {
             Button {
                 sessions.openImport(repo: model.sessionRepos.first?.repo)
             } label: {
-                Label("Import from Conductor", systemImage: "square.and.arrow.down").font(Theme.sans(12)).foregroundStyle(Theme.textSec)
+                Label("Import from Conductor", systemImage: "square.and.arrow.down").font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
@@ -109,8 +109,8 @@ struct SessionList: View {
                 sessions.composing = true
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "plus").font(.system(size: 12, weight: .medium))
-                    Text("New session").font(Theme.sans(12, .semibold))
+                    Image(systemName: "plus").font(Theme.icon(.glyphM, .medium))
+                    Text("New session").font(Theme.sans(.small, .semibold))
                     KeyHint(text: "⌘N", onAmber: true)
                 }
                 .foregroundStyle(Theme.bg)
@@ -131,10 +131,10 @@ struct SessionList: View {
             withAnimation(.easeOut(duration: 0.15)) { sessions.toggleGroup(g.title) }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: g.folded ? "chevron.right" : "chevron.down").font(.system(size: 8, weight: .bold))
+                Image(systemName: g.folded ? "chevron.right" : "chevron.down").font(Theme.icon(.glyphTiny, .bold))
                     .foregroundStyle(Theme.textMuted).frame(width: 10)
                 SectionLabel(text: g.title)
-                Text("\(g.count)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+                Text("\(g.count)").font(Theme.mono(.label)).foregroundStyle(Theme.textMuted)
                 Spacer()
             }
             .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 6)
@@ -176,14 +176,14 @@ struct SessionList: View {
         return HStack(alignment: .top, spacing: 8) {
             PulseDot(color: archived ? Theme.textMuted : dot(s), pulsing: !archived && s.status == "working", size: 6).padding(.top, 6)
             VStack(alignment: .leading, spacing: 2) {
-                Text(s.title).font(Theme.sans(13, .medium)).foregroundStyle(archived ? Theme.textSec : Theme.text).lineLimit(1)
+                Text(s.title).font(Theme.sans(.body, .medium)).foregroundStyle(archived ? Theme.textSec : Theme.text).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(s.prNumber.map { "\(s.repo) · PR #\($0)" } ?? "\(s.repo) · \(s.branch)")
-                    .font(Theme.mono(10)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                    .font(Theme.mono(.label)).foregroundStyle(Theme.textMuted).lineLimit(1)
                 if !archived {
                     HStack(spacing: 4) {
                         if s.origin == "card" { AnvilMark().sized(11) }
-                        Text(s.origins).font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                        Text(s.origins).font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
                     }
                 }
             }
@@ -192,7 +192,7 @@ struct SessionList: View {
                     Button {
                         if archived { sessions.restore(s) } else { sessions.requestArchive(s) }
                     } label: {
-                        Image(systemName: archived ? "arrow.uturn.backward" : "archivebox").font(.system(size: 11))
+                        Image(systemName: archived ? "arrow.uturn.backward" : "archivebox").font(Theme.icon(.glyph))
                             .foregroundStyle(Theme.textSec).frame(width: 22, height: 22)
                             .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(Theme.surfaceRaised.opacity(0.6)))
                             .contentShape(Rectangle())

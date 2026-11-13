@@ -35,16 +35,16 @@ struct SignInGuide: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Sign in to \(name)").font(Theme.display(24)).foregroundStyle(Theme.text)
+                        Text("Sign in to \(name)").font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text)
                         Text(
                             account.map { "For \($0). Do this once on this Mac. Forge waits for you." }
                                 ?? "Do this once on this Mac. Forge waits for you."
                         )
-                        .font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+                        .font(Theme.sans(.body)).foregroundStyle(Theme.textSec)
                     }
                     Spacer()
                     Button(action: close) {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSec)
+                        Image(systemName: "xmark").font(Theme.icon(.glyph, .semibold)).foregroundStyle(Theme.textSec)
                             .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
@@ -68,9 +68,9 @@ struct SignInGuide: View {
 
     private func step(_ n: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text("\(n)").font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 24, height: 24)
+            Text("\(n)").font(Theme.mono(.caption)).foregroundStyle(Theme.textSec).frame(width: 24, height: 24)
                 .overlay(Circle().stroke(Theme.borderHover))
-            Text(text).font(Theme.sans(13)).foregroundStyle(Theme.text).padding(.top, 4).fixedSize(horizontal: false, vertical: true)
+            Text(text).font(Theme.sans(.body)).foregroundStyle(Theme.text).padding(.top, 4).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -92,7 +92,7 @@ struct SignInGuide: View {
             }
             HStack(spacing: 8) {
                 Spinner(heat: true)
-                Text("Waiting for you to sign in…").font(Theme.sans(13)).foregroundStyle(Theme.text)
+                Text("Waiting for you to sign in…").font(Theme.sans(.body)).foregroundStyle(Theme.text)
                 Spacer()
                 if signIn.link != nil {
                     Button("Open the page again") { signIn.openLink() }.buttonStyle(ForgeButton(kind: .plain))

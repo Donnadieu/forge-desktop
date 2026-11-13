@@ -72,17 +72,17 @@ struct AllWorkspacesScreen: View {
             (Text("On the anvil — ").foregroundColor(Theme.text)
                 + Text("\(inFlight) card\(inFlight == 1 ? "" : "s")\(inFlight > 0 ? " in flight" : "")")
                 .foregroundColor(inFlight > 0 ? Theme.heat : Theme.textSec))
-                .font(Theme.display(38)).padding(.top, 8)
+                .font(Theme.display(.headline)).padding(.top, 8)
             Text(n == 0 ? "No workspace is running." : "Everything your agents are working on, in every running workspace.")
-                .font(Theme.sans(13)).foregroundStyle(Theme.textSec).padding(.top, 8)
+                .font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec).padding(.top, 8)
         }
     }
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Start a workspace from the list at the top, next to Forge.").font(Theme.sans(13)).foregroundStyle(Theme.textSec)
+            Text("Start a workspace from the list at the top, next to Forge.").font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec)
             Text("Running workspaces share this Mac and your intelligence provider accounts' usage limits.")
-                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,7 +115,7 @@ struct AllWorkspacesScreen: View {
                 .padding(.horizontal, 16).frame(height: 40)
                 .overlay(alignment: .bottom) { Rectangle().fill(Theme.border).frame(height: 1) }
                 if rows.isEmpty {
-                    Text("No agent is working right now.").font(Theme.sans(13)).foregroundStyle(Theme.textMuted)
+                    Text("No agent is working right now.").font(Theme.sans(.boardText)).foregroundStyle(Theme.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 }
                 ForEach(rows) { r in
@@ -134,17 +134,17 @@ struct AllWorkspacesScreen: View {
         return HStack(spacing: 12) {
             workspaceCell(r.source.workspace).frame(width: 170, alignment: .leading)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(r.run.issue_identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
-                Text(r.run.issue_title ?? "").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(r.run.issue_identifier).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
+                Text(r.run.issue_title ?? "").font(Theme.sans(.boardText, .medium)).foregroundStyle(Theme.text).lineLimit(1)
             }
             .frame(minWidth: 260, maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 0) { Pill(text: stage, stage: stage, dot: Theme.stage(stage).dot, pulsing: true) }
                 .frame(width: 128, alignment: .leading)
-            Text(model.roleLine(r.source.project, stage: stage)).font(Theme.sans(12)).foregroundStyle(Theme.textSec).lineLimit(1)
+            Text(model.roleLine(r.source.project, stage: stage)).font(Theme.sans(.small)).foregroundStyle(Theme.textSec).lineLimit(1)
                 .frame(width: 170, alignment: .leading)
-            Text(r.run.activity ?? r.run.last_message ?? "Working").font(Theme.sans(13)).foregroundStyle(Theme.textSec).lineLimit(1)
+            Text(r.run.activity ?? r.run.last_message ?? "Working").font(Theme.sans(.boardText)).foregroundStyle(Theme.textSec).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(Self.elapsed(r.run.started_at)).font(Theme.mono(11)).foregroundStyle(Theme.textSec).frame(width: 80, alignment: .leading)
+            Text(Self.elapsed(r.run.started_at)).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textSec).frame(width: 80, alignment: .leading)
         }
         .padding(.horizontal, 16).frame(minHeight: 52)
         .background(alignment: .leading) {
@@ -162,11 +162,11 @@ struct AllWorkspacesScreen: View {
             HStack {
                 SectionLabel(text: title)
                 Spacer()
-                Text(stage).font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                Text(stage).font(Theme.sans(.boardSmall)).foregroundStyle(Theme.textMuted)
             }
             VStack(spacing: 0) {
                 if cards.isEmpty {
-                    Text("Nothing here.").font(Theme.sans(13)).foregroundStyle(Theme.textMuted)
+                    Text("Nothing here.").font(Theme.sans(.boardText)).foregroundStyle(Theme.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 }
                 ForEach(Array(cards.enumerated()), id: \.offset) { i, pair in
@@ -175,10 +175,11 @@ struct AllWorkspacesScreen: View {
                         WorkspaceTile(f.workspace, size: 24)
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(c.identifier).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
-                                Text(c.title).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+                                Text(c.identifier).font(Theme.mono(.boardMono)).foregroundStyle(Theme.textMuted)
+                                Text(c.title).font(Theme.sans(.boardText, .medium)).foregroundStyle(Theme.text).lineLimit(1)
                             }
-                            Text("\(f.workspace.name) · \(f.project.name) · \(line)").font(Theme.sans(12)).foregroundStyle(Theme.textSec).lineLimit(1)
+                            Text("\(f.workspace.name) · \(f.project.name) · \(line)").font(Theme.sans(.small)).foregroundStyle(Theme.textSec)
+                                .lineLimit(1)
                         }
                         Spacer(minLength: 0)
                     }
@@ -197,7 +198,7 @@ struct AllWorkspacesScreen: View {
     private func workspaceCell(_ w: Workspace) -> some View {
         HStack(spacing: 8) {
             WorkspaceTile(w, size: 24)
-            Text(w.name).font(Theme.sans(13)).foregroundStyle(Theme.text).lineLimit(1)
+            Text(w.name).font(Theme.sans(.boardText)).foregroundStyle(Theme.text).lineLimit(1)
         }
     }
 

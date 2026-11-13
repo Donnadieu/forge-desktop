@@ -64,7 +64,7 @@ struct ChangesPanel: View {
             if let file {
                 Rectangle().fill(Theme.border).frame(height: 1)
                 HStack {
-                    Text(file).font(Theme.mono(11)).foregroundStyle(Theme.textSec).lineLimit(1).truncationMode(.middle)
+                    Text(file).font(Theme.mono(.caption)).foregroundStyle(Theme.textSec).lineLimit(1).truncationMode(.middle)
                     Spacer()
                     Button("Comment") { sessions.openDiff = (session.id, file, diff) }
                         .buttonStyle(ForgeButton(kind: .ghost, icon: "text.bubble"))
@@ -72,7 +72,7 @@ struct ChangesPanel: View {
                     Button {
                         self.file = nil
                     } label: {
-                        Image(systemName: "xmark").font(.system(size: 10))
+                        Image(systemName: "xmark").font(Theme.icon(.glyphS))
                     }
                     .buttonStyle(ForgeButton(kind: .ghost))
                 }
@@ -125,7 +125,7 @@ struct ChangesPanel: View {
     private func quietCommentsLine(_ pr: Sessions.PullRequest) -> some View {
         HStack(spacing: 4) {
             Text(pr.unresolved == 1 ? "1 review comment ·" : "\(pr.unresolved ?? 0) review comments ·")
-                .font(Theme.sans(12)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                .font(Theme.sans(.small)).foregroundStyle(Theme.textMuted).lineLimit(1)
             Button("Pull into chat") { sessions.pullReviewComments(session) }.buttonStyle(ForgeButton(kind: .plain))
         }
     }
@@ -134,8 +134,8 @@ struct ChangesPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(Array(pr.failing.prefix(8).enumerated()), id: \.offset) { _, c in
                 HStack(spacing: 8) {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 10)).foregroundStyle(Theme.bad)
-                    Text(c.name).font(Theme.mono(11)).foregroundStyle(Theme.textSec).lineLimit(1).truncationMode(.middle)
+                    Image(systemName: "xmark.circle.fill").font(Theme.icon(.glyphS)).foregroundStyle(Theme.bad)
+                    Text(c.name).font(Theme.mono(.caption)).foregroundStyle(Theme.textSec).lineLimit(1).truncationMode(.middle)
                     Spacer(minLength: 4)
                     if let link = c.url, !link.isEmpty, let u = URL(string: link) {
                         Button("Logs ↗") { NSWorkspace.shared.open(u) }.buttonStyle(ForgeButton(kind: .plain)).fixedSize()
@@ -143,7 +143,7 @@ struct ChangesPanel: View {
                 }
             }
             if pr.failing.count > 8 {
-                Text("and \(pr.failing.count - 8) more").font(Theme.sans(11)).foregroundStyle(Theme.textMuted)
+                Text("and \(pr.failing.count - 8) more").font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted)
             }
             if let chat {
                 Button("Fix in chat") { sessions.send(chat, text: Sessions.Prompt.fixErrors(pr.failing, number: pr.number), queue: chat.working) }
@@ -170,21 +170,21 @@ struct ChangesPanel: View {
             HStack(spacing: 8) {
                 (Text(folder).foregroundStyle(Theme.textMuted)
                     + Text(name).foregroundStyle(deleted ? Theme.textMuted : added ? Theme.good : Theme.text))
-                    .font(Theme.mono(12))
+                    .font(Theme.mono(.small))
                     .strikethrough(deleted, color: Theme.textMuted)
                     .lineLimit(1).truncationMode(.middle)
                     .help(f.path)
                 Spacer(minLength: 4)
                 if comments > 0 {
                     HStack(spacing: 3) {
-                        Image(systemName: "text.bubble").font(.system(size: 9))
-                        Text("\(comments)").font(Theme.mono(10))
+                        Image(systemName: "text.bubble").font(Theme.icon(.glyphXS))
+                        Text("\(comments)").font(Theme.mono(.label))
                     }
                     .foregroundStyle(Theme.heat)
                     .help(comments == 1 ? "1 unresolved review comment" : "\(comments) unresolved review comments")
                 }
-                if f.added > 0 { Text("+\(f.added)").font(Theme.mono(11)).foregroundStyle(Theme.good) }
-                if f.removed > 0 { Text("−\(f.removed)").font(Theme.mono(11)).foregroundStyle(Theme.heat) }
+                if f.added > 0 { Text("+\(f.added)").font(Theme.mono(.caption)).foregroundStyle(Theme.good) }
+                if f.removed > 0 { Text("−\(f.removed)").font(Theme.mono(.caption)).foregroundStyle(Theme.heat) }
             }
             .padding(.horizontal, 8).frame(height: 28)
             .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(file == f.path ? Theme.surfaceHover : .clear))

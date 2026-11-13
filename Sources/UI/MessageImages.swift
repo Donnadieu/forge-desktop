@@ -110,7 +110,7 @@ struct PendingImages: View {
                         Button {
                             remove(img)
                         } label: {
-                            Image(systemName: "xmark.circle.fill").font(.system(size: 13)).foregroundStyle(Theme.text, Theme.bg)
+                            Image(systemName: "xmark.circle.fill").font(Theme.icon(.glyphL)).foregroundStyle(Theme.text, Theme.bg)
                         }
                         .buttonStyle(.plain).offset(x: 5, y: -5).help("Remove")
                     }

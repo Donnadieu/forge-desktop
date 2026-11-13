@@ -25,7 +25,7 @@ struct ChatTabs: View {
             Button {
                 sessions.newChat(in: session)
             } label: {
-                Image(systemName: "plus").font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+                Image(systemName: "plus").font(Theme.icon(.glyph)).foregroundStyle(Theme.textMuted)
             }
             .buttonStyle(.plain).help("New chat in this session (⌘T): same folder and branch")
             Spacer()
@@ -40,18 +40,18 @@ struct ChatTabs: View {
         return HStack(spacing: 6) {
             if c.working { PulseDot(color: Theme.heat, pulsing: true, size: 5) }
             if renaming == c.id {
-                TextField("", text: $name).textFieldStyle(.plain).font(Theme.sans(13, .semibold)).foregroundStyle(Theme.text)
+                TextField("", text: $name).textFieldStyle(.plain).font(Theme.sans(.body, .semibold)).foregroundStyle(Theme.text)
                     .frame(width: 120).focused($naming)
                     .onSubmit { finishRename(c) }
                     .onExitCommand { renaming = nil }
                     .onChange(of: naming) { _, focused in if !focused, renaming == c.id { finishRename(c) } }
             } else {
-                Text(c.title).font(Theme.sans(13, on ? .semibold : .regular)).foregroundStyle(on ? Theme.text : Theme.textMuted).lineLimit(1)
+                Text(c.title).font(Theme.sans(.body, on ? .semibold : .regular)).foregroundStyle(on ? Theme.text : Theme.textMuted).lineLimit(1)
             }
             Button {
                 sessions.close(c)
             } label: {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.textMuted)
+                Image(systemName: "xmark").font(Theme.icon(.glyphTiny, .bold)).foregroundStyle(Theme.textMuted)
                     .frame(width: 14, height: 14)
                     .background(Circle().fill(hovered ? Theme.wash2 : .clear))
             }
@@ -81,8 +81,8 @@ struct ChatTabs: View {
     private var changesTab: some View {
         let files = sessions.changes[session.id] ?? []
         return HStack(spacing: 6) {
-            Text("Changes").font(Theme.sans(13, changesOn ? .semibold : .regular)).foregroundStyle(changesOn ? Theme.text : Theme.textMuted)
-            Text("\(files.count)").font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
+            Text("Changes").font(Theme.sans(.body, changesOn ? .semibold : .regular)).foregroundStyle(changesOn ? Theme.text : Theme.textMuted)
+            Text("\(files.count)").font(Theme.mono(.label)).foregroundStyle(Theme.textMuted)
         }
         .padding(.bottom, 10)
         .overlay(alignment: .bottom) { Rectangle().fill(changesOn ? Theme.text : .clear).frame(height: 2) }
@@ -128,7 +128,7 @@ struct ChangesTab: View {
             if let file {
                 DiffReader(path: file, text: diff) { sessions.addComment($0, session: session.id) }
             } else {
-                Text("Pick a file to see what changed").font(Theme.sans(12)).foregroundStyle(Theme.textMuted)
+                Text("Pick a file to see what changed").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -146,12 +146,12 @@ struct ChangesTab: View {
             open(f.path)
         } label: {
             HStack(spacing: 10) {
-                Text(f.status).font(Theme.mono(10)).foregroundStyle(Theme.textSec).frame(width: 18, height: 18)
+                Text(f.status).font(Theme.mono(.label)).foregroundStyle(Theme.textSec).frame(width: 18, height: 18)
                     .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(Theme.border))
-                Text(f.path).font(Theme.mono(12)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.head)
+                Text(f.path).font(Theme.mono(.small)).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.head)
                 Spacer(minLength: 4)
-                if f.added > 0 { Text("+\(f.added)").font(Theme.mono(11)).foregroundStyle(Theme.good) }
-                if f.removed > 0 { Text("−\(f.removed)").font(Theme.mono(11)).foregroundStyle(Theme.heat) }
+                if f.added > 0 { Text("+\(f.added)").font(Theme.mono(.caption)).foregroundStyle(Theme.good) }
+                if f.removed > 0 { Text("−\(f.removed)").font(Theme.mono(.caption)).foregroundStyle(Theme.heat) }
             }
             .padding(.horizontal, 8).frame(height: 28)
             .background(RoundedRectangle(cornerRadius: Theme.rSm).fill(file == f.path ? Theme.surfaceHover : .clear))

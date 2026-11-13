@@ -72,12 +72,12 @@ struct MoveConfirm: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(move.title).font(Theme.display(24)).foregroundStyle(Theme.text)
-                        Text(move.line).font(Theme.sans(13)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
+                        Text(move.title).font(Theme.display(.sheetTitle)).foregroundStyle(Theme.text)
+                        Text(move.line).font(Theme.sans(.body)).foregroundStyle(Theme.textSec).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     Button(action: cancel) {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSec)
+                        Image(systemName: "xmark").font(Theme.icon(.glyph, .semibold)).foregroundStyle(Theme.textSec)
                             .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
@@ -91,7 +91,7 @@ struct MoveConfirm: View {
                             Text(c.identifier).foregroundStyle(Theme.textMuted)
                             Text(c.title).foregroundStyle(Theme.text).lineLimit(1)
                         }
-                        .font(Theme.mono(12))
+                        .font(Theme.mono(.small))
                     }
                 }
                 .padding(24)

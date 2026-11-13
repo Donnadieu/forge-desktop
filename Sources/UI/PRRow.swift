@@ -39,7 +39,7 @@ struct PRRow: View {
 
     /// Whole in the first two tiers (so a tier that doesn't fit is skipped); truncated in the last.
     @ViewBuilder private func label(_ text: String, _ fit: Fit) -> some View {
-        let t = Text(text).font(Theme.sans(12, .medium)).foregroundStyle(Theme.text).lineLimit(1)
+        let t = Text(text).font(Theme.sans(.small, .medium)).foregroundStyle(Theme.text).lineLimit(1)
         if fit == .icon { t.truncationMode(.tail).layoutPriority(-1).help(text) } else { t.fixedSize() }
     }
 
@@ -100,8 +100,8 @@ struct PRNumber: View {
             if let u = URL(string: pr.url) { NSWorkspace.shared.open(u) }
         } label: {
             HStack(spacing: 4) {
-                Text(verbatim: "#\(pr.number)").font(Theme.mono(11, .medium)).foregroundStyle(Theme.text)
-                Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .semibold)).foregroundStyle(Theme.textMuted)
+                Text(verbatim: "#\(pr.number)").font(Theme.mono(.caption, .medium)).foregroundStyle(Theme.text)
+                Image(systemName: "arrow.up.right").font(Theme.icon(.glyphTiny, .semibold)).foregroundStyle(Theme.textMuted)
             }
             .padding(.horizontal, 7).frame(height: 22)
             .overlay(RoundedRectangle(cornerRadius: Theme.rSm).stroke(Theme.border))
@@ -120,7 +120,7 @@ struct ChangesTitle<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 8) {
             if files.isEmpty {
-                Text("No changes yet").font(Theme.sans(14, .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+                Text("No changes yet").font(Theme.sans(.emphasis, .semibold)).foregroundStyle(Theme.text).lineLimit(1)
             } else {
                 ViewThatFits(in: .horizontal) {
                     line(prefix: true, counts: true)
@@ -136,10 +136,10 @@ struct ChangesTitle<Trailing: View>: View {
     private func line(prefix: Bool, counts: Bool) -> some View {
         let n = files.count == 1 ? "1 file" : "\(files.count) files"
         return HStack(spacing: 8) {
-            Text(prefix ? "Changes · \(n)" : n).font(Theme.sans(14, .semibold)).foregroundStyle(Theme.text)
+            Text(prefix ? "Changes · \(n)" : n).font(Theme.sans(.emphasis, .semibold)).foregroundStyle(Theme.text)
             if counts {
-                Text("+\(files.reduce(0) { $0 + $1.added })").font(Theme.mono(11)).foregroundStyle(Theme.good)
-                Text("−\(files.reduce(0) { $0 + $1.removed })").font(Theme.mono(11)).foregroundStyle(Theme.heat)
+                Text("+\(files.reduce(0) { $0 + $1.added })").font(Theme.mono(.caption)).foregroundStyle(Theme.good)
+                Text("−\(files.reduce(0) { $0 + $1.removed })").font(Theme.mono(.caption)).foregroundStyle(Theme.heat)
             }
         }
         .lineLimit(1).fixedSize()
@@ -182,7 +182,7 @@ struct CreatePRButton: View {
             // A borderless menu tints its own label amber, on amber: the half and its arrow are drawn under it.
             .background {
                 SplitHalf.shape(.arrow).fill(Theme.heat).overlay(
-                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.bg))
+                    Image(systemName: "chevron.down").font(Theme.icon(.glyphXS, .bold)).foregroundStyle(Theme.bg))
             }
             .overlay { SplitHalf.shape(.arrow).stroke(Theme.heatBorder) }
             .help("Create draft PR, or Create PR manually")
@@ -214,7 +214,7 @@ struct SplitHalf: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 8) {
-            configuration.label.font(Theme.sans(11, .semibold))
+            configuration.label.font(Theme.sans(.caption, .semibold))
             if let hint { KeyHint(text: hint, onAmber: true) }
         }
         .lineLimit(1).fixedSize()

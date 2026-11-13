@@ -36,13 +36,13 @@ struct SettingsScreen: View {
                     }
                     .padding(.bottom, -24)
                     HStack(spacing: 8) {
-                        Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .medium))
+                        Image(systemName: "arrow.clockwise").font(Theme.icon(.glyph, .medium))
                         Text(
                             model.settingsChanged
                                 ? "Changed. The engine restarts with your new answers when you go back to the Orchestrator."
                                 : "Changing a setting restarts the engine. Running agents pause and pick their cards back up.")
                     }
-                    .font(Theme.sans(11))
+                    .font(Theme.sans(.caption))
                     .foregroundStyle(model.settingsChanged ? Theme.heatBright : Theme.textMuted)
                     // Tracker → project and its repo → the project's intelligence provider and account, then the rest.
                     Grid(horizontalSpacing: 16, verticalSpacing: 16) {
@@ -84,8 +84,8 @@ struct SettingsScreen: View {
                     HStack(spacing: 12) {
                         Initials(name: t.user ?? t.title)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(t.kind.name) · \(t.title)").font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                            Text(t.line).font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                            Text("\(t.kind.name) · \(t.title)").font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                            Text(t.line).font(Theme.mono(.caption)).foregroundStyle(Theme.textMuted)
                         }
                     }
                 } action: {
@@ -110,8 +110,8 @@ struct SettingsScreen: View {
                 let here = p.id == SetupStore.projectID(c)
                 row {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(p.name).font(Theme.sans(13, .medium)).foregroundStyle(Theme.text)
-                        Text((here ? c.repo : p.repo).map { "→ \($0)" } ?? "Not set up yet").font(Theme.mono(11))
+                        Text(p.name).font(Theme.sans(.body, .medium)).foregroundStyle(Theme.text)
+                        Text((here ? c.repo : p.repo).map { "→ \($0)" } ?? "Not set up yet").font(Theme.mono(.caption))
                             .foregroundStyle((here ? c.repo : p.repo) == nil ? Theme.heatBright : Theme.textSec)
                     }
                 } action: {
@@ -165,11 +165,11 @@ struct SettingsScreen: View {
                 let h = c.harness?[repo] ?? HarnessRecord()
                 row {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(repo).font(Theme.mono(12)).foregroundStyle(Theme.text)
+                        Text(repo).font(Theme.mono(.small)).foregroundStyle(Theme.text)
                         HStack(spacing: 8) {
                             HarnessMark(badge: HarnessMark.of(h.status))
-                            Text(h.status.rawValue).font(Theme.sans(11, .medium)).foregroundStyle(Theme.textSec)
-                            Text(h.line).font(Theme.sans(11)).foregroundStyle(Theme.textMuted).lineLimit(1)
+                            Text(h.status.rawValue).font(Theme.sans(.caption, .medium)).foregroundStyle(Theme.textSec)
+                            Text(h.line).font(Theme.sans(.caption)).foregroundStyle(Theme.textMuted).lineLimit(1)
                         }
                     }
                 } action: {
@@ -223,7 +223,7 @@ struct SettingsScreen: View {
         group("Agent notifications") {
             row {
                 Text("A chime and a notification when an agent finishes, needs you or stops. Nothing for the session you're looking at.")
-                    .font(Theme.sans(13)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
+                    .font(Theme.sans(.body)).foregroundStyle(Theme.text).fixedSize(horizontal: false, vertical: true)
             } action: {
                 ForgeToggle(on: Binding(get: { model.store.agentNotificationsOn }, set: { model.setAgentNotifications($0) }))
             }
@@ -259,11 +259,11 @@ struct SettingsScreen: View {
             let account = model.account
             row {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(account.map { "\(WorkerScreen.name(w)) · \($0.name)" } ?? WorkerScreen.name(w)).font(Theme.sans(13, .medium))
+                    Text(account.map { "\(WorkerScreen.name(w)) · \($0.name)" } ?? WorkerScreen.name(w)).font(Theme.sans(.body, .medium))
                         .foregroundStyle(Theme.text)
                     HStack(spacing: 8) {
                         Circle().fill(c.workerChecked && account != nil ? Theme.good : Theme.textMuted).frame(width: 8, height: 8)
-                        Text(account?.line ?? "No account picked yet").font(Theme.sans(11)).foregroundStyle(Theme.textSec)
+                        Text(account?.line ?? "No account picked yet").font(Theme.sans(.caption)).foregroundStyle(Theme.textSec)
                     }
                 }
             } action: {
@@ -322,7 +322,7 @@ struct SettingsScreen: View {
     private func field(_ key: String, _ value: String, mono: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             SectionLabel(text: key)
-            Text(value).font(mono ? Theme.mono(11) : Theme.sans(13)).foregroundStyle(mono ? Theme.textSec : Theme.text)
+            Text(value).font(mono ? Theme.mono(.caption) : Theme.sans(.body)).foregroundStyle(mono ? Theme.textSec : Theme.text)
         }
     }
 

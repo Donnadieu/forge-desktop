@@ -2,6 +2,12 @@
 
 Forge ships outside the Mac App Store: Developer ID signed, notarized by Apple, stapled.
 
+## One release for many changes
+Changes land on main all day without a release each. `tools/release.sh` releases everything on main since the last
+tag in one go, as the next patch version: the steps below, from opening the VERSION pull request to the GitHub
+release. `DRY_RUN=1 tools/release.sh` says what it would ship. It stops (and changes nothing more) when a version pull
+request is already open, when main's VERSION isn't tagged yet (another release is under way) or when a check fails.
+
 ## Build a release
 
 1. Bump `VERSION` in its own pull request; merge it.

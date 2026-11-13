@@ -44,7 +44,8 @@ final class TerminalProcess: @unchecked Sendable {
     static func start(shell: String, folder: String, env: [String: String], cols: Int, rows: Int) -> TerminalProcess? {
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: folder, isDirectory: &isDir), isDir.boolValue else { return nil }
-        // Everything the child touches is made before the fork: it may only call chdir, execve and _exit.
+        // Everything the child touches is made before the fork: it may only call chdir, signal, sigprocmask, execve
+        // and _exit.
         let name = "-" + (shell as NSString).lastPathComponent
         let argv = UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>.allocate(capacity: 2)
         argv[0] = strdup(name)
@@ -65,8 +66,15 @@ final class TerminalProcess: @unchecked Sendable {
         }
         var master: Int32 = -1
         var size = winsize(ws_row: UInt16(clamping: rows), ws_col: UInt16(clamping: cols), ws_xpixel: 0, ws_ypixel: 0)
+        var noSignalsBlocked = sigset_t()
+        sigemptyset(&noSignalsBlocked)
+        let reset: [Int32] = [SIGINT, SIGQUIT, SIGTSTP, SIGTTIN, SIGTTOU, SIGCHLD, SIGPIPE, SIGHUP, SIGTERM]
         let pid = forkpty(&master, nil, nil, &size)
         if pid == 0 {
+            // The shell starts with every signal at its default, as in Terminal: a Forge started from a script in the
+            // background inherits ⌃C ignored, and a shell can't trap a signal ignored on entry, so ⌃C did nothing.
+            for sig in reset { signal(sig, SIG_DFL) }
+            sigprocmask(SIG_SETMASK, &noSignalsBlocked, nil)
             if chdir(dir) != 0 { _exit(126) }
             execve(path, argv, envp)
             _exit(127)

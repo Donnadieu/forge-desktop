@@ -169,8 +169,9 @@ extension Checks {
         _ = waitFor(1) { false }
         check("⌘C in the Terminal copies the selection", board.string(forType: .string) == "ready-to-copy")
         check("and never sends the shell ⌃C", !tab.screen.text.contains("^C"))
-        tab.write(Array("sh -c 'trap \"echo caught-\\\"sig\\\"int; exit 0\" INT; while :; do sleep 0.2; done'\r".utf8))
-        _ = waitFor(1) { false }
+        tab.write(Array("sh -c 'trap \"echo caught-\\\"sig\\\"int; exit 0\" INT; echo armed-\"no\"w; while :; do sleep 0.2; done'\r".utf8))
+        // ⌃C only after the trap is set: on a busy Mac the shell can take over a second to get there.
+        _ = waitFor(10) { tab.screen.text.contains("armed-now") }
         if let e = keyboardEvent(8, down: true, flags: .control) { window.sendEvent(e) }
         if let e = keyboardEvent(8, down: false, flags: .control) { window.sendEvent(e) }
         check("⌃C still interrupts what runs in the Terminal", waitFor(10) { tab.screen.text.contains("caught-sigint") })

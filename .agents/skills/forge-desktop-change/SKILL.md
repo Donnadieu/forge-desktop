@@ -167,6 +167,20 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   storage's delegate (`MessageBox.Coordinator`).
 
 ### Shell, tests and the gate
+- The selftest runs as 3 shares in separate processes side by side (`tools/preflight.sh`, `Forge --selftest --part k/3`):
+  a check group may not depend on another group having run first, and may not share a fixed path, a pasteboard name,
+  a defaults suite or a port with another group (add a UUID, as `PasteChecks` and `PaneChecks` do). A new group gets a
+  row in `Checks.groups` with its measured seconds, or the shares drift apart. Iterate with `--only <group>`.
+- A check must never read the whole Mac's state as if it were its own: `NSEvent.modifierFlags` is the keyboard of
+  the whole Mac, so a ⌘ held anywhere (a person, another program) turned a chat-link check's click into a Finder
+  window. Read such state through a swappable closure (`FileLinks.commandHeld`); every check mode sets
+  `FileLinks.openInBrowser`/`reveal` to do nothing, so no check can put another app on the person's screen.
+- A process started in the background from a script (`cmd &`, as preflight starts the shares) inherits SIGINT and
+  SIGQUIT ignored, and a shell can't trap a signal that was ignored when it started: the Terminal's ⌃C did nothing
+  there. `TerminalProcess.start` puts every signal back to its default in the child, as Terminal does.
+- With the shares running side by side, macOS took over 5 s to hand Finder the new icon of a just-built app
+  (`AppIcon.finderShowsTheAnvil` waits up to 20 s). A check that waits on macOS needs a limit sized for a busy Mac, and
+  returns as soon as it passes.
 - `cmd | grep -q` under `set -o pipefail` can fail on SIGPIPE: capture the output into a variable first.
 - A test that fails only in the full suite or the commit hook is a race until proven otherwise. Fix it
   the second time it shows up instead of retrying: reproduce with 4 parallel runs x 5, show the old code

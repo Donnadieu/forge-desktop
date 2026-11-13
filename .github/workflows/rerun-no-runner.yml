@@ -1,0 +1,25 @@
+name: rerun when no runner came
+# GitHub sometimes cancels the app job because no Mac runner picked it up ("The job was not acquired by Runner",
+# macOS arm64 capacity). That says nothing about the code, so the run goes again by itself, up to 3 tries.
+# tools/ci-rerun-no-runner.sh decides; real failures, time-outs and runs replaced by a newer push stay as they are.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+permissions:
+  actions: write
+  checks: read
+  contents: read
+jobs:
+  rerun:
+    if: github.event.workflow_run.conclusion != 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run it again if a job got no runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: tools/ci-rerun-no-runner.sh

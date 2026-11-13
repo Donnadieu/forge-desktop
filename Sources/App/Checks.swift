@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Headless checks the agent can run (it can't see the screen). Used by tools/preflight.sh and CI.
-///   Forge --selftest            facts about the app + the main view draws
+///   Forge --selftest            every check group (`--list` names them, `--only a,b` runs some, `--part 2/3` one share)
 ///   Forge --version             prints the version
 ///   Forge --type-check          the type scale, grey text contrast, zoom (steps, remembered) and fit at 85% and 150%
 ///   Forge --pane-check          the Sessions screen's panes only: resize by drag, header lines, the panel's fit, rows
@@ -23,13 +23,20 @@ enum Checks {
     static func run(_ args: [String]) -> Int32? {
         // Checks and renders draw at 100%, whatever zoom the person picked (and never save one).
         let drawing = ["--selftest", "--type-check", "--pane-check", "--paste-check", "--copy-check", "--render-screens", "--transcript-check"]
-        if args.contains(where: drawing.contains) { Zoom.shared.set(1, persist: false) }
+        if args.contains(where: drawing.contains) {
+            Zoom.shared.set(1, persist: false)
+            // A check never hands anything to another app, whatever keys are held on the Mac; checks that test
+            // these swap in a recorder of their own.
+            FileLinks.openInBrowser = { _ in }
+            FileLinks.reveal = { _ in }
+            FileLinks.commandHeld = { false }
+        }
         if args.contains("--version") {
             print(AppInfo.version)
             return 0
         }
         if args.contains("--selftest") {
-            return selftest()
+            return selftest(args)
         }
         if args.contains("--paste-check") {
             setvbuf(stdout, nil, _IONBF, 0)
@@ -135,21 +142,58 @@ enum Checks {
         Tracker.allCases.map(TrackerItem.legacy).contains(item) || item.hasPrefix("tracker-")
     }
 
-    static func selftest() -> Int32 {
+    static func selftest(_ args: [String] = []) -> Int32 {
+        var chosen = groups
+        if let i = args.firstIndex(of: "--only"), i + 1 < args.count {
+            let names = Set(args[i + 1].split(separator: ",").map(String.init))
+            let unknown = names.subtracting(groups.map(\.name))
+            guard unknown.isEmpty else {
+                print("✗ no selftest group named \(unknown.sorted().joined(separator: ", ")) (Forge --selftest --list names them)")
+                return 2
+            }
+            chosen = groups.filter { names.contains($0.name) }
+        }
+        if let i = args.firstIndex(of: "--part"), i + 1 < args.count {
+            let kn = args[i + 1].split(separator: "/").compactMap { Int($0) }
+            guard kn.count == 2, kn[1] >= 1, (1...kn[1]).contains(kn[0]) else {
+                print("✗ --part takes k/n, like 2/3")
+                return 2
+            }
+            chosen = share(kn[0], of: kn[1], from: chosen)
+        }
+        if args.contains("--list") {
+            for g in chosen { print(g.name, g.seconds) }
+            return 0
+        }
+        let timed = ProcessInfo.processInfo.environment["FORGE_SELFTEST_TIMES"] != nil
         var failed = 0
         func check(_ name: String, _ ok: Bool) {
             print("\(ok ? "✓" : "✗") \(name)")
             if !ok { failed += 1 }
         }
+        func lap(_ name: String, since start: Date) {
+            if timed { FileHandle.standardError.write(Data("⏱ \(name) \(String(format: "%.1f", Date().timeIntervalSince(start))) s\n".utf8)) }
+        }
+        let began = Date()
+        for g in chosen {
+            let started = Date()
+            g.run(check)
+            lap(g.name, since: started)
+        }
+        lap("total", since: began)
+        print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
+        return failed == 0 ? 0 : 1
+    }
+
+    /// The checks that don't belong to an area: facts about the app, the main view, problems and pipeline rules.
+    static func basicChecks(_ check: (String, Bool) -> Void) {
         check("the app is called Forge", AppInfo.name == "Forge")
         check("the version comes from the bundle", AppInfo.version != "dev")
         check("the Forge fonts ship inside the app and load", Theme.fontsLoaded)
-        AppIcon.checks(check)
         let renderer = ImageRenderer(content: RootView(model: AppModel(preview: true)).frame(width: 1200, height: 800))
         renderer.scale = 1
         let size = renderer.nsImage?.size ?? .zero
         check("the main window's view draws", size.width == 1200 && size.height == 800)
-        boardFollowsSwitch(check)
         check("a Linear key problem offers the key screen", OrchestratorScreen.fix(for: "Linear didn't accept this key.")?.isLink == false)
         check("an unknown problem offers no button that can't fix it", OrchestratorScreen.fix(for: "Linear answered 502.") == nil)
         check("a Stop the engine took counts even when its answer was slow", BoardLink.landed(.stop, in: SampleBoard.stopping))
@@ -262,40 +306,11 @@ enum Checks {
         check(
             "a failed Codex turn fails the check",
             WorkerCheck.codexOutcome(.init(status: 1, out: codexBad, err: "")) == .fails("Codex said: unauthorized"))
-        harnessChecks(check)
-        trackerChecks(check)
-        linearTeamChecks(check)
-        missingColumnSetupChecks(check)
-        missingColumnStudioChecks(check)
-        missingColumnGatingChecks(check)
-        parkingChecks(check)
-        nextStepChecks(check)
-        skillChecks(check)
-        workspaceNameChecks(check)
-        prPanelChecks(check)
-        paneChecks(check)
-        moveChecks(check)
-        accountChecks(check)
-        workspaceChecks(check)
-        workspaceDeleteChecks(check)
-        workflowFileChecks(check)
-        noRawWorkflowChecks(check)
-        limitChecks(check)
-        sessionChecks(check)
-        sessionPolishChecks(check)
-        steerChecks(check)
-        sessionIsolationChecks(check)
-        chatRenderChecks(check)
-        workspaceSetupChecks(check)
-        terminalChecks(check)
-        pasteChecks(check)
-        copyChecks(check)
-        composerKeyChecks(check)
-        questionChecks(check)
-        openInChecks(check)
-        typeChecks(check)
-        print(failed == 0 ? "selftest: all passed" : "selftest: \(failed) failed")
-        return failed == 0 ? 0 : 1
+        let all = groups.map(\.name)
+        check(
+            "every selftest group lands in exactly one share",
+            (1...4).allSatisfy { n in (1...n).flatMap { share($0, of: n, from: groups).map(\.name) }.sorted() == all.sorted() })
+        check("selftest groups have names of their own", Set(all).count == all.count)
     }
 }
 

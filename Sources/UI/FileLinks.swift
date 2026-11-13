@@ -28,6 +28,11 @@ enum FileLinks {
     /// Where a web link goes: the default browser. The only way out of the chat to another app; checks swap it to
     /// see what would have opened.
     static var openInBrowser: (URL) -> Void = { NSWorkspace.shared.open($0) }
+    /// Shows a file in Finder (a ⌘-click). Checks swap it for a recorder too.
+    static var reveal: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
+    /// Whether ⌘ is held for a click. That's the whole Mac's keyboard, not the click's: checks set it to `{ false }`, or a
+    /// ⌘ held anywhere on the Mac (a person, another program's keys) turned a check's click into a Finder window.
+    static var commandHeld: () -> Bool = { NSEvent.modifierFlags.contains(.command) }
 
     /// Path-looking words: letters, digits and `_ . / ~ @ + -`, with an optional `:line` or `:line:column`.
     private static let token = try? NSRegularExpression(pattern: #"[A-Za-z0-9_./~@+\-]+(?::[0-9]+){0,2}"#)
@@ -116,11 +121,11 @@ enum FileLinks {
     /// macOS answers a link with no scheme with "The application can't be opened. -50".
     static func action(_ sessions: SessionsModel, root: String) -> OpenURLAction {
         OpenURLAction { url in
-            switch open(url, root: root, command: NSEvent.modifierFlags.contains(.command)) {
+            switch open(url, root: root, command: commandHeld()) {
             case .view(let file)?:
                 sessions.openFile = Opened(url: file, root: root)
             case .reveal(let file)?:
-                NSWorkspace.shared.activateFileViewerSelecting([file])
+                reveal(file)
             case .missing(let file)?:
                 sessions.openFile = Opened(url: file, root: root, missing: true)
             case .web(let link)?:

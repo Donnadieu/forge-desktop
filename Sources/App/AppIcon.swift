@@ -47,11 +47,12 @@ enum AppIcon {
 
     static var hasEverySize: Bool { Set(sizes).isSubset(of: pixelSizes) }
 
-    /// What Finder draws for the app (the About box uses the same icon). A bundle built a moment ago can
-    /// still get the blank icon for a second while macOS registers it, so this asks a few times before failing.
+    /// What Finder draws for the app (the About box uses the same icon). A bundle built a moment ago gets the blank
+    /// icon while macOS registers it: about a second on a quiet Mac, over 5 s with the selftest's shares running side by
+    /// side. So this asks every half second for up to 20 s before failing.
     static var finderShowsTheAnvil: Bool {
         LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
-        for attempt in 0..<10 {
+        for attempt in 0..<40 {
             if attempt > 0 { Thread.sleep(forTimeInterval: 0.5) }
             let icon = NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
             if drawnSizes.allSatisfy({ isTheAnvil(icon, size: $0) }) { return true }

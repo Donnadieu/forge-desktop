@@ -32,7 +32,26 @@ if [ -f .env ]; then
 fi
 
 echo; echo "App"
-if "$BIN" --selftest; then ok "selftest"; else bad "selftest failed" "see the ✗ lines above"; fi
+# The selftest runs as FORGE_SELFTEST_PARTS shares side by side (3: one per core of GitHub's Mac); each share's lines
+# print in order once all have ended, with its time and the slowest groups. One share alone: Forge --selftest --part 2/3.
+PARTS=${FORGE_SELFTEST_PARTS:-3}
+ST=$(mktemp -d -t forge-selftest)
+pids=()
+for k in $(seq 1 "$PARTS"); do
+  FORGE_SELFTEST_TIMES=1 "$BIN" --selftest --part "$k/$PARTS" >"$ST/$k.out" 2>"$ST/$k.err" &
+  pids+=($!)
+done
+st_fail=0
+for k in $(seq 1 "$PARTS"); do
+  wait "${pids[$((k - 1))]}" || st_fail=1
+  echo "selftest share $k/$PARTS:"
+  cat "$ST/$k.out"
+  grep -v '^⏱' "$ST/$k.err" | grep -v 'IOServiceMatching' || true
+done
+grep -h '^⏱ total' "$ST"/*.err | sed 's/^⏱ total/  share took/'
+grep -h '^⏱' "$ST"/*.err | grep -v '^⏱ total' | sort -k3 -n -r | head -5 | sed 's/^⏱/  slowest group:/'
+rm -rf "$ST"
+if [ "$st_fail" = 0 ]; then ok "selftest"; else bad "selftest failed" "see the ✗ lines above; rerun one share with Forge --selftest --part k/$PARTS"; fi
 OUT=$(mktemp -t forge-window-check)
 rm -f "$OUT"
 "$BIN" --window-check "$OUT" >/dev/null 2>&1 &

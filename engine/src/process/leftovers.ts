@@ -85,7 +85,7 @@ export function listProcesses(): Promise<ListedProcess[]> {
 }
 
 /** The root as given and with symlinks resolved (`lsof` reports real paths: /private/var). */
-function rootForms(root: string): string[] {
+export function rootForms(root: string): string[] {
   const forms = new Set([resolve(root)]);
   try {
     forms.add(realpathSync(root));

@@ -2,14 +2,17 @@
  * The sessions host's entry: the same bundled engine, started with FORGE_ENGINE_MODE=sessions. One per Mac.
  * Its folder (FORGE_ENGINE_HOME) holds `sessions.sqlite`, Forge's clones (`repos/`) and the sessions' folders
  * (`folders/`). Prints `FORGE_ENGINE_READY {"port":N}` like the board engine; SIGTERM stops every chat's agent, and so
- * does the app going away (`FORGE_APP_PID`, process/parent-watch.ts).
+ * does the app going away (`FORGE_APP_PID`, process/parent-watch.ts), and dev servers left in `folders/` stop with it. A
+ * leftover host whose app is gone is replaced first (process/engine-takeover.ts).
  *
  * New in Forge Desktop.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createLogger } from "../observability/logger.js";
+import { replaceLeftoverEngines } from "../process/engine-takeover.js";
 import { watchParent } from "../process/parent-watch.js";
+import { stopLeftoverServers } from "../workspace/leftover-sweep.js";
 import { startSessionsApi } from "./api.js";
 import { SessionsHost } from "./host.js";
 import { SessionStore } from "./store.js";
@@ -21,6 +24,8 @@ export async function runSessionsHost(): Promise<void> {
     process.env.FORGE_ENGINE_HOME ?? join(homedir(), "Library/Application Support/Forge/sessions");
   const logFile = process.env.FORGE_LOG_FILE ?? join(homedir(), "Library/Logs/Forge/sessions.log");
   const logger = createLogger({ level: "info", logFile, fileOnly: true });
+  // One sessions host per folder: a leftover whose app is gone stops before this one opens the store.
+  await replaceLeftoverEngines(home, { logger });
   const store = new SessionStore(join(home, "sessions.sqlite"));
   let broadcast: (f: Record<string, unknown>) => void = () => {};
   const host = new SessionsHost(store, {
@@ -39,6 +44,8 @@ export async function runSessionsHost(): Promise<void> {
     logger.info({ signal }, "Forge sessions host stopping");
     host.cards.close();
     await host.chats.closeAll();
+    // Dev servers the chats' agents left running detached in Forge's session folders go with the host.
+    await stopLeftoverServers(join(home, "folders"), { logger });
     await api.close();
     store.close();
     process.exit(0);

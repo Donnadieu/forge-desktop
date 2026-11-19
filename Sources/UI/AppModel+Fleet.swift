@@ -91,11 +91,7 @@ extension AppModel {
 
     /// Quitting Forge: every engine drains at once, the sessions host too (left running, it kept its chats' agents
     /// going for days after the app quit).
-    static func stopAllEngines() async {
-        await withTaskGroup(of: Void.self) { group in
-            for h in [EngineHost.shared, EngineHost.sessions] + EngineHost.made { group.addTask { await h.stop() } }
-        }
-    }
+    static func stopAllEngines() async { await EngineHost.stopAll() }
 
     /// Restarts the running engines of a workspace with fresh settings (Workflow Studio saved); the one on
     /// screen restarts when the Orchestrator shows again.

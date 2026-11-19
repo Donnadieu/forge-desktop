@@ -11,8 +11,8 @@
  * New in Forge Desktop.
  */
 
-/** How often the parent is checked. */
-export const PARENT_WATCH_INTERVAL_MS = 5000;
+/** How often the parent is checked (a cheap syscall): an engine outlives a killed app by about a second. */
+export const PARENT_WATCH_INTERVAL_MS = 1000;
 
 export interface ParentWatchOptions {
   /** The app's pid (default `FORGE_APP_PID`). */

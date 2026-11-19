@@ -7,7 +7,8 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 - **Tests:** `test/unit/**` and `test/support/**` came from Forge's `test/` at the same commit.
   Tests for code left behind were dropped (the container privilege drop, the hermes runner, the
   factory QA bound and build completion, boot scripts). Two skills tests wait for step 9
-  (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts`, `test/unit/process/parent-watch.test.ts` and
+  (the agent skills). `test/unit/process/ps-table.test.ts`, `test/unit/process/leftovers.test.ts`, `test/unit/process/parent-watch.test.ts`,
+  `test/unit/process/engine-takeover.test.ts`, `test/unit/process/engine-lifecycle.test.ts` and
   `test/unit/workspace/leftover-sweep.test.ts` and `test/unit/workspace/runaway-guard.test.ts` are new. `test/unit/sessions/` and its stand-in agent
   (`test/fixtures/sessions/fake-claude.mjs`) are new. `test/unit/orchestrator/turn-telemetry.test.ts` is new. `test/unit/workspace/person-mcp.test.ts` is new.
 - **The lead's instructions:** `workflow/lead.md` is the body of Forge's `examples/WORKFLOW.md` at the
@@ -103,9 +104,10 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/orchestrator/workspace-startup-sweep.ts | 05deefb0a43a | src/orchestrator/workspace-startup-sweep.ts | unchanged |
 | src/process/process-tree.ts | 05deefb0a43a | src/process/process-tree.ts | unchanged |
 | src/process/procfs.ts | 05deefb0a43a | src/process/procfs.ts | falls back to the macOS process table (ps-table.ts) where /proc is missing |
-| src/process/parent-watch.ts | new | | the engine shuts down when the app that started it (`FORGE_APP_PID`) is gone |
+| src/process/parent-watch.ts | new | | the engine shuts down when the app that started it (`FORGE_APP_PID`) is gone (checked every second) |
+| src/process/engine-takeover.ts | new | | a starting engine stops a leftover engine (app gone) still running in its folder: one engine per folder |
 | src/process/ps-table.ts | new | | macOS process table (Forge reads Linux /proc only) |
-| src/process/leftovers.ts | new | | finds processes left running in card folders by cwd (`lsof`): detached, no terminal; stops them |
+| src/process/leftovers.ts | new | | finds processes left running in card folders by cwd (`lsof`): detached, no terminal; stops them; `rootForms` shared with engine-takeover.ts |
 | src/process/thinking-display.ts | new | | asks once per command whether Claude Code knows `--thinking-display summarized` (so Thought rows have words to open) |
 | src/process/run-tree.ts | 05deefb0a43a | src/process/run-tree.ts | unchanged |
 | src/server/http-utils.ts | 05deefb0a43a | src/server/http-utils.ts | unchanged |
@@ -149,7 +151,7 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/workspace/mcp-config.ts | 05deefb0a43a | src/workspace/mcp-config.ts | written readable only by the person (it can hold the person's own servers' keys) |
 | src/workspace/person-mcp.ts | new | | the person's own MCP servers for a folder Forge runs Claude Code in: user scope, the folder's `.mcp.json`, and the `~/.claude.json` project entries of every checkout of the same GitHub repo (a card's clone and a session's worktree of Forge's clone never match by path); the session terminal's `.mcp.json`, approved, kept out of git, only in Forge's own checkouts; `repoFromRemote` (moved from `sessions/conductor.ts`) |
 | src/workspace/orphan-reaper.ts | 05deefb0a43a | src/workspace/orphan-reaper.ts | unchanged |
-| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead; passes `tracker.team_id` on; moves into a column the board doesn't have are refused (`tracker/board-columns.ts`); parked cards kept in forge.sqlite; Next step (`orchestrator/next-step.ts`); shuts down when the app is gone (`process/parent-watch.ts`) |
+| src/index.ts | new | | the engine as the app runs it (the tracker from `tracker-factory.ts`) (env in, ready line out, drain on SIGTERM); reads the board on start, every poll interval and on refresh; serves the workpad; moves a card for the person, then polls; turns on the Backlog sweep from `tracker.promote`; `FORGE_ENGINE_HOME` (one engine per project); roles (`agent/roles.ts`); the Mac-wide ceiling (`orchestrator/shared-slots.ts`); logs the leftover processes a run's lock stops; `FORGE_ENGINE_MODE=sessions` runs the sessions host instead; passes `tracker.team_id` on; moves into a column the board doesn't have are refused (`tracker/board-columns.ts`); parked cards kept in forge.sqlite; Next step (`orchestrator/next-step.ts`); shuts down when the app is gone (`process/parent-watch.ts`); replaces a leftover engine of its folder before opening the store (`process/engine-takeover.ts`); stops its agents' leftover dev servers on the way out |
 | src/agent/usage-limit.ts | new | | reads a usage, spend or rate limit (and its reset time) from Claude Code, Codex, OpenRouter and Kimi failure texts |
 | src/orchestrator/usage-limits.ts | new | | a card whose account hit a usage limit waits for the reset (no retry used, no slot held), then goes again |
 | src/agent/roles.ts | new | | roles: each role's agent gets only its own account (`FORGE_ROLE_<n>_…`), and the router picks the agent by the card's stage |
@@ -192,5 +194,5 @@ The lint rule `engine-provenance` fails on a file without a row. How to pull: [R
 | src/sessions/api.ts | new | | the sessions host's local API (127.0.0.1, launch token, HTTP + live WebSocket); `POST /api/v1/workspaces/<id>/setup` (memory only); long pastes in a message; Retry on a message that wasn't delivered |
 | src/sessions/attachments.ts | new | | pictures in a message: kept as files, one `[image: <path>]` line each, image blocks for Claude Code; long pastes as .txt files (`[text: <path>]`), sent to Claude Code as a text block with the whole paste |
 | src/sessions/cards.ts | new | | card sessions: the cards running in every engine, each followed from its Claude Code transcript as a session (the same recorder a chat uses); the person's mid-turn steers from Claude Code's queue lines, sending then delivered; rebuilt from the transcript on every follow so a restart shows nothing twice |
-| src/sessions/main.ts | new | | the sessions host's entry (`FORGE_ENGINE_MODE=sessions`); shuts down when the app is gone (`process/parent-watch.ts`) |
+| src/sessions/main.ts | new | | the sessions host's entry (`FORGE_ENGINE_MODE=sessions`); shuts down when the app is gone (`process/parent-watch.ts`); replaces a leftover host first (`process/engine-takeover.ts`); stops leftover dev servers in `folders/` on the way out |
 | Nov 9, 2026 (what others see) | | | `config/schema.ts` gains `marks`; `worker/runner.ts` takes the branch from `branch.ts`; `worker/helper-wait.ts` says "This run stopped"; `orchestrator/workpad-parser.ts` reads `## Workpad` and the older heading; the three `mcp/` servers refuse marked writes when invisible and GitHub/Basecamp send the plain user agent (also `tracker/basecamp.ts`, `tracker/github.ts`); `workspace/copy-assets.ts` installs the guard; `index.ts` wires it; `workflow/*.md` and the skills lose the words agents could repeat |

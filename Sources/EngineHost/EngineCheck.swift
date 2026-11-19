@@ -115,6 +115,9 @@ enum EngineCheck {
         await host.stop(grace: 20)
         check("Stop drains and ends the engine", kill(pid, 0) != 0)
         check("Stop doesn't hang (\(Int(Date().timeIntervalSince(t0))) s)", Date().timeIntervalSince(t0) < 20)
+        await EngineQuitCheck.appKilled(check)
+        // Last: after the quit this process starts no engine.
+        await EngineQuitCheck.quitting(check)
         return failed
     }
 

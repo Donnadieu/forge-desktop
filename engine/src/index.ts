@@ -17,7 +17,9 @@
  * get FORGE_DRAIN_MS (default 20 s) to finish, then they are stopped.
  * FORGE_APP_PID (the app's pid): when the engine's parent is no longer the app
  * (it crashed or was killed), the engine shuts down as on SIGTERM
- * (process/parent-watch.ts).
+ * (process/parent-watch.ts). Before it opens its store, an engine whose app is
+ * gone still running in the same folder is stopped (process/engine-takeover.ts),
+ * and on the way out the dev servers its agents left running stop too.
  *
  * New in Forge Desktop (Forge's entry is a CLI for its hosted platform).
  */
@@ -39,6 +41,7 @@ import { Orchestrator } from "./orchestrator/orchestrator.js";
 import type { ParkedCard } from "./orchestrator/parking.js";
 import { SharedSlots } from "./orchestrator/shared-slots.js";
 import type { OrchestratorState } from "./orchestrator/types.js";
+import { replaceLeftoverEngines } from "./process/engine-takeover.js";
 import { watchParent } from "./process/parent-watch.js";
 import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
@@ -66,6 +69,8 @@ async function main(): Promise<void> {
   if (!existsSync(workflowPath)) throw new Error(`no workflow file at ${workflowPath}`);
 
   const logger = createLogger({ level: "info", logFile, fileOnly: true });
+  // One engine per folder: a leftover whose app is gone stops (drains) before this one opens the store.
+  await replaceLeftoverEngines(home, { logger });
   const store = new WorkflowStore(workflowPath);
   const { config, promptTemplate } = store.current();
   validateRequiredEnv(config);
@@ -309,6 +314,8 @@ async function main(): Promise<void> {
       logger.warn({ drainMs }, "Agents still running after the drain window; stopping them");
       await orchestrator.stop({ abort: true }).catch(() => {});
     }
+    // Dev servers the agents left running detached go with the engine.
+    await stopLeftoverServers(config.workspace.root, { logger });
     clearInterval(boardTimer);
     await api.close();
     slots?.close();

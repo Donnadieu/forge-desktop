@@ -12,7 +12,9 @@ import SwiftUI
 ///   Forge --workspaces-check    opens a copy of Forge's folder (FORGE_HOME) and prints its workspaces after the upgrade
 ///   Forge --accounts-check      accounts against a scratch Keychain and folder (FORGE_HOME + FORGE_KEYCHAIN_SERVICE)
 ///   Forge --archive-check       archive and unarchive on the real Sessions screen against a scratch sessions host
-///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop
+///   Forge --engine-check        starts the bundled engine in a scratch folder and proves start/watch/stop, that quitting
+///                               leaves no engine and that a killed app's engine stops by itself
+///   Forge --engine-check-app <folder>  a stand-in app for that last check: starts one engine, waits to be killed
 ///   Forge --icon-check          the app icon ships, and Finder and Stage Manager draw it (package-app.sh runs it)
 ///   Forge --basecamp-token      prints a fresh Basecamp token as one JSON line (for the engine; renews it);
 ///                               `--item <keychain item>` picks the connection
@@ -88,6 +90,9 @@ enum Checks {
         }
         if args.contains("--engine-check") {
             return EngineCheck.run()
+        }
+        if args.contains("--engine-check-app") {
+            return EngineQuitCheck.standInApp(args)
         }
         if args.contains("--icon-check") {
             var failed = 0

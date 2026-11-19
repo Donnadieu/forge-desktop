@@ -254,6 +254,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   update kill skips quitting altogether: seven old engines and their chats' agents ran up to a week with launchd as
   parent (about 2.5 GB). The app passes `FORGE_APP_PID`; `process/parent-watch.ts` shuts the engine down as on
   SIGTERM when its parent changes. Any new engine mode calls `watchParent` next to its SIGTERM handler.
+- Parent watching alone left two holes (0.2.47, seen live): a board reconnects the moment its engine closes, so the
+  quit's own SIGTERM got engines started again while Forge quit (`ensureStarted` reset `stopping`), and an engine
+  from an older app (no `FORGE_APP_PID`) ran on beside the new app's engine for the same folder. `EngineHost.stopAll`
+  now closes `quitGate` first (no start or crash restart after it; a start on its way is refused before `p.run()`),
+  and a starting engine stops any engine whose app is gone in its folder (`process/engine-takeover.ts`, found by cwd)
+  before opening its store. Every start path goes through `ensureStarted`/`launch`; never spawn an engine elsewhere.
+  `--engine-check` proves both on real processes, a SIGKILLed stand-in app (`--engine-check-app`) included.
 
 - Dispatch fills only the free slots, in stage order (furthest along first), and a refused claim ends that card's
   turn without trying the next one. A card someone else holds in a later column (another person's In Progress

@@ -9,6 +9,9 @@ import Security
 /// - Never kills a healthy engine: a running engine is reused, not restarted.
 /// - Watched: if the engine dies on its own it is started again, waiting longer after each crash.
 /// - Stopped by draining: SIGTERM lets running agents finish (the engine's drain window), then SIGKILL.
+/// - Quitting (`stopAll`) closes a gate first: no engine starts or restarts after it, not one a board asks for again
+///   while its engine drains, and a start already on its way is refused or stopped. An app killed outright can't stop
+///   anything: each engine watches `FORGE_APP_PID` and stops by itself, and a new engine replaces one left in its folder.
 actor EngineHost {
     static let shared = EngineHost(home: Paths.home, logs: Paths.logs)
     /// The sessions host: the same engine in its sessions mode (chats with agents), one per Mac.
@@ -56,12 +59,14 @@ actor EngineHost {
         case notBundled(String)
         case noWorkflow
         case didNotStart(String)
+        case quitting
 
         var description: String {
             switch self {
             case .notBundled(let p): return "the engine isn't inside the app (\(p))"
             case .noWorkflow: return "setup isn't finished yet"
             case .didNotStart(let why): return "the engine didn't start: \(why)"
+            case .quitting: return "Forge is quitting"
             }
         }
     }
@@ -87,6 +92,7 @@ actor EngineHost {
 
     func ensureStarted() async throws -> Connection {
         if let c = connection, let p = process, p.isRunning { return c }
+        if EngineHost.quitGate.closed { throw Failure.quitting }
         if let t = starting { return try await t.value }
         stopping = false
         let t = Task { try await self.launch() }
@@ -110,6 +116,7 @@ actor EngineHost {
         let token = EngineHost.newToken()
         let p = Process()
         p.executableURL = URL(fileURLWithPath: node)
+        // Checked again after the awaits above: a stop or the quit that came meanwhile wins.
         p.arguments = ["--disable-warning=ExperimentalWarning", script]
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = await ToolPath.shared.value()
@@ -130,11 +137,14 @@ actor EngineHost {
         p.terminationHandler = { [self] proc in
             Task { await self.exited(pid: proc.processIdentifier) }
         }
+        if EngineHost.quitGate.closed { throw Failure.quitting }
+        if stopping { throw Failure.didNotStart("it was stopped while starting") }
         try p.run()
         process = p
-        guard let port = await EngineHost.readyPort(out, timeout: 30) else {
+        // An engine left running in this folder drains (up to ~25 s) before the new one is ready.
+        guard let port = await EngineHost.readyPort(out, timeout: 60) else {
             p.terminate()
-            throw Failure.didNotStart("no ready line within 30 s (see \(logs.path))")
+            throw Failure.didNotStart("no ready line within 60 s (see \(logs.path))")
         }
         let c = Connection(port: port, token: token, pid: p.processIdentifier)
         connection = c
@@ -156,7 +166,7 @@ actor EngineHost {
         connection = nil
         process = nil
         for f in observers { f(nil) }
-        guard !stopping else { return }
+        guard !stopping, !EngineHost.quitGate.closed else { return }
         crashes += 1
         guard crashes <= EngineHost.maxCrashes else {
             lastFailure = "the engine stopped \(crashes) times in a row; see \(logs.path)"
@@ -164,13 +174,15 @@ actor EngineHost {
         }
         let wait = min(30.0, pow(2.0, Double(crashes - 1)))
         try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
-        guard !stopping, connection == nil else { return }
+        guard !stopping, !EngineHost.quitGate.closed, connection == nil else { return }
         _ = try? await ensureStarted()
     }
 
     /// Stops the engine and waits for it: SIGTERM (it drains), then SIGKILL after `grace` seconds.
     func stop(grace: TimeInterval = 30) async {
         stopping = true
+        // A start on its way: it is refused before its engine runs, or its engine is stopped below.
+        if process == nil, let t = starting { _ = try? await t.value }
         guard let p = process, p.isRunning else { return }
         let pid = p.processIdentifier
         kill(pid, SIGTERM)
@@ -182,6 +194,17 @@ actor EngineHost {
         while p.isRunning { try? await Task.sleep(nanoseconds: 50_000_000) }
         connection = nil
         process = nil
+    }
+
+    /// Closed once Forge quits: nothing starts an engine after that.
+    static let quitGate = Gate()
+
+    /// Quitting Forge: the gate closes, then every engine drains at once.
+    static func stopAll() async {
+        quitGate.close()
+        await withTaskGroup(of: Void.self) { group in
+            for h in [shared, sessions] + made { group.addTask { await h.stop() } }
+        }
     }
 
     // MARK: helpers
@@ -263,6 +286,24 @@ private final class ReadyBox: @unchecked Sendable {
         cont = nil
         lock.unlock()
         c?.resume(returning: v)
+    }
+}
+
+/// A one-way switch read from any thread.
+final class Gate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isClosed = false
+
+    func close() {
+        lock.lock()
+        isClosed = true
+        lock.unlock()
+    }
+
+    var closed: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isClosed
     }
 }
 

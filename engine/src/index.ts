@@ -15,6 +15,9 @@
  * On start it prints one line to stdout, `FORGE_ENGINE_READY {"port":N}`, and
  * nothing else ever goes to stdout. SIGTERM drains: no new cards, running agents
  * get FORGE_DRAIN_MS (default 20 s) to finish, then they are stopped.
+ * FORGE_APP_PID (the app's pid): when the engine's parent is no longer the app
+ * (it crashed or was killed), the engine shuts down as on SIGTERM
+ * (process/parent-watch.ts).
  *
  * New in Forge Desktop (Forge's entry is a CLI for its hosted platform).
  */
@@ -36,6 +39,7 @@ import { Orchestrator } from "./orchestrator/orchestrator.js";
 import type { ParkedCard } from "./orchestrator/parking.js";
 import { SharedSlots } from "./orchestrator/shared-slots.js";
 import type { OrchestratorState } from "./orchestrator/types.js";
+import { watchParent } from "./process/parent-watch.js";
 import { buildEngineState } from "./server/engine-state.js";
 import { startLocalApi } from "./server/local-api.js";
 import { createOrchestratorControls } from "./server/orchestrator-controls.js";
@@ -313,6 +317,7 @@ async function main(): Promise<void> {
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
+  watchParent(() => void shutdown("app gone"));
 
   process.stdout.write(`FORGE_ENGINE_READY ${JSON.stringify({ port: api.port })}\n`);
   logger.info({ port: api.port }, "Forge engine ready");

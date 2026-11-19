@@ -89,10 +89,12 @@ extension AppModel {
         for w in store.workspaceList where w.running == true { await start(workspace: w.id) }
     }
 
-    /// Quitting Forge: every engine drains.
+    /// Quitting Forge: every engine drains at once, the sessions host too (left running, it kept its chats' agents
+    /// going for days after the app quit).
     static func stopAllEngines() async {
-        await EngineHost.shared.stop()
-        for h in EngineHost.made { await h.stop() }
+        await withTaskGroup(of: Void.self) { group in
+            for h in [EngineHost.shared, EngineHost.sessions] + EngineHost.made { group.addTask { await h.stop() } }
+        }
     }
 
     /// Restarts the running engines of a workspace with fresh settings (Workflow Studio saved); the one on

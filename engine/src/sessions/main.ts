@@ -1,13 +1,15 @@
 /**
  * The sessions host's entry: the same bundled engine, started with FORGE_ENGINE_MODE=sessions. One per Mac.
  * Its folder (FORGE_ENGINE_HOME) holds `sessions.sqlite`, Forge's clones (`repos/`) and the sessions' folders
- * (`folders/`). Prints `FORGE_ENGINE_READY {"port":N}` like the board engine; SIGTERM stops every chat's agent.
+ * (`folders/`). Prints `FORGE_ENGINE_READY {"port":N}` like the board engine; SIGTERM stops every chat's agent, and so
+ * does the app going away (`FORGE_APP_PID`, process/parent-watch.ts).
  *
  * New in Forge Desktop.
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createLogger } from "../observability/logger.js";
+import { watchParent } from "../process/parent-watch.js";
 import { startSessionsApi } from "./api.js";
 import { SessionsHost } from "./host.js";
 import { SessionStore } from "./store.js";
@@ -43,6 +45,7 @@ export async function runSessionsHost(): Promise<void> {
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
+  watchParent(() => void shutdown("app gone"));
   process.stdout.write(`FORGE_ENGINE_READY ${JSON.stringify({ port: api.port })}\n`);
   logger.info({ port: api.port, home }, "Forge sessions host ready");
 }

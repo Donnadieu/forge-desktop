@@ -247,6 +247,13 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   processes (parent pid 1) with no terminal whose cwd is inside the workspace root, so an editor or shell
   the person opened there is never touched. Its real-process test runs on macOS only (Linux may hand
   orphans to a subreaper instead of pid 1).
+- An engine's own sweep only covers its own project's cards, and a project nobody runs has no engine: ATC-1744's
+  puma, sidekiq, vite and storybook ran for a week (about 1.8 GB). The poll loop sweeps every project's card folders
+  under `FORGE_HOME` (`cardRoots`), from one process listing.
+- Engines must not outlive the app. `stopAllEngines` once skipped `EngineHost.sessions`, and a crash, force quit or
+  update kill skips quitting altogether: seven old engines and their chats' agents ran up to a week with launchd as
+  parent (about 2.5 GB). The app passes `FORGE_APP_PID`; `process/parent-watch.ts` shuts the engine down as on
+  SIGTERM when its parent changes. Any new engine mode calls `watchParent` next to its SIGTERM handler.
 
 - Dispatch fills only the free slots, in stage order (furthest along first), and a refused claim ends that card's
   turn without trying the next one. A card someone else holds in a later column (another person's In Progress

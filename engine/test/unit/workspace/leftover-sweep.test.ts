@@ -1,9 +1,13 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListedProcess } from "../../../src/process/leftovers.js";
-import { LeftoverSweeper, stopLeftoverServers } from "../../../src/workspace/leftover-sweep.js";
+import {
+  cardRoots,
+  LeftoverSweeper,
+  stopLeftoverServers,
+} from "../../../src/workspace/leftover-sweep.js";
 import { workspaceLockPath } from "../../../src/workspace/lock.js";
 import { WorkspaceManager } from "../../../src/workspace/manager.js";
 
@@ -100,6 +104,72 @@ describe("LeftoverSweeper", () => {
     expect(sweeper.maybeSweep("/root")).not.toBeNull(); // interval passed since the first
     expect(sweeper.maybeSweep("/root")).toBeNull();
     expect(sweep).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("sweeping every project's cards", () => {
+  let home: string;
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "forge-leftover-home-"));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("cardRoots lists Forge's own card folders and each project's that exist", () => {
+    mkdirSync(join(home, "workspaces"));
+    mkdirSync(join(home, "projects", "linear-a", "workspaces"), { recursive: true });
+    mkdirSync(join(home, "projects", "basecamp-b")); // no cards yet
+    expect(cardRoots(home).sort()).toEqual(
+      [join(home, "projects", "linear-a", "workspaces"), join(home, "workspaces")].sort(),
+    );
+    expect(cardRoots(undefined)).toEqual([]);
+    expect(cardRoots(join(home, "missing"))).toEqual([]);
+  });
+
+  it("a stopped project's leftover server is stopped by another project's engine", async () => {
+    const own = join(home, "projects", "basecamp-b", "workspaces");
+    const idle = join(home, "projects", "linear-a", "workspaces");
+    mkdirSync(own, { recursive: true });
+    mkdirSync(idle, { recursive: true });
+    const rows: ListedProcess[] = [
+      {
+        pid: 71001,
+        ppid: 1,
+        command: "ruby",
+        cwd: join(idle, "ATC-1744", "backend"),
+        terminal: false,
+      },
+      { pid: 71002, ppid: 1, command: "node", cwd: join(home, "elsewhere"), terminal: false },
+    ];
+    const gone = new Set<number>();
+    const kill = vi.spyOn(process, "kill").mockImplementation((pid: number) => {
+      gone.add(pid);
+      return true;
+    });
+    let listings = 0;
+    const list = async () => {
+      listings++;
+      return rows.filter((r) => !gone.has(r.pid));
+    };
+    const sweep = (root: string, o: Parameters<typeof stopLeftoverServers>[1] = {}) =>
+      stopLeftoverServers(root, { ...o, list, graceMs: 100 });
+    const sweeper = new LeftoverSweeper(
+      1000,
+      () => 0,
+      sweep,
+      () => cardRoots(home),
+      list,
+    );
+
+    const stopped = (await sweeper.maybeSweep(own)) ?? [];
+
+    expect(stopped.map((l) => [l.pid, l.card])).toEqual([[71001, "ATC-1744"]]);
+    expect(kill).toHaveBeenCalledWith(71001, "SIGTERM");
+    expect(kill).not.toHaveBeenCalledWith(71002, expect.anything());
+    // One listing for both roots, plus the stop's own re-check.
+    expect(listings).toBeLessThanOrEqual(3);
   });
 });
 

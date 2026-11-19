@@ -120,6 +120,8 @@ actor EngineHost {
         env["FORGE_ENGINE_HOME"] = home.path
         env["FORGE_LOG_FILE"] = logs.appendingPathComponent("engine.log").path
         if sessionsMode { env["FORGE_ENGINE_MODE"] = "sessions" }
+        // The engine stops by itself when this app is gone (a crash or a kill skips the quit that stops it).
+        env["FORGE_APP_PID"] = String(getpid())
         p.environment = env
         p.currentDirectoryURL = home
         let out = Pipe()

@@ -6,10 +6,14 @@
  *   - when the run releases the lock, after the agent has stopped;
  *   - every few minutes from the poll loop (first poll included), for cards
  *     no run holds: an engine that quit or crashed mid-run leaves them behind.
+ *     The poll loop also sweeps the card folders of every other project under
+ *     Forge's folder (`FORGE_HOME`): a project nobody runs has no engine of its
+ *     own to clean up after it, so its servers stayed up for days.
  * A card whose lock a live engine holds (a run is going on there, maybe in
  * another engine sharing the root) is never swept from the poll loop.
  */
-import { join } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { Logger } from "pino";
 import {
   type Leftover,
@@ -32,6 +36,22 @@ export interface LeftoverSweepOptions {
   logger?: Logger;
   graceMs?: number;
   list?: () => Promise<ListedProcess[]>;
+  /** The process table already listed (one listing for several roots); later checks list again. */
+  rows?: ListedProcess[];
+}
+
+/** Every card folder root under Forge's folder: its own `workspaces/` and each project's. */
+export function cardRoots(forgeHome: string | undefined): string[] {
+  if (!forgeHome) return [];
+  const roots = [join(forgeHome, "workspaces")];
+  const projects = join(forgeHome, "projects");
+  try {
+    for (const p of readdirSync(projects, { withFileTypes: true }))
+      if (p.isDirectory()) roots.push(join(projects, p.name, "workspaces"));
+  } catch {
+    // No projects folder yet.
+  }
+  return roots.filter((r) => existsSync(r));
 }
 
 /** Cards among `found` whose lock a live, non-orphaned engine holds. */
@@ -52,7 +72,7 @@ export async function stopLeftoverServers(
   const { only, logger, graceMs } = options;
   const list = options.list ?? listProcesses;
   try {
-    const rows = await list();
+    const rows = options.rows ?? (await list());
     let found = pickLeftovers(rows, { root, only });
     if (only === undefined && found.length > 0) {
       const busy = await busyCards(root, found);
@@ -84,15 +104,33 @@ export class LeftoverSweeper {
     private readonly intervalMs = LEFTOVER_SWEEP_INTERVAL_MS,
     private readonly now: () => number = Date.now,
     private readonly sweep = stopLeftoverServers,
+    /** The other projects' card roots (see the file comment); read at each sweep, as projects come and go. */
+    private readonly otherRoots: () => string[] = () => cardRoots(process.env.FORGE_HOME),
+    private readonly list: () => Promise<ListedProcess[]> = listProcesses,
   ) {}
 
   /** The started sweep, or null when it isn't time yet or one is running. */
   maybeSweep(root: string | undefined, logger?: Logger): Promise<Leftover[]> | null {
     if (!root || this.running || this.now() - this.last < this.intervalMs) return null;
     this.last = this.now();
-    this.running = this.sweep(root, { logger }).finally(() => {
+    this.running = this.sweepAll(root, logger).finally(() => {
       this.running = null;
     });
     return this.running;
+  }
+
+  /** This engine's root first, then every other project's, from one listing of the process table. */
+  private async sweepAll(root: string, logger?: Logger): Promise<Leftover[]> {
+    const roots = [...new Map([root, ...this.otherRoots()].map((r) => [resolve(r), r])).values()];
+    if (roots.length === 1) return this.sweep(root, { logger });
+    let rows: ListedProcess[];
+    try {
+      rows = await this.list();
+    } catch {
+      return [];
+    }
+    const stopped: Leftover[] = [];
+    for (const r of roots) stopped.push(...(await this.sweep(r, { logger, rows })));
+    return stopped;
   }
 }

@@ -62,6 +62,11 @@ struct GitHubProjectsAPI: Sendable {
     }
 
     func graphql(_ query: String, _ variables: [String: Any] = [:]) async throws -> [String: Any] {
+        try Self.checked(try await answer(query, variables))
+    }
+
+    /// GitHub's whole answer: `data` and, when part of it failed, `errors` beside it.
+    func answer(_ query: String, _ variables: [String: Any] = [:]) async throws -> [String: Any] {
         guard let u = URL(string: endpoint) else { throw Failure(description: "Bad GitHub address.") }
         var r = URLRequest(url: u)
         r.httpMethod = "POST"
@@ -74,16 +79,23 @@ struct GitHubProjectsAPI: Sendable {
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         if code == 401 { throw Failure(description: "GitHub didn't accept the sign-in. Sign in again.", signedOut: true) }
         guard (200..<300).contains(code) else { throw Failure(description: "GitHub answered \(code).") }
-        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        if let errors = obj["errors"] as? [[String: Any]], !errors.isEmpty {
-            let text = errors.compactMap { $0["message"] as? String }.joined(separator: "; ")
-            if text.contains("INSUFFICIENT_SCOPES") || text.contains("required scopes") {
-                throw Failure(description: "GitHub's sign-in can't reach projects. Sign in again.", signedOut: true)
-            }
-            throw Failure(description: "GitHub said: \(text)")
-        }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+    }
+
+    /// The answer's `data`, or its errors as a failure (a missing scope is a sign-in problem).
+    static func checked(_ obj: [String: Any]) throws -> [String: Any] {
+        let errors = obj["errors"] as? [[String: Any]] ?? []
+        if errors.contains(where: isScopeError) { throw Failure(description: missingProjectAccess, signedOut: true) }
+        if !errors.isEmpty { throw Failure(description: "GitHub said: \(errors.compactMap { $0["message"] as? String }.joined(separator: "; "))") }
         return obj["data"] as? [String: Any] ?? [:]
     }
+
+    static func isScopeError(_ e: [String: Any]) -> Bool {
+        let text = "\(e["type"] ?? "") \(e["message"] ?? "")"
+        return text.contains("INSUFFICIENT_SCOPES") || text.contains("required scopes")
+    }
+
+    static let missingProjectAccess = "GitHub's sign-in can't read your projects: it wasn't given project access."
 
     static func decode<T: Decodable>(_ value: Any?, as: T.Type) throws -> T {
         guard let value else { throw Failure(description: "GitHub sent an empty answer.") }
@@ -97,20 +109,60 @@ struct GitHubProjectsAPI: Sendable {
 
     private static let projectFields = "id number title url closed"
 
+    /// What the project list found: the open projects, and the organizations GitHub kept from this sign-in.
+    struct ProjectList: Sendable {
+        var projects: [Project]
+        /// Organizations whose projects GitHub wouldn't show (OAuth app access restrictions, SAML single sign-on).
+        var hidden: [String] = []
+    }
+
     /// The person's own projects and their organizations' projects, open ones only.
-    func projects() async throws -> [Project] {
+    func projects() async throws -> ProjectList {
         let q = """
             query { viewer {
               projectsV2(first: 50) { nodes { \(Self.projectFields) } }
-              organizations(first: 30) { nodes { projectsV2(first: 50) { nodes { \(Self.projectFields) } } } }
+              organizations(first: 30) { nodes { login projectsV2(first: 50) { nodes { \(Self.projectFields) } } } }
             } }
             """
-        let v = try await graphql(q)["viewer"] as? [String: Any] ?? [:]
-        var all = try Self.decode((v["projectsV2"] as? [String: Any])?["nodes"], as: [Project].self)
-        for org in ((v["organizations"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [] {
-            all += (try? Self.decode((org["projectsV2"] as? [String: Any])?["nodes"], as: [Project].self)) ?? []
+        return try Self.projectList(try await answer(q))
+    }
+
+    /// Reads the project list. An organization that keeps its projects from Forge's sign-in fails only its own
+    /// part of the answer: the rest still counts, and the organization is named so the screen can say why.
+    static func projectList(_ obj: [String: Any]) throws -> ProjectList {
+        let errors = obj["errors"] as? [[String: Any]] ?? []
+        func orgIndex(_ e: [String: Any]) -> Int? {
+            let path = e["path"] as? [Any] ?? []
+            guard path.count > 3, path[0] as? String == "viewer", path[1] as? String == "organizations" else { return nil }
+            return path[3] as? Int
         }
-        return all.filter { $0.closed != true }
+        if errors.contains(where: isScopeError) { _ = try checked(obj) }
+        let rest = errors.filter { orgIndex($0) == nil }
+        if !rest.isEmpty { _ = try checked(["errors": rest]) }
+        var orgErrors: [Int: [String: Any]] = [:]
+        for e in errors { if let i = orgIndex(e) { orgErrors[i] = e } }
+        let v = (obj["data"] as? [String: Any])?["viewer"] as? [String: Any] ?? [:]
+        func open(_ owner: Any?) -> [Project] {
+            let nodes = ((owner as? [String: Any])?["projectsV2"] as? [String: Any])?["nodes"] as? [Any] ?? []
+            return nodes.compactMap { $0 is NSNull ? nil : try? decode($0, as: Project.self) }.filter { $0.closed != true }
+        }
+        var list = ProjectList(projects: open(v))
+        let orgs = (v["organizations"] as? [String: Any])?["nodes"] as? [Any] ?? []
+        for (i, org) in orgs.enumerated() {
+            if let e = orgErrors[i] {
+                list.hidden.append((org as? [String: Any])?["login"] as? String ?? orgName(in: e["message"] as? String) ?? "an organization")
+            } else {
+                list.projects += open(org)
+            }
+        }
+        for (i, e) in orgErrors where i >= orgs.count { list.hidden.append(orgName(in: e["message"] as? String) ?? "an organization") }
+        return list
+    }
+
+    /// GitHub names the organization in backticks: "the `acme` organization has enabled OAuth App access restrictions".
+    static func orgName(in message: String?) -> String? {
+        let parts = (message ?? "").components(separatedBy: "`")
+        return parts.count > 2 && !parts[1].isEmpty ? parts[1] : nil
     }
 
     /// The project with its Status field and linked repos.

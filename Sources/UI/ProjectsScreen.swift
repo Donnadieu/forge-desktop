@@ -174,7 +174,7 @@ enum ProjectCandidates {
             }
         case .github:
             let api = GitHubProjectsAPI(token: { try GitHubLogin.accessToken(item: item) })
-            return try await api.projects().filter { $0.closed != true }.map { p in
+            return try await api.projects().projects.map { p in
                 .init(id: "\(t.id):\(p.id)", name: p.title, line: "Project board #\(p.number)", ref: ProjectRef(projectID: p.id, slug: p.id))
             }
         }

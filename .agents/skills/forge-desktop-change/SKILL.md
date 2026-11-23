@@ -63,6 +63,12 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   each representable at `.infinity` through `NSHostingController.sizeThatFits(in:)`; add a new one there.
 
 ### Screens
+- A picker filled from an API needs a loading state, an empty state with the fix (a link to make one, a
+  re-check) and the real error. A lone "Choose…" over an empty list with a grey Continue blocked a new user on
+  setup's GitHub project step with nothing saying why. Test the states with a pure `listState`.
+- GitHub's GraphQL can answer with `data` and `errors` together: an organization with OAuth app access
+  restrictions or SAML fails only its own part. `GitHubProjectsAPI.graphql` throws on any error, so lists that
+  span organizations read `answer()` and drop only the failed paths (`projectList`), naming what was hidden.
 - Colours, fonts and controls come only from `Theme.swift` and `Controls.swift`. Never stock
   `.accentColor`, `.green` or system fonts.
 - A vertical divider `Rectangle().frame(width: 1)` inside an HStack stretches the row to fill its

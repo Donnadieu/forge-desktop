@@ -211,7 +211,7 @@ enum SetupApply {
         let api = GitHubProjectsAPI()
         let me = try await api.viewer()
         print("✓ GitHub board sign-in: \(me.login)")
-        guard let found = try await api.projects().first(where: { $0.title == a.project }) else {
+        guard let found = try await api.projects().projects.first(where: { $0.title == a.project }) else {
             throw Stop(description: "no GitHub project \(a.project)")
         }
         var project = try await api.project(found.id)

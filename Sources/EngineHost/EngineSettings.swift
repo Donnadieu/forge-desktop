@@ -260,7 +260,7 @@ enum EngineSettings {
         env["FORGE_GIT_AUTHOR_EMAIL"] = c.authorEmail ?? ""
         switch c.signing ?? .unsigned {
         case .forgeKey:
-            guard await ForgeSigningKey.loadIntoAgent() else { throw Problem(description: "Forge couldn't hand its signing key to your Mac.") }
+            if let why = await ForgeSigningKey.loadIntoAgent() { throw Problem(description: why) }
             env["FORGE_GIT_SIGNING_KEY"] = ForgeSigningKey.publicKeyURL.path
             env["FORGE_GIT_SIGNING_FORMAT"] = "ssh"
         case .ownGPG:

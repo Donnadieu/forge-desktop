@@ -54,14 +54,17 @@ enum Keychain {
     /// The same, for an item named at run time: each intelligence provider account keeps its sign-in or key
     /// under its own name (`AIAccount.secretItem`).
     @discardableResult
-    static func set(_ value: String, named name: String) -> Bool {
+    static func set(_ value: String, named name: String) -> Bool { save(value, named: name) == errSecSuccess }
+
+    /// The same, with macOS's answer, so a refusal can be shown in its own words (`SecCopyErrorMessageString`).
+    static func save(_ value: String, named name: String) -> OSStatus {
         let data = Data(value.utf8)
         let update = SecItemUpdate(query(name) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if update == errSecSuccess { return true }
+        if update == errSecSuccess { return errSecSuccess }
         var add = query(name, adding: true)
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+        return SecItemAdd(add as CFDictionary, nil)
     }
 
     static func get(named name: String) -> String? {

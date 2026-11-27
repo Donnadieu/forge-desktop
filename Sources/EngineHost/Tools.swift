@@ -8,6 +8,21 @@ enum Tools {
         let out: String
         let err: String
         var ok: Bool { status == 0 }
+        /// Stopped at its time limit (or by a signal).
+        var timedOut: Bool { status == 124 }
+
+        /// What went wrong in the tool's own words: the last lines it printed, without `gh: ` and `error: ` prefixes.
+        var reason: String {
+            let text = err.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? out : err
+            let lines = text.split(separator: "\n").map { line -> String in
+                var l = line.trimmingCharacters(in: .whitespaces)
+                for prefix in ["gh: ", "error: ", "fatal: ", "! ", "X "] where l.hasPrefix(prefix) { l = String(l.dropFirst(prefix.count)) }
+                return l
+            }.filter { !$0.isEmpty }
+            let words = lines.suffix(2).joined(separator: " ")
+            if words.isEmpty { return timedOut ? "it didn't finish in time." : "it stopped with code \(status) and said nothing." }
+            return words.count > 400 ? String(words.prefix(400)) + "…" : words
+        }
     }
 
     /// Runs `command args` with the person's PATH. `input` goes to stdin. Gives up after `timeout` seconds.
@@ -56,18 +71,20 @@ enum Tools {
         p.standardOutput = out
         p.standardError = err
         p.standardInput = inp
-        var outData = Data()
-        var errData = Data()
+        let outData = Collected()
+        let errData = Collected()
         let group = DispatchGroup()
-        group.enter()
-        group.enter()
-        DispatchQueue.global().async {
-            outData = out.fileHandleForReading.readDataToEndOfFile()
-            group.leave()
-        }
-        DispatchQueue.global().async {
-            errData = err.fileHandleForReading.readDataToEndOfFile()
-            group.leave()
+        for (pipe, into) in [(out, outData), (err, errData)] {
+            group.enter()
+            DispatchQueue.global().async {
+                let h = pipe.fileHandleForReading
+                while true {
+                    let chunk = h.availableData
+                    if chunk.isEmpty { break }
+                    into.append(chunk)
+                }
+                group.leave()
+            }
         }
         do { try p.run() } catch { return Result(status: 127, out: "", err: "\(command) isn't installed") }
         if let input { inp.fileHandleForWriting.write(Data(input.utf8)) }
@@ -76,12 +93,26 @@ enum Tools {
         while p.isRunning && Date() < deadline && !stop.isSet { usleep(20_000) }
         if p.isRunning {
             p.terminate()
+            // A program that ignores the stop gets two seconds, then is killed.
+            let grace = Date().addingTimeInterval(2)
+            while p.isRunning && Date() < grace { usleep(20_000) }
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
             p.waitUntilExit()
         }
-        group.wait()
-        let s = String(data: outData, encoding: .utf8) ?? ""
-        let t = String(data: errData, encoding: .utf8) ?? ""
+        // Something the program started can keep its output open after it ends (`cmd &`): wait at most two more
+        // seconds for the rest of the output, never for that child.
+        _ = group.wait(timeout: .now() + 2)
+        let s = String(data: outData.value, encoding: .utf8) ?? ""
+        let t = String(data: errData.value, encoding: .utf8) ?? ""
         return Result(status: p.terminationReason == .uncaughtSignal ? 124 : p.terminationStatus, out: s, err: t)
+    }
+
+    /// Output read on another thread, handed over under a lock.
+    private final class Collected: @unchecked Sendable {
+        private let lock = NSLock()
+        private var data = Data()
+        func append(_ d: Data) { lock.withLock { data.append(d) } }
+        var value: Data { lock.withLock { data } }
     }
 
     /// Starts a program that outlives Forge (the updater's swap script). Its output is discarded.

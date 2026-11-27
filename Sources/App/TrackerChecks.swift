@@ -31,7 +31,7 @@ extension ScreenRender {
             Shot(name: "1-github-code", screen: 0, scene: "github-code"),
             Shot(name: "1-github-connected", screen: 0, choices: signed),
             Shot(name: "2-github-project", screen: 1, choices: signed),
-            Shot(name: "2-github-automations", screen: 1, choices: signed, scene: "github-movers", height: 1000),
+            Shot(name: "2-github-automations", screen: 1, choices: signed, scene: "github-movers", height: 1300),
             Shot(name: "2-github-no-projects", screen: 1, choices: signed, scene: "github-no-projects"),
             Shot(name: "2-github-hidden-org", screen: 1, choices: signed, scene: "github-hidden-org", height: 1000),
             Shot(name: "2-github-reconnect", screen: 1, choices: signed, scene: "github-reconnect"),

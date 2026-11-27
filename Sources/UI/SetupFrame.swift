@@ -13,6 +13,8 @@ struct SetupFrame<Content: View>: View {
     let action: () -> Void
     /// A second, quieter choice beside the main button ("Skip for now").
     var secondary: (title: String, action: () -> Void)? = nil
+    /// What's happening while busy ("Signing a test commit…"); nil says "Working…".
+    var busyText: String? = nil
     @ObservedObject var updater = Updater.shared
     @ViewBuilder let content: () -> Content
 
@@ -49,7 +51,7 @@ struct SetupFrame<Content: View>: View {
             if busy {
                 HStack(spacing: 8) {
                     Spinner(heat: true)
-                    Text("Working…")
+                    Text(busyText ?? "Working…")
                 }
             } else if model.changing && model.screen == AppModel.harnessScreen {
                 Text("Nothing here restarts the engine.")

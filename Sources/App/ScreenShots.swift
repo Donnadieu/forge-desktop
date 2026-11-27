@@ -34,6 +34,8 @@ extension ScreenRender {
         shared.boardColumns = Checks.sharedBoard
         return [
             Shot(name: "3-github", screen: 2, choices: project),
+            Shot(name: "3-github-signing-problem", screen: 2, choices: project, scene: "signing-permission"),
+            Shot(name: "3-github-signing-code", screen: 2, choices: project, scene: "signing-code"),
             Shot(name: "4-repo", screen: 3, choices: github),
             Shot(name: "4-repo-workspace-name", screen: 3, choices: github, scene: "unnamed-workspace"),
             Shot(name: "5-agent", screen: 4, choices: repo),

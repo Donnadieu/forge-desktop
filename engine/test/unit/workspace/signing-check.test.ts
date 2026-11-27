@@ -3,7 +3,7 @@
  * and a card never starts if its commits would go out unsigned without that being chosen.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -66,6 +66,32 @@ describe.skipIf(!hasSsh)("an SSH key held only by an agent signs", () => {
       SSH_AUTH_SOCK: agent.sock,
       FORGE_GIT_SIGNING_FORMAT: "ssh",
       FORGE_GIT_SIGNING_KEY: join(dir, "k.pub"),
+    };
+    expect(() => verifyWorkspaceSigning(env)).not.toThrow();
+  });
+
+  it("signs whatever the person's global git config signs with, and whatever hooks it runs", () => {
+    // The person's own config: 1Password's op-ssh-sign (it can't sign with Forge's key) and a hook that refuses.
+    const program = join(dir, "op-ssh-sign");
+    writeFileSync(program, "#!/bin/sh\necho 'error: 1Password: no matching key' >&2\nexit 1\n", {
+      mode: 0o755,
+    });
+    const hooks = join(dir, "hooks");
+    mkdirSync(hooks, { recursive: true });
+    writeFileSync(join(hooks, "pre-commit"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+    writeFileSync(join(hooks, "commit-msg"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+    const global = join(dir, "person.gitconfig");
+    // Its own copy of the public half, so an earlier pass (kept ten minutes) doesn't answer for this one.
+    const pub = join(dir, "k-global.pub");
+    copyFileSync(join(dir, "k.pub"), pub);
+    writeFileSync(global, `[gpg "ssh"]\n\tprogram = ${program}\n[core]\n\thooksPath = ${hooks}\n`);
+    const env = {
+      ...process.env,
+      ...who,
+      GIT_CONFIG_GLOBAL: global,
+      SSH_AUTH_SOCK: agent.sock,
+      FORGE_GIT_SIGNING_FORMAT: "ssh",
+      FORGE_GIT_SIGNING_KEY: pub,
     };
     expect(() => verifyWorkspaceSigning(env)).not.toThrow();
   });

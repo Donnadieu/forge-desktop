@@ -71,6 +71,9 @@ export function configureWorkspaceGitIdentity(
   set("user.signingkey", identity.signingKey);
   set("gpg.format", identity.format ?? "openpgp");
   set("commit.gpgsign", "true");
+  // The person's global config may sign SSH keys through another program (1Password's op-ssh-sign), which
+  // can't sign with a key only the Mac's agent holds. A GPG key's program stays the person's choice.
+  if (identity.format === "ssh") set("gpg.ssh.program", "ssh-keygen");
 }
 
 const verified = new Map<string, number>();
@@ -106,7 +109,10 @@ export function verifyWorkspaceSigning(env: NodeJS.ProcessEnv = process.env): vo
     git(["config", "--local", "user.email", identity.email]);
     git(["config", "--local", "user.signingkey", identity.signingKey]);
     git(["config", "--local", "gpg.format", identity.format ?? "openpgp"]);
-    git(["commit", "-q", "-S", "--allow-empty", "-m", "Forge signing check"]);
+    if (identity.format === "ssh") git(["config", "--local", "gpg.ssh.program", "ssh-keygen"]);
+    // The person's own hooks (a global core.hooksPath) are for their repos, not this scratch one.
+    git(["config", "--local", "core.hooksPath", join(dir, "no-hooks")]);
+    git(["commit", "-q", "-S", "--no-verify", "--allow-empty", "-m", "Forge signing check"]);
     const signed =
       identity.format === "ssh"
         ? git(["cat-file", "commit", "HEAD"]).includes("-----BEGIN SSH SIGNATURE-----")
@@ -114,11 +120,18 @@ export function verifyWorkspaceSigning(env: NodeJS.ProcessEnv = process.env): vo
     if (!signed) throw new Error("no signature on the test commit");
     verified.set(cacheKey, Date.now());
   } catch (err) {
-    const why = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    const why = failureWords(err);
     throw new Error(
       `Forge didn't start this card: the signing key didn't sign a test commit (${why}). Check it in setup.`,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** git's own words for a failed command (its stderr), not Node's "Command failed: …" line. */
+function failureWords(err: unknown): string {
+  const stderr = (err as { stderr?: Buffer | string } | null)?.stderr?.toString().trim();
+  if (stderr) return stderr.split("\n").filter(Boolean).slice(-2).join(" ");
+  return err instanceof Error ? (err.message.split("\n")[0] ?? err.message) : String(err);
 }

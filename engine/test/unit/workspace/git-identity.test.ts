@@ -93,6 +93,18 @@ describe("configureWorkspaceGitIdentity", () => {
     expect(localConfig("commit.gpgsign")).toBe("true");
   });
 
+  it("signs an SSH key with ssh-keygen, whatever program the person's global config signs with", () => {
+    // 1Password's op-ssh-sign in the global config can't sign with Forge's key, so every agent commit failed.
+    configureWorkspaceGitIdentity(ws, { ...IDENTITY_ENV, FORGE_GIT_SIGNING_FORMAT: "ssh" });
+    expect(localConfig("gpg.format")).toBe("ssh");
+    expect(localConfig("gpg.ssh.program")).toBe("ssh-keygen");
+  });
+
+  it("leaves a GPG key's signing program to the person", () => {
+    configureWorkspaceGitIdentity(ws, IDENTITY_ENV);
+    expect(localConfig("gpg.ssh.program")).toBeUndefined();
+  });
+
   it("sets only name and email when no signing key is given", () => {
     const { FORGE_GIT_SIGNING_KEY: _unused, ...noKey } = IDENTITY_ENV;
     configureWorkspaceGitIdentity(ws, noKey);

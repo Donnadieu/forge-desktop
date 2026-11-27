@@ -105,7 +105,7 @@ enum SetupProbe {
             let ok = await GitHub.signs(name: k.name, email: k.email, signing: .ownGPG, key: k.id)
             print("\(ok ? "✓" : "✗") a test commit signed with that GPG key")
         }
-        print("\(ForgeSigningKey.exists ? "✓" : "·") Forge's own signing key \(ForgeSigningKey.exists ? "exists" : "isn't made yet")")
+        print("\(ForgeSigningKey.exists() ? "✓" : "·") Forge's own signing key \(ForgeSigningKey.exists() ? "exists" : "isn't made yet")")
         return 0
     }
 }

@@ -73,17 +73,14 @@ enum SetupApply {
         var signingKey: String?
         switch a.signing {
         case .forgeKey:
-            if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "commit signing key for @\(user.login)")) {
-                throw Stop(description: "couldn't make a key")
+            let approved = a.registerForgeKey == true
+            switch await ForgeKeyFlow.run(
+                login: user.login, name: name, email: email, register: approved, grant: { "registering needs the signing-key permission" })
+            {
+            case .signs(let key): signingKey = key
+            case .ask: throw Stop(description: "Forge's key isn't on GitHub and registering wasn't approved")
+            case .problem(let p): throw Stop(description: p.text)
             }
-            if !(await ForgeSigningKey.registered()) {
-                guard a.registerForgeKey == true else { throw Stop(description: "Forge's key isn't on GitHub and registering wasn't approved") }
-                let r = await ForgeSigningKey.register(title: ForgeSigningKey.title)
-                guard r == .done else { throw Stop(description: "GitHub didn't add the key (\(r))") }
-                print("✓ added Forge's signing key to @\(user.login)")
-            }
-            guard await ForgeSigningKey.loadIntoAgent() else { throw Stop(description: "ssh-agent didn't take the key") }
-            signingKey = ForgeSigningKey.publicKeyURL.path
         case .ownGPG:
             guard let k = await GitHub.gpgKeys().first(where: { $0.id == a.gpgKey }) else { throw Stop(description: "no GPG key \(a.gpgKey ?? "")") }
             name = k.name
@@ -92,8 +89,8 @@ enum SetupApply {
         case .unsigned:
             break
         }
-        guard await GitHub.signs(name: name, email: email, signing: a.signing, key: signingKey) else {
-            throw Stop(description: "a test commit didn't come out signed")
+        if a.signing != .forgeKey, let why = await GitHub.signCheck(name: name, email: email, signing: a.signing, key: signingKey) {
+            throw Stop(description: "a test commit didn't sign: \(why)")
         }
         c.githubLogin = user.login
         c.authorName = name

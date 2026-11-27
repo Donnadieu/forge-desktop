@@ -39,8 +39,16 @@ struct GitHubProjectsAPI: Sendable {
         let status: StatusField?
         /// Repos linked to the project (`owner/name`).
         let repos: [String]
-        /// GitHub's own automations that are on and move cards behind Forge's back (see `movingWorkflows`).
-        var movers: [String] = []
+        /// Each of GitHub's automations that would move cards behind Forge's back, on or off (see `movingWorkflows`).
+        var automations: [Automation] = []
+        /// The ones still on.
+        var movers: [String] {
+            get { automations.filter(\.on).map(\.name) }
+            set {
+                automations = GitHubProjectsAPI.movingWorkflows.map { n in Automation(name: n, on: newValue.contains(n), why: automationWhy[n] ?? "")
+                }
+            }
+        }
     }
 
     /// The project's built-in workflows that set a card's Status on their own. "Item added to project" puts
@@ -51,9 +59,33 @@ struct GitHubProjectsAPI: Sendable {
         "Item added to project", "Item reopened", "Pull request linked to issue", "Code changes requested", "Code review approved",
     ]
 
+    /// One of `movingWorkflows`, as this project has it.
+    struct Automation: Equatable, Sendable {
+        let name: String
+        let on: Bool
+        /// What it would do to a card behind Forge's back.
+        let why: String
+    }
+
+    static let automationWhy = [
+        "Item added to project": "puts every new card in Todo, so agents would build a follow-up nobody looked at",
+        "Item reopened": "moves a reopened card back to a column of its own",
+        "Pull request linked to issue": "pulls a card back to In Progress when its pull request is linked",
+        "Code changes requested": "moves a card when a review asks for changes",
+        "Code review approved": "moves a card when a review approves it",
+    ]
+
+    /// Each automation Forge needs off, on or off in this project. GitHub lets a workflow be duplicated under the
+    /// same name: any copy that's on counts.
+    static func automations(_ workflows: [[String: Any]]) -> [Automation] {
+        let on = Set(movers(workflows))
+        return movingWorkflows.map { Automation(name: $0, on: on.contains($0), why: automationWhy[$0] ?? "") }
+    }
+
     /// The enabled ones among `movingWorkflows`, from the project's `workflows` list.
     static func movers(_ workflows: [[String: Any]]) -> [String] {
-        workflows.filter { ($0["enabled"] as? Bool) == true }.compactMap { $0["name"] as? String }.filter { movingWorkflows.contains($0) }
+        let on = workflows.filter { ($0["enabled"] as? Bool) == true }.compactMap { $0["name"] as? String }
+        return movingWorkflows.filter { on.contains($0) }
     }
     struct NewIssue: Sendable {
         let id: String
@@ -181,7 +213,7 @@ struct GitHubProjectsAPI: Sendable {
         let status = (node["field"] as? [String: Any]).flatMap { $0["id"] == nil ? nil : try? Self.decode($0, as: StatusField.self) }
         let repos = ((node["repositories"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? []).compactMap { $0["nameWithOwner"] as? String }
         let flows = (node["workflows"] as? [String: Any])?["nodes"] as? [[String: Any]] ?? []
-        return ProjectDetail(project: try Self.decode(node, as: Project.self), status: status, repos: repos, movers: Self.movers(flows))
+        return ProjectDetail(project: try Self.decode(node, as: Project.self), status: status, repos: repos, automations: Self.automations(flows))
     }
 
     /// Pipeline column name -> the Status option with that name (case and spacing don't matter).

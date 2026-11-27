@@ -188,6 +188,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   (`AppIcon.finderShowsTheAnvil` waits up to 20 s). A check that waits on macOS needs a limit sized for a busy Mac, and
   returns as soon as it passes.
 - `cmd | grep -q` under `set -o pipefail` can fail on SIGPIPE: capture the output into a variable first.
+- `Tools.run`'s time limit must bound the whole call: a program that ignores SIGTERM is killed after 2 s, and a child it
+  started (`cmd &`) can keep the output pipes open long after it exits, so the readers get at most 2 more seconds.
+  Waiting for EOF with no limit kept setup on "Working…" for good (`toolTimeLimitChecks`).
+- A scratch commit that proves signing must not inherit the person's global git config: an SSH key signs through
+  `gpg.ssh.program ssh-keygen` set locally (1Password's op-ssh-sign in a global config can't sign with Forge's key),
+  and `core.hooksPath` points at an empty folder with `--no-verify`. Never empty the global config for this (the
+  lint bans it); a check may point `GIT_CONFIG_GLOBAL` at a scratch FILE to act out a person's config.
+- A Unix socket path is limited to 104 bytes and macOS's temporary folder is long: a scratch ssh-agent's socket goes
+  in `/tmp`.
 - A test that fails only in the full suite or the commit hook is a race until proven otherwise. Fix it
   the second time it shows up instead of retrying: reproduce with 4 parallel runs x 5, show the old code
   fails and the new code passes.
@@ -428,6 +437,15 @@ description: Use before any change in Forge Desktop. The loop that keeps the rep
   `ProjectV2.workflows { name enabled }`; there is no API to switch one off, only `deleteProjectV2Workflow`.
 - Adding Status options goes through `updateProjectV2Field(singleSelectOptions:)`, which replaces the whole list:
   send every existing option with its `id` (or every card in it loses its column). Order is the list order.
+- A setup step that calls tools answers with the reason in the tool's own words (`Tools.Result.reason`) and one fix,
+  never a fixed "didn't work" line: the Forge-key step said only "Working…" then failed for an outside user. Record
+  what the real `gh` prints for each answer against a stand-in GitHub (`GH_HOST=github.localhost` with `HTTP_PROXY`
+  pointing at a local server reaches it with the real CLI) and test the readers on those words.
+- `gh auth refresh` grants a scope to GitHub CLI's own sign-in: an account added in Forge (`GitHubAccountRecord`) needs
+  Forge's device sign-in with the extra scope instead (`SigningPermission.route`).
+- GitHub's Workflows page lists about a dozen project automations; only `movingWorkflows` fight Forge. Show each of those
+  On or Off and name the rest as safe; a workflow's own page id isn't in the API (`ProjectV2Workflow.number` differs),
+  so link the Workflows page.
 - Testing the GitHub sign-in from a sandbox: a scratch app copy and keychain (as for Basecamp), a stand-in device
   server proves the save path (`FORGE_GITHUB_AUTH`), then one real approval; record live GraphQL answers by
   wrapping `fetch` in the test script and keep them in `engine/test/fixtures/github/`.

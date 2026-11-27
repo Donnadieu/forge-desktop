@@ -15,7 +15,15 @@ struct GitHubScreen: View {
     @State private var code: String?
     @State private var problem: String?
     @State private var askRegister = false
+    /// The person said yes to adding the key (so Try again doesn't ask twice).
+    @State private var approved = false
+    /// What the Forge-key step is doing now, shown instead of a bare "Working…".
+    @State private var stage: String?
+    @State private var signingProblem: SigningProblem?
+    @State private var running: Task<Void, Never>?
     @StateObject private var adding = GitHubAccountSignIn()
+    static let changeNote =
+        "This changes your GitHub account: it adds one SSH signing key named \"\(ForgeSigningKey.title)\". You can remove it in GitHub's settings."
 
     var body: some View {
         SetupFrame(
@@ -24,9 +32,10 @@ struct GitHubScreen: View {
             detail: "Agents push branches and open pull requests on your GitHub. Their commits carry your name, "
                 + "signed so GitHub shows them as Verified.",
             primary: "Check and continue",
-            primaryEnabled: user != nil && choiceComplete,
+            primaryEnabled: user != nil && choiceComplete && signingProblem == nil,
             busy: busy,
-            action: start
+            action: start,
+            busyText: stage
         ) {
             HStack(spacing: 12) {
                 if accounts.count > 1 {
@@ -54,20 +63,30 @@ struct GitHubScreen: View {
             } else if loaded {
                 SignInBox(code: code, busy: busy, action: signIn, open: { model.openLink(GitHubSignIn.devicePage) })
             }
-            DeviceCodeLine(code: user == nil ? nil : code) { model.openLink(GitHubSignIn.devicePage) }
+            if let p = signingProblem { SigningProblemBox(problem: p, fix: { fix(p.fix) }, unsigned: continueUnsigned) }
+            DeviceCodeLine(code: user == nil ? nil : code, cancel: running == nil ? nil : { running?.cancel() }) {
+                model.openLink(GitHubSignIn.devicePage)
+            }
             ProblemLine(text: problem)
         }
         .task { await load() }
+        .onChange(of: signing) { _, _ in
+            signingProblem = nil
+            problem = nil
+        }
         .onChange(of: account) { _, a in
             guard !model.preview, !a.isEmpty, a != GitHub.account else { return }
             GitHub.account = a
             Task { user = await GitHub.user() }
         }
-        .confirmationDialog("Add Forge's signing key to @\(user?.login ?? "") on GitHub?", isPresented: $askRegister) {
-            Button("Add the key") { Task { await finishForgeKey(register: true) } }
+        .confirmationDialog("Add a signing key to @\(user?.login ?? "") on GitHub?", isPresented: $askRegister) {
+            Button("Add the key") {
+                approved = true
+                runForgeKey(register: true)
+            }
             Button("Not now", role: .cancel) {}
         } message: {
-            Text("This changes your GitHub account: it adds one SSH signing key named \"Forge\". You can remove it in GitHub's settings.")
+            Text(Self.changeNote)
         }
     }
 
@@ -116,8 +135,7 @@ struct GitHubScreen: View {
         if signing == .forgeKey {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "info.circle").font(Theme.icon(.glyph))
-                Text("This changes your GitHub account: it adds one SSH signing key named \"Forge\". You can remove it in GitHub's settings.")
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(Self.changeNote).fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.sans(.small))
             .foregroundStyle(Theme.textMuted)
@@ -142,6 +160,16 @@ struct GitHubScreen: View {
             accounts = ["samrivera", "samrivera-andela"] + (model.store.githubAccounts ?? []).map(\.login)
             account = "samrivera"
             loaded = true
+            switch model.sample.scene {
+            case "signing-permission":
+                signingProblem = SigningProblem(
+                    text:
+                        "GitHub still doesn't let Forge add signing keys to @samrivera. Approve the permission while signed in to GitHub as @samrivera.",
+                    fix: .permission)
+            case "signing-code":
+                (busy, stage, code) = (true, "Waiting for you to approve on GitHub…", "WDJB-MJHT")
+            default: break
+            }
             return
         }
         busy = true
@@ -161,17 +189,23 @@ struct GitHubScreen: View {
         busy = true
         problem = nil
         Task {
-            let ok = await GitHubSignIn.run(.signIn) { c in Task { @MainActor in code = c } }
+            let why = await GitHubSignIn.run(.signIn) { c in
+                Task { @MainActor in
+                    code = c
+                    model.openLink(GitHubSignIn.devicePage)
+                }
+            }
             code = nil
             busy = false
-            if ok { user = await GitHub.user() } else { problem = "GitHub sign-in didn't finish. Try again." }
+            if let why { problem = "GitHub sign-in didn't finish: \(why)" } else { user = await GitHub.user() }
         }
     }
 
     private func start() {
         problem = nil
+        signingProblem = nil
         switch signing {
-        case .forgeKey: Task { await finishForgeKey(register: false) }
+        case .forgeKey: runForgeKey(register: approved)
         case .ownGPG:
             guard let k = keys.first(where: { $0.id == gpgKey }) else { return }
             Task { await check(name: k.name, email: k.email, key: k.id) }
@@ -180,56 +214,92 @@ struct GitHubScreen: View {
         }
     }
 
-    /// Make the key if needed; register it after a yes; then prove it signs.
-    private func finishForgeKey(register: Bool) async {
-        guard let user else { return }
+    /// Make the key if needed; add it to GitHub after a yes (asking GitHub for the permission if needed); prove it
+    /// signs. Any stop shows its reason and the one fix.
+    private func runForgeKey(register: Bool) {
+        guard let user, running == nil else { return }
+        if model.preview { return }
         busy = true
-        defer { busy = false }
-        if !ForgeSigningKey.exists, !(await ForgeSigningKey.make(comment: "commit signing key for @\(user.login)")) {
-            problem = "Forge couldn't make a key."
-            return
-        }
-        if !(await ForgeSigningKey.registered()) {
-            guard register else {
-                askRegister = true
-                return
-            }
-            var result = await ForgeSigningKey.register(title: ForgeSigningKey.title)
-            if result == .needsPermission {
-                let ok = await GitHubSignIn.run(.signingKeyPermission) { c in Task { @MainActor in code = c } }
-                code = nil
-                guard ok else {
-                    problem = "GitHub didn't give Forge the permission to add a signing key."
-                    return
-                }
-                result = await ForgeSigningKey.register(title: ForgeSigningKey.title)
-            }
-            if case .failed(let why) = result {
-                problem = "GitHub didn't add the key: \(why)"
-                return
+        signingProblem = nil
+        let account = GitHub.account ?? user.login
+        running = Task {
+            let outcome = await ForgeKeyFlow.run(
+                login: user.login, name: user.name, email: user.noreplyEmail, register: register,
+                stage: { s in Task { @MainActor in stage = s } },
+                grant: {
+                    let why = await SigningPermission.grant(account: account) { c, url in
+                        Task { @MainActor in
+                            code = c
+                            model.openLink(url)
+                        }
+                    }
+                    await MainActor.run { code = nil }
+                    return why
+                })
+            (busy, stage, code, running) = (false, nil, nil, nil)
+            switch outcome {
+            case .ask: askRegister = true
+            case .problem(let p): signingProblem = p
+            case .signs(let key): save(name: user.name, email: user.noreplyEmail, key: key)
             }
         }
-        guard await ForgeSigningKey.loadIntoAgent() else {
-            problem = "Forge couldn't hand the key to your Mac's key agent."
-            return
+    }
+
+    private func fix(_ f: SigningProblem.Fix) {
+        switch f {
+        case .permission:
+            approved = true
+            runForgeKey(register: true)
+        case .newKey:
+            ForgeSigningKey.forget()
+            approved = false
+            runForgeKey(register: false)
+        case .tryAgain: runForgeKey(register: approved)
         }
-        await check(name: user.name, email: user.noreplyEmail, key: ForgeSigningKey.publicKeyURL.path)
+    }
+
+    /// The way on without signing: GitHub shows these commits as Unverified; Settings can change it later.
+    private func continueUnsigned() {
+        signing = .unsigned
+        understood = true
+        Task { await check(name: user?.name ?? "", email: user?.noreplyEmail ?? "", key: nil) }
     }
 
     private func check(name: String, email: String, key: String?) async {
         busy = true
         defer { busy = false }
-        let signs = model.preview ? true : await GitHub.signs(name: name, email: email, signing: signing, key: key)
-        guard signs else {
-            problem = "A test commit didn't come out signed. Check the key and try again."
+        if !model.preview, let why = await GitHub.signCheck(name: name, email: email, signing: signing, key: key) {
+            problem = "A test commit with your key didn't sign: \(why)"
             return
         }
+        save(name: name, email: email, key: key)
+    }
+
+    private func save(name: String, email: String, key: String?) {
         model.choices.githubLogin = user?.login
         model.choices.authorName = name
         model.choices.authorEmail = email
         model.choices.signing = signing
         model.choices.signingKey = key
         model.next()
+    }
+}
+
+/// Why the Forge key isn't ready, its one fix, and the way on without signing.
+struct SigningProblemBox: View {
+    let problem: SigningProblem
+    let fix: () -> Void
+    let unsigned: () -> Void
+
+    var body: some View {
+        Notice(title: problem.text) {
+            HStack(spacing: 16) {
+                Button(problem.fixTitle, action: fix).buttonStyle(ForgeButton(kind: .fix))
+                Button(SigningProblem.unsignedTitle, action: unsigned).buttonStyle(ForgeButton(kind: .plain))
+            }
+        }
+        .frame(maxWidth: 640, alignment: .leading)
+        .padding(.top, 14)
     }
 }
 
@@ -256,6 +326,7 @@ struct SignInBox: View {
 /// The one-time code GitHub asks for, and the page to type it on.
 struct DeviceCodeLine: View {
     let code: String?
+    var cancel: (() -> Void)? = nil
     let open: () -> Void
 
     var body: some View {
@@ -266,6 +337,7 @@ struct DeviceCodeLine: View {
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.25)))
                 Button("Open GitHub", action: open).buttonStyle(ForgeButton(kind: .secondary, icon: "arrow.up.right.square"))
                 Text("Type this code there, then come back.").font(Theme.sans(.small)).foregroundStyle(Theme.textMuted)
+                if let cancel { Button("Cancel", action: cancel).buttonStyle(ForgeButton(kind: .plain)) }
             }
             .padding(.top, 14)
         }

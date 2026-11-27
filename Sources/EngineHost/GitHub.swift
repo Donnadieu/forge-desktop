@@ -131,29 +131,41 @@ enum GitHub {
     }
 
     /// Proves the chosen identity really signs: one signed commit in a scratch repo, checked by git.
-    static func signs(name: String, email: String, signing: SetupChoices.Signing, key: String?) async -> Bool {
-        if signing == .unsigned { return true }
-        guard let key else { return false }
+    static func signs(name: String, email: String, signing: SetupChoices.Signing, key: String?, env: [String: String] = [:]) async -> Bool {
+        await signCheck(name: name, email: email, signing: signing, key: key, env: env) == nil
+    }
+
+    /// The same, nil when the test commit signs, otherwise why not in git's own words. The scratch repo signs the way
+    /// agents' workspaces do: an SSH key through `ssh-keygen` (the person's global config may name another program,
+    /// such as 1Password's op-ssh-sign, which can't sign with Forge's key), and none of the person's hooks run.
+    static func signCheck(
+        name: String, email: String, signing: SetupChoices.Signing, key: String?, env: [String: String] = [:]
+    ) async -> String? {
+        if signing == .unsigned { return nil }
+        guard let key else { return "There's no signing key to test." }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("forge-sign-check-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let format = signing == .forgeKey ? "ssh" : "openpgp"
-        let git = { (a: [String]) in await Tools.run("git", a, cwd: dir, timeout: 30) }
-        _ = await git(["init", "-q"])
-        for (k, v) in [
+        let git = { (a: [String]) in await Tools.run("git", a, cwd: dir, env: env, timeout: 30) }
+        let made = await git(["init", "-q"])
+        guard made.ok else { return made.status == 127 ? "git isn't installed on this Mac." : "git couldn't make a scratch repo: \(made.reason)" }
+        var settings = [
             ("user.name", name), ("user.email", email), ("user.signingkey", key), ("gpg.format", format), ("commit.gpgsign", "true"),
-        ] {
-            _ = await git(["config", "--local", k, v])
-        }
-        let commit = await git(["commit", "-q", "--allow-empty", "-m", "Forge signing check"])
-        guard commit.ok else { return false }
+            ("core.hooksPath", dir.appendingPathComponent("no-hooks").path),
+        ]
+        if signing == .forgeKey { settings.append(("gpg.ssh.program", "ssh-keygen")) }
+        for (k, v) in settings { _ = await git(["config", "--local", k, v]) }
+        let commit = await git(["commit", "-q", "--no-verify", "--allow-empty", "-m", "Forge signing check"])
+        if commit.timedOut { return "signing took longer than 30 seconds (\(commit.reason))" }
+        guard commit.ok else { return commit.reason }
         if signing == .forgeKey {
             // git can't check an SSH signature without a list of trusted keys; the agent signing it is the proof.
             let raw = await git(["cat-file", "commit", "HEAD"])
-            return raw.out.contains("-----BEGIN SSH SIGNATURE-----")
+            return raw.out.contains("-----BEGIN SSH SIGNATURE-----") ? nil : "git made the commit without a signature."
         }
-        let status = await git(["log", "-1", "--format=%G?"])
-        return ["G", "U"].contains(status.out.trimmingCharacters(in: .whitespacesAndNewlines))
+        let status = await git(["log", "-1", "--format=%G?"]).out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["G", "U"].contains(status) ? nil : "git couldn't check the signature (it says \(status.isEmpty ? "nothing" : status))."
     }
 }
 

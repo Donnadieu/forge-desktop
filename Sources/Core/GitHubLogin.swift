@@ -36,7 +36,8 @@ enum GitHubLogin {
         let expiresAt: Date
     }
 
-    static func start() async throws -> DeviceCode {
+    /// `scopes`: what the sign-in may do (adding signing keys asks for one more, `SigningPermission`).
+    static func start(scopes: String = Self.scopes) async throws -> DeviceCode {
         let obj = try await post("/login/device/code", ["client_id": clientID, "scope": scopes])
         guard let device = obj["device_code"] as? String, let user = obj["user_code"] as? String else {
             throw Failure(description: "GitHub didn't start the sign-in.")

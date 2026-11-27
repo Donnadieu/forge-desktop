@@ -22,6 +22,8 @@ struct GitHubProjectScreen: View {
     @State private var problem: String?
     @State private var asking = false
     @State private var notes: [String] = []
+    @State private var checking = false
+    @State private var checkedAt: Date?
 
     private var project: GitHubProjectsAPI.Project? { projects.first { $0.id == projectID } }
     private var existing: [String] { detail?.status?.options.map(\.name) ?? [] }
@@ -57,6 +59,15 @@ struct GitHubProjectScreen: View {
     static func newProjectURL(login: String) -> String { "https://github.com/\(login)?tab=projects" }
 
     static let reconnectTitle = "Reconnect GitHub with project access"
+    /// GitHub's Workflows page for the project. Each workflow's own page has an id GitHub's API doesn't give.
+    static func workflowsURL(_ project: String) -> String { project + "/workflows" }
+    static let checkAgainTitle = "Check again"
+    static let automationSteps =
+        "On GitHub's Workflows page, click each one marked On below, then switch it Off at the top right. Forge checks again every few seconds."
+    static let stayOnLine =
+        "The rest of that page can stay as it is: Item closed, Pull request merged, Auto-add to project, Auto-archive items, Auto-close issue "
+        + "and Auto-add sub-issues to project don't move cards against Forge."
+    static func automationsTitle(on: Int) -> String { "Turn off \(on) of GitHub's automations in this project" }
 
     /// Forge signs in through GitHub CLI's app, so that's the app an organization owner has to approve.
     static func hiddenLine(_ orgs: [String]) -> String {
@@ -81,13 +92,13 @@ struct GitHubProjectScreen: View {
             if detail?.status != nil {
                 MissingColumnsNote(existing: existing, from: "this project's Status", tracker: "GitHub") { asking = true }
             }
-            if !movers.isEmpty, let url = project?.url {
-                ProblemLine(
-                    text: "GitHub moves cards on its own in this project (\(movers.joined(separator: ", "))). "
-                        + "Turn \(movers.count == 1 ? "it" : "them") off so cards stay where Forge puts them; Forge checks again by itself.")
-                Button("Turn them off on GitHub ↗") { model.openLink(url + "/workflows") }
-                    .buttonStyle(ForgeButton(kind: .fix))
-                    .padding(.top, 6)
+            if !movers.isEmpty, let url = project?.url, let rows = detail?.automations {
+                AutomationsPanel(rows: rows, checking: checking, checkedAt: checkedAt) {
+                    model.openLink(Self.workflowsURL(url))
+                } check: {
+                    Task { await recheck() }
+                }
+                .padding(.top, 12)
             }
             if detail != nil && detail?.status == nil {
                 ProblemLine(text: "This project has no Status field. Add a single-select field named Status on GitHub, then pick it again.")
@@ -100,12 +111,13 @@ struct GitHubProjectScreen: View {
             // Re-check every few seconds while GitHub's automations are on, so the fix shows by itself.
             while !movers.isEmpty, !model.preview, !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
-                if let d = try? await GitHubProjectsAPI().project(projectID) { detail = d }
+                if !Task.isCancelled { await recheck() }
             }
         }
         // Back from GitHub (a new project, an approved app): look again by itself.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if !model.preview, !busy, !needsReconnect, state != .pick || !hidden.isEmpty { Task { await loadProjects() } }
+            if !model.preview, !movers.isEmpty { Task { await recheck() } }
         }
         .onChange(of: projectID) { _, _ in Task { await loadDetail() } }
         .confirmationDialog(
@@ -249,6 +261,18 @@ struct GitHubProjectScreen: View {
             let saved = model.choices.githubBoard?.issueRepo
             repo = [saved, d.repos.first, model.choices.repo].compactMap { $0 }.first { repos.contains($0) } ?? ""
         } catch { problem = "\(error)" }
+    }
+
+    /// Reads the project's automations again, keeping the rest of the screen as it is.
+    private func recheck() async {
+        guard !model.preview, !projectID.isEmpty, !checking else { return }
+        checking = true
+        defer { checking = false }
+        do {
+            detail = try await GitHubProjectsAPI().project(projectID)
+            checkedAt = Date()
+            problem = nil
+        } catch { problem = "Forge couldn't check the project again: \(error)" }
     }
 
     private func createMissing() async {

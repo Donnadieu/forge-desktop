@@ -19,6 +19,8 @@ extension Checks {
         Group(name: "harness", seconds: 0.1, run: harnessChecks),
         Group(name: "tracker", seconds: 0.1, run: trackerChecks),
         Group(name: "github-project-list", seconds: 0.1, run: githubProjectListChecks),
+        Group(name: "github-automations", seconds: 0.1, run: githubAutomationChecks),
+        Group(name: "forge-key", seconds: 6, run: forgeKeyChecks),
         Group(name: "linear-team", seconds: 0.1, run: linearTeamChecks),
         Group(name: "missing-column-setup", seconds: 0.1, run: missingColumnSetupChecks),
         Group(name: "missing-column-studio", seconds: 0.1, run: missingColumnStudioChecks),
